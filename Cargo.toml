@@ -1,0 +1,3 @@
+[workspace]
+members = ["regr", "rex", "rexel"]
+resolver = "2"

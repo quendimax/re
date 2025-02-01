@@ -1,0 +1,5 @@
+[package]
+name = "regr"
+version = "0.1.0"
+edition = "2021"
+authors = ["Maksim Tomkavich <quendimax@gmail.com>"]
