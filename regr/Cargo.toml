@@ -3,3 +3,9 @@ name = "regr"
 version = "0.1.0"
 edition = "2021"
 authors = ["Maksim Tomkavich <quendimax@gmail.com>"]
+
+[dependencies]
+regex-syntax = "0.8.5"
+
+[dev-dependencies]
+pretty_assertions = "1"
