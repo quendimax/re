@@ -35,6 +35,24 @@ impl<T: Copy> Range<T> {
     }
 }
 
+impl<T: PartialOrd> Range<T> {
+    /// Sets a new value of `start` filed.
+    ///
+    /// Panics if the new `start` is greater than `end`.
+    pub fn set_start(&mut self, value: T) {
+        assert!(value <= self.end);
+        self.start = value
+    }
+
+    /// Sets a new value of `end` filed.
+    ///
+    /// Panics if the new `end` is less than `start`.
+    pub fn set_end(&mut self, value: T) {
+        assert!(self.start <= value);
+        self.end = value
+    }
+}
+
 impl<T: Copy + PartialOrd> std::convert::From<T> for Range<T> {
     fn from(value: T) -> Self {
         Self::new(value, value)
@@ -109,11 +127,11 @@ impl<T: Symbol + Ord> Range<T> {
     }
 }
 
-impl<T: std::fmt::Debug + PartialEq + Copy> std::fmt::Debug for Range<T> {
+impl<T: std::fmt::Debug + PartialEq> std::fmt::Debug for Range<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("[")?;
         self.start.fmt(f)?;
-        if self.start() != self.end() {
+        if self.start != self.end {
             f.write_str("-")?;
             self.end.fmt(f)?;
         }

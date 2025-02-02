@@ -1,3 +1,6 @@
+mod edge;
+pub use edge::Edge;
+
 mod error;
 pub use error::{err, Error};
 

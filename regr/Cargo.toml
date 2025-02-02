@@ -6,6 +6,7 @@ authors = ["Maksim Tomkavich <quendimax@gmail.com>"]
 
 [dependencies]
 regex-syntax = "0.8.5"
+smallvec = "1"
 
 [dev-dependencies]
 pretty_assertions = "1"
