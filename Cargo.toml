@@ -1,3 +1,8 @@
 [workspace]
 members = ["regr", "rex", "rexel"]
 resolver = "2"
+
+[workspace.package]
+authors = ["Maksim Tomkavich <quendimax@gmail.com>"]
+edition = "2021"
+repository = "https://github.com/quendimax/re.git"

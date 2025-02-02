@@ -1,3 +1,5 @@
+pub mod adt;
+
 mod edge;
 pub use edge::Edge;
 

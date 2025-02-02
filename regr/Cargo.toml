@@ -1,12 +1,19 @@
 [package]
 name = "regr"
 version = "0.1.0"
-edition = "2021"
-authors = ["Maksim Tomkavich <quendimax@gmail.com>"]
+# workspace inheritance
+authors.workspace = true
+edition.workspace = true
+repository.workspace = true
 
 [dependencies]
+linked-hash-map = { version = "0.5.6", optional = true }
+linked_hash_set = { version = "0.1.5", optional = true }
 regex-syntax = "0.8.5"
 smallvec = "1"
+
+[features]
+ordered-hash = ["dep:linked-hash-map", "dep:linked_hash_set"]
 
 [dev-dependencies]
 pretty_assertions = "1"
