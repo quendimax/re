@@ -1,3 +1,5 @@
+pub(crate) mod arena;
+
 pub mod adt;
 
 mod edge;
@@ -6,9 +8,9 @@ pub use edge::Edge;
 mod error;
 pub use error::{err, Error, Result};
 
+pub mod nfa;
+
 mod node;
-pub use node::arena::Arena;
-pub use node::nfa;
 pub use node::NodeId;
 
 mod range;
