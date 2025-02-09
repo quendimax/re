@@ -8,7 +8,7 @@ pub use error::{err, Error};
 
 mod node;
 pub use node::arena::Arena;
-pub use node::nfa::{Epsilon, Node};
+pub use node::nfa::Node;
 pub use node::NodeId;
 
 mod range;

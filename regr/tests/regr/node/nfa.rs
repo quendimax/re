@@ -1,6 +1,6 @@
 use pretty_assertions::{assert_eq, assert_ne};
 use regr::adt::Set;
-use regr::{edge, Arena, Epsilon};
+use regr::{edge, Arena};
 
 #[test]
 fn node_partial_eq() {
@@ -22,7 +22,7 @@ fn node_connect() {
     node_a.connect(node_b, edge!['a']);
     node_a.connect(node_c, edge!['a']);
     node_a.connect(node_c, edge!['a']);
-    node_c.connect(node_a, Epsilon);
+    node_c.connect_with_epsilon(node_a);
 }
 
 #[test]
@@ -34,13 +34,13 @@ fn node_eclose() {
     let d = arena.node_nfa();
 
     a.connect(b, edge!['a', char::MAX]);
-    a.connect(b, Epsilon);
-    b.connect(c, Epsilon);
+    a.connect_with_epsilon(b);
+    b.connect_with_epsilon(c);
     c.connect(d, edge!['c']);
-    b.connect(a, Epsilon);
-    d.connect(a, Epsilon);
-    d.connect(b, Epsilon);
-    d.connect(c, Epsilon);
+    b.connect_with_epsilon(a);
+    d.connect_with_epsilon(a);
+    d.connect_with_epsilon(b);
+    d.connect_with_epsilon(c);
 
     let set = Set::from_iter(vec![a, b, c]);
     assert_eq!(a.eclosure(), set)
@@ -56,13 +56,13 @@ fn node_print_graph_0() {
     let d = arena.node_nfa();
 
     a.connect(b, edge!['a'..=char::MAX]);
-    a.connect(b, Epsilon);
-    b.connect(c, Epsilon);
+    a.connect_with_epsilon(b);
+    b.connect_with_epsilon(c);
     c.connect(d, edge!['c']);
-    b.connect(a, Epsilon);
-    d.connect(a, Epsilon);
-    d.connect(b, Epsilon);
-    d.connect(c, Epsilon);
+    b.connect_with_epsilon(a);
+    d.connect_with_epsilon(a);
+    d.connect_with_epsilon(b);
+    d.connect_with_epsilon(c);
     let mut string = String::new();
     a.print_graph(&mut string, "        ").unwrap();
     assert_eq!(

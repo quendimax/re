@@ -4,14 +4,6 @@ use crate::edge::Edge;
 use crate::symbol::Symbol;
 use std::cell::RefCell;
 
-pub struct Epsilon;
-
-impl std::fmt::Debug for Epsilon {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("EPSILON")
-    }
-}
-
 #[derive(Clone, Copy)]
 pub struct Node<'a, T>(&'a NodeInner<'a, T>);
 
@@ -19,23 +11,6 @@ pub(super) struct NodeInner<'a, T> {
     id: NodeId,
     targets: RefCell<Map<Node<'a, T>, Edge<T>>>,
     epsilon_targets: RefCell<Set<Node<'a, T>>>,
-}
-
-enum EdgeNfa<T> {
-    Edge(Edge<T>),
-    Epsilon,
-}
-
-impl<T> std::convert::From<Edge<T>> for EdgeNfa<T> {
-    fn from(value: Edge<T>) -> Self {
-        EdgeNfa::Edge(value)
-    }
-}
-
-impl<T> std::convert::From<Epsilon> for EdgeNfa<T> {
-    fn from(_: Epsilon) -> Self {
-        EdgeNfa::<T>::Epsilon
-    }
 }
 
 impl<T> NodeInner<'_, T> {
@@ -58,23 +33,19 @@ impl<'a, T: PartialOrd + Ord + Symbol> Node<'a, T> {
     ///
     /// * `to` - The target node to connect to
     /// * `with` - The edge rule describing valid transitions to the target
-    #[allow(private_bounds)]
-    pub fn connect(&self, to: Node<'a, T>, with: impl Into<EdgeNfa<T>>) {
+    pub fn connect(&self, to: Node<'a, T>, with: impl Into<Edge<T>>) {
         let with = with.into();
-        match with {
-            EdgeNfa::Edge(with) => {
-                let mut targets = self.0.targets.borrow_mut();
-                if let Some(edge) = targets.get_mut(&to) {
-                    edge.merge(&with);
-                } else {
-                    targets.insert(to, with);
-                }
-            }
-            EdgeNfa::Epsilon => {
-                let mut targets = self.0.epsilon_targets.borrow_mut();
-                targets.insert(to);
-            }
+        let mut targets = self.0.targets.borrow_mut();
+        if let Some(edge) = targets.get_mut(&to) {
+            edge.merge(&with);
+        } else {
+            targets.insert(to, with);
         }
+    }
+
+    pub fn connect_with_epsilon(&self, to: Node<'a, T>) {
+        let mut targets = self.0.epsilon_targets.borrow_mut();
+        targets.insert(to);
     }
 
     /// Returns a set of all nodes reachable from this one through epsilon
@@ -140,7 +111,7 @@ impl<'a, T: PartialEq + Copy + std::fmt::Debug> Node<'a, T> {
                 write!(w, "\n{ident}    {:?} -> {}", edge, target.0.id)?;
             }
             for target in epsilon_targets.iter() {
-                write!(w, "\n{ident}    {:?} -> {}", Epsilon, target.0.id)?;
+                write!(w, "\n{ident}    EPSILON -> {}", target.0.id)?;
             }
         }
         Ok(())
