@@ -1,6 +1,6 @@
 use crate::range::Range;
 use crate::symbol::Symbol;
-use smallvec::SmallVec;
+use smallvec::{smallvec, SmallVec};
 
 /// Edge is a sorted set of nonintersecting symbol ranges, that represents a
 /// connection between two states.
@@ -14,6 +14,19 @@ impl<T> Edge<T> {
     pub fn new() -> Self {
         Self {
             ranges: Default::default(),
+        }
+    }
+
+    /// Returns an iterator over inner range vector in ascendent order.
+    pub fn ranges(&self) -> std::slice::Iter<'_, Range<T>> {
+        self.ranges.iter()
+    }
+}
+
+impl<T> std::convert::From<Range<T>> for Edge<T> {
+    fn from(range: Range<T>) -> Self {
+        Self {
+            ranges: smallvec![range]
         }
     }
 }
