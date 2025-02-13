@@ -2,7 +2,7 @@ use crate::adt::{Map, Set};
 use crate::edge::Edge;
 use crate::node::NodeId;
 use crate::symbol::Symbol;
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::ptr::NonNull;
 
 #[derive(Clone, Copy)]
@@ -89,7 +89,9 @@ impl<'a, T: PartialOrd + Ord + Symbol> Node<'a, T> {
             targets.insert(to, with);
         }
     }
+}
 
+impl<'a, T: Copy> Node<'a, T> {
     pub fn connect_with_epsilon(&self, to: Node<'a, T>) {
         let to = NodePtr::from(to);
         let mut targets = self.0.epsilon_targets.borrow_mut();
@@ -102,7 +104,7 @@ impl<'a, T: PartialOrd + Ord + Symbol> Node<'a, T> {
     /// Performs a recursive traversal of the node's epsilon transitions to
     /// calculate the epsilon closure. Each node is visited only once.
     #[allow(clippy::mutable_key_type)]
-    pub fn eclosure(&'a self) -> Set<Node<'a, T>> {
+    pub fn eclosure(&self) -> Set<Node<'a, T>> {
         fn finder<T: Copy>(node_ptr: NodePtr<T>, closure: &mut Set<Node<T>>) {
             let node = Node::from(node_ptr);
             if closure.contains(&node) {
@@ -116,6 +118,20 @@ impl<'a, T: PartialOrd + Ord + Symbol> Node<'a, T> {
         let mut closure_set = Set::new();
         finder((*self).into(), &mut closure_set);
         closure_set
+    }
+}
+
+impl<'a, T> Node<'a, T> {
+    pub fn targets(&self) -> TargetsReadLock<'a, T> {
+        TargetsReadLock {
+            refer: self.0.targets.borrow(),
+        }
+    }
+
+    pub fn epsilon_targets(&self) -> EpsilonTargetsReadLock<'a, T> {
+        EpsilonTargetsReadLock {
+            refer: self.0.epsilon_targets.borrow(),
+        }
     }
 }
 
@@ -200,5 +216,27 @@ impl<T> NodeInner<T> {
             targets: Default::default(),
             epsilon_targets: Default::default(),
         }
+    }
+}
+
+pub struct TargetsReadLock<'a, T> {
+    refer: Ref<'a, Map<NodePtr<T>, Edge<T>>>,
+}
+
+impl<T> TargetsReadLock<'_, T> {
+    pub fn iter(&self) -> impl std::iter::Iterator<Item = (Node<'_, T>, &Edge<T>)> {
+        self.refer
+            .iter()
+            .map(|(node_ptr, edge)| (Node::from(*node_ptr), edge))
+    }
+}
+
+pub struct EpsilonTargetsReadLock<'a, T> {
+    refer: Ref<'a, Set<NodePtr<T>>>,
+}
+
+impl<T> EpsilonTargetsReadLock<'_, T> {
+    pub fn iter(&self) -> impl std::iter::Iterator<Item = Node<'_, T>> {
+        self.refer.iter().map(|node_ptr| Node::from(*node_ptr))
     }
 }
