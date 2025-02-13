@@ -194,9 +194,11 @@ impl<T> std::fmt::Display for NodePtr<T> {
     }
 }
 
+type Pair<T> = (Range<T>, NodePtr<T>);
+
 pub(super) struct NodeInner<T> {
     id: NodeId,
-    targets: RefCell<SmallVec<[(Range<T>, NodePtr<T>); 2]>>,
+    targets: RefCell<SmallVec<[Pair<T>; 2]>>,
 }
 
 impl<T> NodeInner<T> {

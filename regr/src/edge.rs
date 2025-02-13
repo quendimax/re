@@ -26,7 +26,7 @@ impl<T> Edge<T> {
 impl<T> std::convert::From<Range<T>> for Edge<T> {
     fn from(range: Range<T>) -> Self {
         Self {
-            ranges: smallvec![range]
+            ranges: smallvec![range],
         }
     }
 }
