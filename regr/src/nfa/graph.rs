@@ -41,7 +41,7 @@ impl<T> Graph<T> {
 
     pub fn start_node(&self) -> Node<'_, T> {
         if let Some(node_ptr) = self.start_node.borrow().as_ref() {
-            return Node::from(*node_ptr);
+            return unsafe { node_ptr.into_node() };
         }
         self.node()
     }

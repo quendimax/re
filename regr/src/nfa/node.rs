@@ -20,12 +20,6 @@ impl<'a, T> std::convert::From<&'a mut NodeInner<T>> for Node<'a, T> {
     }
 }
 
-impl<T> std::convert::From<NodePtr<T>> for Node<'_, T> {
-    fn from(value: NodePtr<T>) -> Self {
-        Self(unsafe { value.0.as_ref() })
-    }
-}
-
 impl<T> Node<'_, T> {
     pub fn id(&self) -> NodeId {
         self.0.id
@@ -106,7 +100,7 @@ impl<'a, T: Copy> Node<'a, T> {
     #[allow(clippy::mutable_key_type)]
     pub fn eclosure(&self) -> Set<Node<'a, T>> {
         fn finder<T: Copy>(node_ptr: NodePtr<T>, closure: &mut Set<Node<T>>) {
-            let node = Node::from(node_ptr);
+            let node = unsafe { node_ptr.into_node() };
             if closure.contains(&node) {
                 return;
             }
@@ -135,15 +129,22 @@ impl<'a, T> Node<'a, T> {
     }
 }
 
+/// NodePtr is a wrapper around pointer to a NodeInner. This is used to Set and
+/// Map structures could manipulate pointers as Nodes. For that it implements
+/// the set of traits required to be used in tree and hash structures.
+///
+/// NodePtr must be used within Graph object lifetime, and never outside of it.
+/// Because of Graph drops its node only at the end if its life, the pointers
+/// inside of NodePtr are valid until the Graph object is dropped.
 pub(super) struct NodePtr<T>(NonNull<NodeInner<T>>);
 
 impl<T> NodePtr<T> {
-    // pub(super) unsafe fn from_ptr(ptr: *mut NodeInner<T>) -> Self {
-    //     Self(NonNull::new(ptr).unwrap())
-    // }
-
     pub(super) fn from_ref(refer: &NodeInner<T>) -> Self {
         Self(NonNull::from(refer))
+    }
+
+    pub(super) unsafe fn into_node<'a>(self) -> Node<'a, T> {
+        Node::from(unsafe { self.0.as_ref() })
     }
 }
 
@@ -227,7 +228,7 @@ impl<T> TargetsReadLock<'_, T> {
     pub fn iter(&self) -> impl std::iter::Iterator<Item = (Node<'_, T>, &Edge<T>)> {
         self.refer
             .iter()
-            .map(|(node_ptr, edge)| (Node::from(*node_ptr), edge))
+            .map(|(node_ptr, edge)| (unsafe { node_ptr.into_node() }, edge))
     }
 }
 
@@ -237,6 +238,6 @@ pub struct EpsilonTargetsReadLock<'a, T> {
 
 impl<T> EpsilonTargetsReadLock<'_, T> {
     pub fn iter(&self) -> impl std::iter::Iterator<Item = Node<'_, T>> {
-        self.refer.iter().map(|node_ptr| Node::from(*node_ptr))
+        self.refer.iter().map(|node_ptr| unsafe { node_ptr.into_node() })
     }
 }
