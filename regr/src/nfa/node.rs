@@ -1,4 +1,4 @@
-use crate::adt::{Map, Set};
+use crate::adt::{Map, MapIter, Set, SetIter};
 use crate::edge::Edge;
 use crate::node::NodeId;
 use crate::symbol::Symbol;
@@ -116,22 +116,21 @@ impl<'a, T: Copy> Node<'a, T> {
 }
 
 impl<'a, T> Node<'a, T> {
-    pub fn targets(&self) -> TargetsReadLock<'a, T> {
-        TargetsReadLock {
-            refer: self.0.targets.borrow(),
-        }
+    /// Returns an iterator over the targets of the node joint with symbol edges.
+    pub fn symbol_targets(&self) -> SymbolTargetsIter<'a, T> {
+        SymbolTargetsIter::new(self)
     }
 
-    pub fn epsilon_targets(&self) -> EpsilonTargetsReadLock<'a, T> {
-        EpsilonTargetsReadLock {
-            refer: self.0.epsilon_targets.borrow(),
-        }
+    /// Returns an iterator over the targets of the node joint with epsilon edges.
+    pub fn epsilon_targets(&self) -> EpsilonTargetsIter<'a, T> {
+        EpsilonTargetsIter::new(self)
     }
 }
 
-/// NodePtr is a wrapper around pointer to a NodeInner. This is used to Set and
-/// Map structures could manipulate pointers as Nodes. For that it implements
-/// the set of traits required to be used in tree and hash structures.
+/// NodePtr is a wrapper around pointer to a NodeInner. This is used in order to
+/// Set and Map structures could treat pointers as nodes. For that it
+/// implements the set of traits required to be used in tree and hash
+/// structures.
 ///
 /// NodePtr must be used within Graph object lifetime, and never outside of it.
 /// Because of Graph drops its node only at the end if its life, the pointers
@@ -220,24 +219,64 @@ impl<T> NodeInner<T> {
     }
 }
 
-pub struct TargetsReadLock<'a, T> {
-    refer: Ref<'a, Map<NodePtr<T>, Edge<T>>>,
+pub struct EpsilonTargetsIter<'a, T> {
+    _lock: Ref<'a, Set<NodePtr<T>>>,
+    iter: SetIter<'a, NodePtr<T>>,
 }
 
-impl<T> TargetsReadLock<'_, T> {
-    pub fn iter(&self) -> impl std::iter::Iterator<Item = (Node<'_, T>, &Edge<T>)> {
-        self.refer
-            .iter()
-            .map(|(node_ptr, edge)| (unsafe { node_ptr.into_node() }, edge))
+impl<'a, T> EpsilonTargetsIter<'a, T> {
+    pub fn new(node: &Node<'a, T>) -> Self {
+        // guarantees that borrow_mut() is impossible during lifetime of this
+        // iterator
+        let lock = node.0.epsilon_targets.borrow();
+
+        // `_lock` (with type `cell::Ref`) should return an iterator of inside
+        // structure with lifetime of `_lock` itself. But I break it here, to
+        // get iterator with lifetime 'a instead of `_lock`s one. It will allow
+        // in `Iterator` implementation to convert references to `NodePtr` into
+        // `Node` instances with lifetime 'a. It is safe though it is not
+        // allowed to put references to the RefCell's inner structure outside,
+        // because the RefCell contains pointers to the nodes, and the iterator
+        // will return copies of these pointers (via Node wrapper), but not
+        // references to the pointers. So references to the RefCell's inner
+        // contents are never gone out of this iterator.
+        let ptr = node.0.epsilon_targets.as_ptr();
+        let iter = unsafe { &*ptr }.iter();
+        Self { _lock: lock, iter }
     }
 }
 
-pub struct EpsilonTargetsReadLock<'a, T> {
-    refer: Ref<'a, Set<NodePtr<T>>>,
+impl<'a, T> std::iter::Iterator for EpsilonTargetsIter<'a, T> {
+    type Item = Node<'a, T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter
+            .next()
+            .map(|node_ptr| unsafe { node_ptr.into_node() })
+    }
 }
 
-impl<T> EpsilonTargetsReadLock<'_, T> {
-    pub fn iter(&self) -> impl std::iter::Iterator<Item = Node<'_, T>> {
-        self.refer.iter().map(|node_ptr| unsafe { node_ptr.into_node() })
+pub struct SymbolTargetsIter<'a, T> {
+    _lock: Ref<'a, Map<NodePtr<T>, Edge<T>>>,
+    iter: MapIter<'a, NodePtr<T>, Edge<T>>,
+}
+
+impl<'a, T> SymbolTargetsIter<'a, T> {
+    pub fn new(node: &Node<'a, T>) -> Self {
+        // implementation details are in `EpsilonTargetsIter`'s constructor
+        let lock = node.0.targets.borrow();
+        let ptr = node.0.targets.as_ptr();
+        let iter = unsafe { &*ptr }.iter();
+        Self { _lock: lock, iter }
+    }
+}
+
+impl<'a, T> std::iter::Iterator for SymbolTargetsIter<'a, T> {
+    type Item = Node<'a, T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter
+            .next()
+            .map(|(node_ptr, _)| unsafe { node_ptr.into_node() })
     }
 }

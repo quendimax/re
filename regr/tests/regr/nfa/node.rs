@@ -47,3 +47,44 @@ fn node_eclosure() {
     let set = Set::from_iter(vec![a, b, c]);
     assert_eq!(a.eclosure(), set)
 }
+
+#[test]
+fn node_symbol_targets() {
+    let arena = Graph::new();
+    let a = arena.node();
+    let b = arena.node();
+    let c = arena.node();
+    let d = arena.node();
+
+    a.connect(b, edge!['a', char::MAX]);
+    a.connect_with_epsilon(b);
+    b.connect_with_epsilon(c);
+    c.connect(d, edge!['c']);
+    b.connect_with_epsilon(a);
+    d.connect_with_epsilon(a);
+    d.connect_with_epsilon(b);
+    d.connect_with_epsilon(c);
+
+    assert_eq!(a.symbol_targets().collect::<Vec<_>>(), vec![b]);
+    assert_eq!(c.symbol_targets().collect::<Vec<_>>(), vec![d]);
+}
+
+#[test]
+fn node_epsilon_targets() {
+    let arena = Graph::new();
+    let a = arena.node();
+    let b = arena.node();
+    let c = arena.node();
+    let d = arena.node();
+
+    a.connect(b, edge!['a', char::MAX]);
+    a.connect_with_epsilon(b);
+    b.connect_with_epsilon(c);
+    c.connect(d, edge!['c']);
+    b.connect_with_epsilon(a);
+    d.connect_with_epsilon(a);
+    d.connect_with_epsilon(b);
+    d.connect_with_epsilon(c);
+
+    assert_eq!(a.epsilon_targets().collect::<Vec<_>>(), vec![b]);
+}
