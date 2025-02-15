@@ -5,8 +5,15 @@ use crate::symbol::Symbol;
 use std::cell::{Ref, RefCell};
 use std::ptr::NonNull;
 
-#[derive(Clone, Copy)]
 pub struct Node<'a, T>(&'a NodeInner<T>);
+
+impl<T> Copy for Node<'_, T> {}
+
+impl<T> Clone for Node<'_, T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
 
 impl<'a, T> std::convert::From<&'a NodeInner<T>> for Node<'a, T> {
     fn from(value: &'a NodeInner<T>) -> Self {
@@ -64,6 +71,16 @@ impl<T> std::fmt::Display for Node<'_, T> {
     }
 }
 
+impl<T> Node<'_, T> {
+    pub(super) unsafe fn from_ptr(ptr: NodePtr<T>) -> Self {
+        Self(unsafe { ptr.as_ref() })
+    }
+
+    pub(super) fn as_ptr(&self) -> NodePtr<T> {
+        unsafe { NodePtr::new_unchecked(self.0 as *const NodeInner<T> as *mut NodeInner<T>) }
+    }
+}
+
 impl<'a, T: PartialOrd + Ord + Symbol> Node<'a, T> {
     /// Connects this node to another node with a specified edge rule.
     /// If a connection to the target node already exists, it merges
@@ -74,7 +91,7 @@ impl<'a, T: PartialOrd + Ord + Symbol> Node<'a, T> {
     /// * `to` - The target node to connect to
     /// * `with` - The edge rule describing valid transitions to the target
     pub fn connect(&self, to: Node<'a, T>, with: impl Into<Edge<T>>) {
-        let to = NodePtr::from(to);
+        let to = to.as_ptr();
         let with = with.into();
         let mut targets = self.0.targets.borrow_mut();
         if let Some(edge) = targets.get_mut(&to) {
@@ -85,11 +102,10 @@ impl<'a, T: PartialOrd + Ord + Symbol> Node<'a, T> {
     }
 }
 
-impl<'a, T: Copy> Node<'a, T> {
+impl<'a, T> Node<'a, T> {
     pub fn connect_with_epsilon(&self, to: Node<'a, T>) {
-        let to = NodePtr::from(to);
         let mut targets = self.0.epsilon_targets.borrow_mut();
-        targets.insert(to);
+        targets.insert(to.as_ptr());
     }
 
     /// Returns a set of all nodes reachable from this one through epsilon
@@ -99,18 +115,17 @@ impl<'a, T: Copy> Node<'a, T> {
     /// calculate the epsilon closure. Each node is visited only once.
     #[allow(clippy::mutable_key_type)]
     pub fn eclosure(&self) -> Set<Node<'a, T>> {
-        fn finder<T: Copy>(node_ptr: NodePtr<T>, closure: &mut Set<Node<T>>) {
-            let node = unsafe { node_ptr.into_node() };
+        fn finder<'a, T>(node: Node<'a, T>, closure: &mut Set<Node<'a, T>>) {
             if closure.contains(&node) {
                 return;
             }
             closure.insert(node);
-            for target in node.0.epsilon_targets.borrow().iter() {
-                finder(*target, closure);
+            for target in node.epsilon_targets() {
+                finder(target, closure);
             }
         }
         let mut closure_set = Set::new();
-        finder((*self).into(), &mut closure_set);
+        finder(*self, &mut closure_set);
         closure_set
     }
 }
@@ -127,81 +142,7 @@ impl<'a, T> Node<'a, T> {
     }
 }
 
-/// NodePtr is a wrapper around pointer to a NodeInner. This is used in order to
-/// Set and Map structures could treat pointers as nodes. For that it
-/// implements the set of traits required to be used in tree and hash
-/// structures.
-///
-/// NodePtr must be used within Graph object lifetime, and never outside of it.
-/// Because of Graph drops its node only at the end if its life, the pointers
-/// inside of NodePtr are valid until the Graph object is dropped.
-pub(super) struct NodePtr<T>(NonNull<NodeInner<T>>);
-
-impl<T> NodePtr<T> {
-    pub(super) fn from_ref(refer: &NodeInner<T>) -> Self {
-        Self(NonNull::from(refer))
-    }
-
-    pub(super) unsafe fn into_node<'a>(self) -> Node<'a, T> {
-        Node::from(unsafe { self.0.as_ref() })
-    }
-}
-
-impl<T> std::marker::Copy for NodePtr<T> {}
-
-impl<T> std::clone::Clone for NodePtr<T> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<T> std::convert::From<Node<'_, T>> for NodePtr<T> {
-    fn from(value: Node<'_, T>) -> Self {
-        Self(NonNull::from(value.0))
-    }
-}
-
-impl<T: Clone> std::cmp::PartialEq for NodePtr<T> {
-    fn eq(&self, other: &Self) -> bool {
-        let this = unsafe { self.0.as_ref() };
-        let other = unsafe { other.0.as_ref() };
-        std::cmp::PartialEq::eq(&Node::from(this), &Node::from(other))
-    }
-}
-
-impl<T: Clone> std::cmp::Eq for NodePtr<T> {}
-
-impl<T: Clone> std::cmp::PartialOrd for NodePtr<T> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<T: Clone> std::cmp::Ord for NodePtr<T> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let this = unsafe { self.0.as_ref() };
-        let other = unsafe { other.0.as_ref() };
-        std::cmp::Ord::cmp(&Node::from(this), &Node::from(other))
-    }
-}
-
-impl<T> std::hash::Hash for NodePtr<T> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        Node::from(unsafe { self.0.as_ref() }).hash(state)
-    }
-}
-
-impl<T> std::fmt::Debug for NodePtr<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Node::from(unsafe { self.0.as_ref() }).fmt(f)
-    }
-}
-
-impl<T> std::fmt::Display for NodePtr<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Debug::fmt(self, f)
-    }
-}
+pub(super) type NodePtr<T> = NonNull<NodeInner<T>>;
 
 pub(super) struct NodeInner<T> {
     id: NodeId,
@@ -252,7 +193,7 @@ impl<'a, T> std::iter::Iterator for EpsilonTargetsIter<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         self.iter
             .next()
-            .map(|node_ptr| unsafe { node_ptr.into_node() })
+            .map(|node_ptr| unsafe { Node::from_ptr(*node_ptr) })
     }
 }
 
@@ -277,6 +218,6 @@ impl<'a, T> std::iter::Iterator for SymbolTargetsIter<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         self.iter
             .next()
-            .map(|(node_ptr, _)| unsafe { node_ptr.into_node() })
+            .map(|(node_ptr, _)| unsafe { Node::from_ptr(*node_ptr) })
     }
 }
