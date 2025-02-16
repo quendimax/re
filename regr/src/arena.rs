@@ -58,3 +58,102 @@ impl<T> std::ops::Drop for Arena<T> {
         }
     }
 }
+
+impl<T> Arena<T> {
+    /// Returns an iterator over the items in the arena.
+    ///
+    /// Because of the arena is a bump allocator, it is possible to add new
+    /// items to the arena during iteration. But the iteration won't be affected
+    /// by the new items, i.e. if at the moment of creation the iterator the
+    /// arena contains `n` items, then the iterator will iterate over `n` items.
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter::new(self)
+    }
+}
+
+pub struct Iter<'a, T> {
+    // number of items at current the iterator creating moment
+    len: usize,
+    chunk_iter: bumpalo::ChunkRawIter<'a>,
+    chunk_start: *const u8,
+    chunk_size: usize,
+    cur_ptr: *const u8,
+    _phantom: std::marker::PhantomData<&'a T>,
+}
+
+impl<'a, T> Iter<'a, T> {
+    const ALLOC_SIZE: usize = std::alloc::Layout::new::<T>().size();
+
+    fn new(arena: &'a Arena<T>) -> Self {
+        Self {
+            len: *arena.len.borrow(),
+            chunk_iter: unsafe { arena.bump.iter_allocated_chunks_raw() },
+            chunk_start: std::ptr::null(),
+            chunk_size: 0,
+            cur_ptr: std::ptr::null(),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<'a, T> std::iter::Iterator for Iter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.len == 0 {
+            return None;
+        }
+        self.len -= 1;
+
+        if self.chunk_start == self.cur_ptr {
+            (self.chunk_start, self.chunk_size) = self.chunk_iter.next().unwrap();
+            // set cur_ptr to the last chunk's element because the elements
+            // order is reversed
+            self.cur_ptr = unsafe { self.chunk_start.add(self.chunk_size).sub(Self::ALLOC_SIZE) };
+        } else {
+            self.cur_ptr = unsafe { self.cur_ptr.sub(Self::ALLOC_SIZE) };
+        }
+        assert!(self.chunk_start <= self.cur_ptr);
+
+        Some(unsafe { &*(self.cur_ptr as *mut T as *const T) })
+    }
+}
+
+#[cfg(test)]
+mod utest {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn arena_iter() {
+        let arena = Arena::with_capacity(0);
+        let items = vec![1, 2, 3, 4, 5];
+        for item in &items {
+            arena.alloc_with(|| *item);
+        }
+
+        let iter = arena.iter();
+        let collect = iter.map(|x| *x).collect::<Vec<_>>();
+        assert_eq!(collect, items);
+
+        let arena = Arena::<u32>::with_capacity(10);
+        assert_eq!(arena.iter().collect::<Vec<_>>(), Vec::<&u32>::new());
+    }
+
+    #[test]
+    fn arena_alloc_during_iteration() {
+        let arena = Arena::with_capacity(0);
+        let mut items = vec![1, 2, 3, 4, 5];
+        for item in &items {
+            arena.alloc_with(|| *item);
+        }
+
+        for item in arena.iter() {
+            let _ = arena.alloc_with(|| 2 * *item);
+            items.push(2 * *item);
+        }
+
+        assert_eq!(items.len(), 10);
+        assert_eq!(items, arena.iter().map(|x| *x).collect::<Vec<_>>());
+    }
+}
