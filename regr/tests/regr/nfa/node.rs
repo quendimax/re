@@ -29,11 +29,11 @@ fn node_connect() {
 
 #[test]
 fn node_eclosure() {
-    let arena = Graph::new();
-    let a = arena.node();
-    let b = arena.node();
-    let c = arena.node();
-    let d = arena.node();
+    let graph = Graph::new();
+    let a = graph.node();
+    let b = graph.node();
+    let c = graph.node();
+    let d = graph.node();
 
     a.connect(b, edge!['a', char::MAX]);
     a.connect_with_epsilon(b);
@@ -50,11 +50,11 @@ fn node_eclosure() {
 
 #[test]
 fn node_symbol_targets() {
-    let arena = Graph::new();
-    let a = arena.node();
-    let b = arena.node();
-    let c = arena.node();
-    let d = arena.node();
+    let graph = Graph::new();
+    let a = graph.node();
+    let b = graph.node();
+    let c = graph.node();
+    let d = graph.node();
 
     a.connect(b, edge!['a', char::MAX]);
     a.connect_with_epsilon(b);
@@ -65,17 +65,17 @@ fn node_symbol_targets() {
     d.connect_with_epsilon(b);
     d.connect_with_epsilon(c);
 
-    assert_eq!(a.symbol_targets().collect::<Vec<_>>(), vec![b]);
-    assert_eq!(c.symbol_targets().collect::<Vec<_>>(), vec![d]);
+    assert_eq!(a.symbol_targets().map(|x| x.0).collect::<Vec<_>>(), vec![b]);
+    assert_eq!(c.symbol_targets().map(|x| x.0).collect::<Vec<_>>(), vec![d]);
 }
 
 #[test]
 fn node_epsilon_targets() {
-    let arena = Graph::new();
-    let a = arena.node();
-    let b = arena.node();
-    let c = arena.node();
-    let d = arena.node();
+    let graph = Graph::new();
+    let a = graph.node();
+    let b = graph.node();
+    let c = graph.node();
+    let d = graph.node();
 
     a.connect(b, edge!['a', char::MAX]);
     a.connect_with_epsilon(b);
@@ -87,4 +87,13 @@ fn node_epsilon_targets() {
     d.connect_with_epsilon(c);
 
     assert_eq!(a.epsilon_targets().collect::<Vec<_>>(), vec![b]);
+}
+
+#[test]
+fn node_fmt_debug() {
+    let graph = Graph::new();
+    let a = graph.node();
+    let b = graph.node();
+    assert_eq!(format!("{:?}", a), "node(0)");
+    assert_eq!(format!("{:?}", b), "node(1)");
 }

@@ -1,6 +1,7 @@
 use crate::adt::{Map, MapIter, Set, SetIter};
 use crate::edge::Edge;
 use crate::node::NodeId;
+use crate::range::Range;
 use crate::symbol::Symbol;
 use std::cell::{Ref, RefCell};
 use std::ptr::NonNull;
@@ -198,7 +199,7 @@ impl<'a, T> std::iter::Iterator for EpsilonTargetsIter<'a, T> {
 }
 
 pub struct SymbolTargetsIter<'a, T> {
-    _lock: Ref<'a, Map<NodePtr<T>, Edge<T>>>,
+    lock: Ref<'a, Map<NodePtr<T>, Edge<T>>>,
     iter: MapIter<'a, NodePtr<T>, Edge<T>>,
 }
 
@@ -208,16 +209,36 @@ impl<'a, T> SymbolTargetsIter<'a, T> {
         let lock = node.0.targets.borrow();
         let ptr = node.0.targets.as_ptr();
         let iter = unsafe { &*ptr }.iter();
-        Self { _lock: lock, iter }
+        Self { lock, iter }
     }
 }
 
 impl<'a, T> std::iter::Iterator for SymbolTargetsIter<'a, T> {
-    type Item = Node<'a, T>;
+    type Item = (Node<'a, T>, EdgeIter<'a, T>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter
-            .next()
-            .map(|(node_ptr, _)| unsafe { Node::from_ptr(*node_ptr) })
+        if let Some((node_ptr, edge)) = self.iter.next() {
+            let node = unsafe { Node::from_ptr(*node_ptr) };
+            let iter = EdgeIter {
+                _lock: Ref::clone(&self.lock),
+                iter: edge.ranges(),
+            };
+            Some((node, iter))
+        } else {
+            None
+        }
+    }
+}
+
+pub struct EdgeIter<'a, T> {
+    _lock: Ref<'a, Map<NodePtr<T>, Edge<T>>>,
+    iter: std::slice::Iter<'a, Range<T>>,
+}
+
+impl<T: Copy> std::iter::Iterator for EdgeIter<'_, T> {
+    type Item = Range<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().cloned()
     }
 }

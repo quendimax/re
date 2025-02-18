@@ -20,6 +20,7 @@ hash-map = []
 hash-set = []
 ordered-hash-map = ["dep:linked-hash-map", "hash-map"]
 ordered-hash-set = ["dep:linked_hash_set", "hash-set"]
+ordered-hash = ["ordered-hash-map", "ordered-hash-set"]
 
 [dev-dependencies]
 pretty_assertions = "1"

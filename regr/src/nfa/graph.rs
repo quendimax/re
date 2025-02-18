@@ -2,6 +2,7 @@ use super::node::{Node, NodeInner, NodePtr};
 use crate::arena::Arena;
 use crate::node::NodeId;
 use std::cell::RefCell;
+use std::fmt::Write;
 
 pub struct Graph<T> {
     arena: Arena<NodeInner<T>>,
@@ -36,6 +37,7 @@ impl<T> Graph<T> {
         if start_node.is_none() {
             start_node.replace(node.as_ptr());
         }
+        println!("new node with id {}", node.id());
         node
     }
 
@@ -50,5 +52,37 @@ impl<T> Graph<T> {
 impl<T> std::default::Default for Graph<T> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<T: std::fmt::Debug + Copy + PartialEq> std::fmt::Debug for Graph<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut first = true;
+        for node in self.arena.iter().map(Node::from) {
+            if first {
+                first = false;
+            } else {
+                f.write_char('\n')?;
+            }
+            let mut is_empty = true;
+            write!(f, "node {} {{", node.id())?;
+            for (target, range_iter) in node.symbol_targets() {
+                f.write_str("\n    ")?;
+                for range in range_iter {
+                    range.fmt(f)?;
+                }
+                write!(f, " -> node {}", target.id())?;
+                is_empty = false;
+            }
+            for target in node.epsilon_targets() {
+                write!(f, "\n    [EPSILON] -> node {}", target.id())?;
+                is_empty = false;
+            }
+            if !is_empty {
+                f.write_char('\n')?;
+            }
+            f.write_char('}')?;
+        }
+        Ok(())
     }
 }

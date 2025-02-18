@@ -1,4 +1,5 @@
 use bumpalo::Bump;
+use smallvec::SmallVec;
 use std::cell::RefCell;
 
 pub struct Arena<T> {
@@ -74,7 +75,7 @@ impl<T> Arena<T> {
 pub struct Iter<'a, T> {
     // number of items at current the iterator creating moment
     len: usize,
-    chunk_iter: bumpalo::ChunkRawIter<'a>,
+    chunks: SmallVec<[(*mut u8, usize); 4]>,
     chunk_start: *const u8,
     chunk_size: usize,
     cur_ptr: *const u8,
@@ -85,9 +86,10 @@ impl<'a, T> Iter<'a, T> {
     const ALLOC_SIZE: usize = std::alloc::Layout::new::<T>().size();
 
     fn new(arena: &'a Arena<T>) -> Self {
+        let chunk_iter = unsafe { arena.bump.iter_allocated_chunks_raw() };
         Self {
             len: *arena.len.borrow(),
-            chunk_iter: unsafe { arena.bump.iter_allocated_chunks_raw() },
+            chunks: chunk_iter.collect::<SmallVec<[(*mut u8, usize); 4]>>(),
             chunk_start: std::ptr::null(),
             chunk_size: 0,
             cur_ptr: std::ptr::null(),
@@ -106,7 +108,7 @@ impl<'a, T> std::iter::Iterator for Iter<'a, T> {
         self.len -= 1;
 
         if self.chunk_start == self.cur_ptr {
-            (self.chunk_start, self.chunk_size) = self.chunk_iter.next().unwrap();
+            (self.chunk_start, self.chunk_size) = self.chunks.pop().unwrap();
             // set cur_ptr to the last chunk's element because the elements
             // order is reversed
             self.cur_ptr = unsafe { self.chunk_start.add(self.chunk_size).sub(Self::ALLOC_SIZE) };
@@ -126,10 +128,12 @@ mod utest {
 
     #[test]
     fn arena_iter() {
-        let arena = Arena::with_capacity(0);
-        let items = vec![1, 2, 3, 4, 5];
-        for item in &items {
-            arena.alloc_with(|| *item);
+        // if right order for some chunks inside of the arena
+        let arena = Arena::with_capacity(10);
+        let mut items = Vec::new();
+        for i in 0..1000 {
+            items.push(i);
+            arena.alloc_with(|| i);
         }
 
         let iter = arena.iter();
