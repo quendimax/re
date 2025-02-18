@@ -1,0 +1,18 @@
+[
+  {
+    "label": "cargo_test",
+    "command": "cargo",
+    "args": ["test", "--features=regr/ordered-hash"],
+    "shell": {
+      "program": "bash"
+    }
+  },
+  {
+    "label": "cargo_nextest_run",
+    "command": "cargo",
+    "args": ["nextest", "run", "--features=regr/ordered-hash"],
+    "shell": {
+      "program": "bash"
+    }
+  }
+]
