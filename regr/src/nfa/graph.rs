@@ -37,7 +37,6 @@ impl<T> Graph<T> {
         if start_node.is_none() {
             start_node.replace(node.as_ptr());
         }
-        println!("new node with id {}", node.id());
         node
     }
 
