@@ -62,13 +62,7 @@ impl<T> std::hash::Hash for Node<'_, T> {
 
 impl<T> std::fmt::Debug for Node<'_, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "node({})", self.id())
-    }
-}
-
-impl<T> std::fmt::Display for Node<'_, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Debug::fmt(self, f)
+        write!(f, "Node(id={})", self.id())
     }
 }
 
