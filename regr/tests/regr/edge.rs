@@ -1,6 +1,6 @@
 use pretty_assertions::assert_eq;
 use regr::range;
-use regr::{edge, Edge};
+use regr::{Edge, edge};
 
 #[test]
 fn edge_push() {

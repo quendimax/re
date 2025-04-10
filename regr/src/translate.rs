@@ -1,7 +1,7 @@
 use crate::edge;
 use crate::edge::Edge;
-use crate::error::err;
 use crate::error::Result;
+use crate::error::err;
 use crate::nfa;
 use regex_syntax::hir::{self, Hir, HirKind};
 use utf8_ranges::{Utf8Sequence, Utf8Sequences};

@@ -1,4 +1,4 @@
-use crate::error::{err, Error};
+use crate::error::{Error, err};
 use crate::symbol::Symbol;
 
 /// Inclusive range of symbols (i.e. `start` is always less or equal to `end`).

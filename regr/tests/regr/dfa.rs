@@ -1,5 +1,5 @@
 use pretty_assertions::{assert_eq, assert_ne};
-use regr::{dfa, edge, Range};
+use regr::{Range, dfa, edge};
 
 type Graph = dfa::Graph<char>;
 

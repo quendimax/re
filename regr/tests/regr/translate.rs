@@ -1,7 +1,7 @@
 use pretty_assertions::assert_eq;
 use regex_syntax::Parser;
-use regr::{err, Result};
-use regr::{nfa, Translator};
+use regr::{Result, err};
+use regr::{Translator, nfa};
 
 type Graph = nfa::Graph<u8>;
 type Node<'a> = nfa::Node<'a, u8>;

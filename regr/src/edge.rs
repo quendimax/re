@@ -1,6 +1,6 @@
 use crate::range::Range;
 use crate::symbol::Symbol;
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 
 /// Edge is a sorted set of nonintersecting symbol ranges, that represents a
 /// connection between two states.

@@ -1,7 +1,7 @@
 use pretty_assertions::assert_eq;
+use regr::Translator;
 use regr::edge;
 use regr::nfa::Graph;
-use regr::Translator;
 
 #[test]
 fn graph_new_with_capacity() {

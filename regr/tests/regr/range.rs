@@ -1,5 +1,5 @@
 use pretty_assertions::assert_eq;
-use regr::{err, range, Range};
+use regr::{Range, err, range};
 
 #[test]
 fn range_from_type() {
