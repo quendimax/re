@@ -38,7 +38,7 @@ impl<T: PartialOrd + Copy + std::fmt::Debug> Edge<T> {
     pub fn push(&mut self, range: impl Into<Range<T>>) {
         let range = range.into();
         assert!(
-            self.ranges.last().map_or(true, |v| v.is_at_left(&range)),
+            self.ranges.last().is_none_or(|v| v.is_at_left(&range)),
             "range {:?} must be at the right of range {:?}",
             range,
             self.ranges.last().unwrap()
@@ -152,7 +152,7 @@ impl<T: PartialOrd + Ord + Symbol> Edge<T> {
                         let min = range.start();
                         let max = next_range.end();
                         let len = min.steps_between(max);
-                        let range_end = min.forward((len + 1) / 2).unwrap();
+                        let range_end = min.forward(len.div_ceil(2)).unwrap();
 
                         range.set_end(range_end);
                         next_range.set_start(range_end.forward(1).unwrap());

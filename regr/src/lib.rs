@@ -2,8 +2,6 @@ pub(crate) mod arena;
 
 pub mod adt;
 
-pub mod dfa;
-
 mod edge;
 pub use edge::Edge;
 

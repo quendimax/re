@@ -1,4 +1,3 @@
-mod dfa;
 mod edge;
 mod nfa;
 mod node;
