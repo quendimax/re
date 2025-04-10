@@ -1,6 +1,6 @@
 [
   {
-    "label": "cargo_test",
+    "label": "qm::cargo_test",
     "command": "cargo",
     "args": ["test", "--features=regr/ordered-hash"],
     "shell": {
@@ -8,7 +8,7 @@
     }
   },
   {
-    "label": "cargo_nextest_run",
+    "label": "qm::cargo_nextest_run",
     "command": "cargo",
     "args": ["nextest", "run", "--features=regr/ordered-hash"],
     "shell": {
