@@ -2,81 +2,80 @@ use crate::adt::{Map, MapIter, Set, SetIter};
 use crate::edge::Edge;
 use crate::node::NodeId;
 use crate::range::Range;
-use crate::symbol::Symbol;
 use std::cell::{Ref, RefCell};
 use std::ptr::NonNull;
 
-pub struct Node<'a, T>(&'a NodeInner<T>);
+pub struct Node<'a>(&'a NodeInner);
 
-impl<T> Copy for Node<'_, T> {}
+impl Copy for Node<'_> {}
 
-impl<T> Clone for Node<'_, T> {
+impl Clone for Node<'_> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<'a, T> std::convert::From<&'a NodeInner<T>> for Node<'a, T> {
-    fn from(value: &'a NodeInner<T>) -> Self {
+impl<'a> std::convert::From<&'a NodeInner> for Node<'a> {
+    fn from(value: &'a NodeInner) -> Self {
         Self(value)
     }
 }
 
-impl<'a, T> std::convert::From<&'a mut NodeInner<T>> for Node<'a, T> {
-    fn from(value: &'a mut NodeInner<T>) -> Self {
+impl<'a> std::convert::From<&'a mut NodeInner> for Node<'a> {
+    fn from(value: &'a mut NodeInner) -> Self {
         Self(value)
     }
 }
 
-impl<T> Node<'_, T> {
+impl Node<'_> {
     pub fn id(&self) -> NodeId {
         self.0.id
     }
 }
 
-impl<T> std::cmp::PartialEq for Node<'_, T> {
+impl std::cmp::PartialEq for Node<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.0.id.eq(&other.0.id)
     }
 }
 
-impl<T> std::cmp::Eq for Node<'_, T> {}
+impl std::cmp::Eq for Node<'_> {}
 
-impl<T> std::cmp::PartialOrd for Node<'_, T> {
+impl std::cmp::PartialOrd for Node<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<T> std::cmp::Ord for Node<'_, T> {
+impl std::cmp::Ord for Node<'_> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.0.id.cmp(&other.0.id)
     }
 }
 
-impl<T> std::hash::Hash for Node<'_, T> {
+impl std::hash::Hash for Node<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.0.id.hash(state)
     }
 }
 
-impl<T> std::fmt::Debug for Node<'_, T> {
+impl std::fmt::Debug for Node<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "node({})", self.id())
     }
 }
 
-impl<T> Node<'_, T> {
-    pub(super) unsafe fn from_ptr(ptr: NodePtr<T>) -> Self {
+impl Node<'_> {
+    pub(super) unsafe fn from_ptr(ptr: NonNull<NodeInner>) -> Self {
         Self(unsafe { ptr.as_ref() })
     }
 
-    pub(super) fn as_ptr(&self) -> NodePtr<T> {
-        unsafe { NodePtr::new_unchecked(self.0 as *const NodeInner<T> as *mut NodeInner<T>) }
+    pub(super) fn as_ptr(&self) -> NonNull<NodeInner> {
+        unsafe { NonNull::<NodeInner>::new_unchecked(self.0 as *const NodeInner as *mut NodeInner) }
     }
 }
 
-impl<'a, T: PartialOrd + Ord + Symbol> Node<'a, T> {
+impl<'a> Node<'a> {
     /// Connects this node to another node with a specified edge rule.
     /// If a connection to the target node already exists, it merges
     /// the new edge rule with the existing one.
@@ -85,7 +84,7 @@ impl<'a, T: PartialOrd + Ord + Symbol> Node<'a, T> {
     ///
     /// * `to` - The target node to connect to
     /// * `with` - The edge rule describing valid transitions to the target
-    pub fn connect(&self, to: Node<'a, T>, with: impl Into<Edge<T>>) {
+    pub fn connect(&self, to: Node<'a>, with: impl Into<Edge>) {
         let to = to.as_ptr();
         let with = with.into();
         let mut targets = self.0.targets.borrow_mut();
@@ -97,8 +96,8 @@ impl<'a, T: PartialOrd + Ord + Symbol> Node<'a, T> {
     }
 }
 
-impl<'a, T> Node<'a, T> {
-    pub fn connect_with_epsilon(&self, to: Node<'a, T>) {
+impl<'a> Node<'a> {
+    pub fn connect_with_epsilon(&self, to: Node<'a>) {
         let mut targets = self.0.epsilon_targets.borrow_mut();
         targets.insert(to.as_ptr());
     }
@@ -109,8 +108,8 @@ impl<'a, T> Node<'a, T> {
     /// Performs a recursive traversal of the node's epsilon transitions to
     /// calculate the epsilon closure. Each node is visited only once.
     #[allow(clippy::mutable_key_type)]
-    pub fn eclosure(&self) -> Set<Node<'a, T>> {
-        fn finder<'a, T>(node: Node<'a, T>, closure: &mut Set<Node<'a, T>>) {
+    pub fn eclosure(&self) -> Set<Node<'a>> {
+        fn finder<'a>(node: Node<'a>, closure: &mut Set<Node<'a>>) {
             if closure.contains(&node) {
                 return;
             }
@@ -125,27 +124,25 @@ impl<'a, T> Node<'a, T> {
     }
 }
 
-impl<'a, T> Node<'a, T> {
+impl<'a> Node<'a> {
     /// Returns an iterator over the targets of the node joint with symbol edges.
-    pub fn symbol_targets(&self) -> SymbolTargetsIter<'a, T> {
+    pub fn symbol_targets(&self) -> SymbolTargetsIter<'a> {
         SymbolTargetsIter::new(self)
     }
 
     /// Returns an iterator over the targets of the node joint with epsilon edges.
-    pub fn epsilon_targets(&self) -> EpsilonTargetsIter<'a, T> {
+    pub fn epsilon_targets(&self) -> EpsilonTargetsIter<'a> {
         EpsilonTargetsIter::new(self)
     }
 }
 
-pub(super) type NodePtr<T> = NonNull<NodeInner<T>>;
-
-pub(super) struct NodeInner<T> {
+pub(super) struct NodeInner {
     id: NodeId,
-    targets: RefCell<Map<NodePtr<T>, Edge<T>>>,
-    epsilon_targets: RefCell<Set<NodePtr<T>>>,
+    targets: RefCell<Map<NonNull<NodeInner>, Edge>>,
+    epsilon_targets: RefCell<Set<NonNull<NodeInner>>>,
 }
 
-impl<T> NodeInner<T> {
+impl NodeInner {
     pub(super) fn new(id: NodeId) -> Self {
         Self {
             id,
@@ -155,13 +152,13 @@ impl<T> NodeInner<T> {
     }
 }
 
-pub struct EpsilonTargetsIter<'a, T> {
-    _lock: Ref<'a, Set<NodePtr<T>>>,
-    iter: SetIter<'a, NodePtr<T>>,
+pub struct EpsilonTargetsIter<'a> {
+    _lock: Ref<'a, Set<NonNull<NodeInner>>>,
+    iter: SetIter<'a, NonNull<NodeInner>>,
 }
 
-impl<'a, T> EpsilonTargetsIter<'a, T> {
-    pub fn new(node: &Node<'a, T>) -> Self {
+impl<'a> EpsilonTargetsIter<'a> {
+    pub fn new(node: &Node<'a>) -> Self {
         // guarantees that borrow_mut() is impossible during lifetime of this
         // iterator
         let lock = node.0.epsilon_targets.borrow();
@@ -169,7 +166,7 @@ impl<'a, T> EpsilonTargetsIter<'a, T> {
         // `_lock` (with type `cell::Ref`) should return an iterator of inside
         // structure with lifetime of `_lock` itself. But I break it here, to
         // get iterator with lifetime 'a instead of `_lock`s one. It will allow
-        // in `Iterator` implementation to convert references to `NodePtr` into
+        // in `Iterator` implementation to convert references to `NonNull<NodeInner>` into
         // `Node` instances with lifetime 'a. It is safe though it is not
         // allowed to put references to the RefCell's inner structure outside,
         // because the RefCell contains pointers to the nodes, and the iterator
@@ -182,8 +179,8 @@ impl<'a, T> EpsilonTargetsIter<'a, T> {
     }
 }
 
-impl<'a, T> std::iter::Iterator for EpsilonTargetsIter<'a, T> {
-    type Item = Node<'a, T>;
+impl<'a> std::iter::Iterator for EpsilonTargetsIter<'a> {
+    type Item = Node<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter
@@ -192,13 +189,13 @@ impl<'a, T> std::iter::Iterator for EpsilonTargetsIter<'a, T> {
     }
 }
 
-pub struct SymbolTargetsIter<'a, T> {
-    lock: Ref<'a, Map<NodePtr<T>, Edge<T>>>,
-    iter: MapIter<'a, NodePtr<T>, Edge<T>>,
+pub struct SymbolTargetsIter<'a> {
+    lock: Ref<'a, Map<NonNull<NodeInner>, Edge>>,
+    iter: MapIter<'a, NonNull<NodeInner>, Edge>,
 }
 
-impl<'a, T> SymbolTargetsIter<'a, T> {
-    pub fn new(node: &Node<'a, T>) -> Self {
+impl<'a> SymbolTargetsIter<'a> {
+    pub fn new(node: &Node<'a>) -> Self {
         // implementation details are in `EpsilonTargetsIter`'s constructor
         let lock = node.0.targets.borrow();
         let ptr = node.0.targets.as_ptr();
@@ -207,8 +204,8 @@ impl<'a, T> SymbolTargetsIter<'a, T> {
     }
 }
 
-impl<'a, T> std::iter::Iterator for SymbolTargetsIter<'a, T> {
-    type Item = (Node<'a, T>, EdgeIter<'a, T>);
+impl<'a> std::iter::Iterator for SymbolTargetsIter<'a> {
+    type Item = (Node<'a>, EdgeIter<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some((node_ptr, edge)) = self.iter.next() {
@@ -224,13 +221,13 @@ impl<'a, T> std::iter::Iterator for SymbolTargetsIter<'a, T> {
     }
 }
 
-pub struct EdgeIter<'a, T> {
-    _lock: Ref<'a, Map<NodePtr<T>, Edge<T>>>,
-    iter: std::slice::Iter<'a, Range<T>>,
+pub struct EdgeIter<'a> {
+    _lock: Ref<'a, Map<NonNull<NodeInner>, Edge>>,
+    iter: std::slice::Iter<'a, Range>,
 }
 
-impl<T: Copy> std::iter::Iterator for EdgeIter<'_, T> {
-    type Item = Range<T>;
+impl std::iter::Iterator for EdgeIter<'_> {
+    type Item = Range;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next().cloned()

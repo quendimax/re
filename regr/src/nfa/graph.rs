@@ -1,16 +1,17 @@
-use super::node::{Node, NodeInner, NodePtr};
+use super::node::{Node, NodeInner};
 use crate::arena::Arena;
 use crate::node::NodeId;
 use std::cell::RefCell;
 use std::fmt::Write;
+use std::ptr::NonNull;
 
-pub struct Graph<T> {
-    arena: Arena<NodeInner<T>>,
+pub struct Graph {
+    arena: Arena<NodeInner>,
     next_id: RefCell<NodeId>,
-    start_node: RefCell<Option<NodePtr<T>>>,
+    start_node: RefCell<Option<NonNull<NodeInner>>>,
 }
 
-impl<T> Graph<T> {
+impl Graph {
     /// Creates a new NFA graph.
     pub fn new() -> Self {
         Self::with_capacity(0)
@@ -28,7 +29,7 @@ impl<T> Graph<T> {
     }
 
     /// Creates a new NFA node.
-    pub fn node(&self) -> Node<'_, T> {
+    pub fn node(&self) -> Node<'_> {
         let new_id = self
             .next_id
             .replace_with(|v| v.checked_add(1).expect("node id overflow"));
@@ -40,7 +41,7 @@ impl<T> Graph<T> {
         node
     }
 
-    pub fn start_node(&self) -> Node<'_, T> {
+    pub fn start_node(&self) -> Node<'_> {
         if let Some(node_ptr) = self.start_node.borrow().as_ref() {
             return unsafe { Node::from_ptr(*node_ptr) };
         }
@@ -48,13 +49,13 @@ impl<T> Graph<T> {
     }
 }
 
-impl<T> std::default::Default for Graph<T> {
+impl std::default::Default for Graph {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: std::fmt::Debug + Copy + PartialEq> std::fmt::Debug for Graph<T> {
+impl std::fmt::Debug for Graph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut first = true;
         for node in self.arena.iter().map(Node::from) {

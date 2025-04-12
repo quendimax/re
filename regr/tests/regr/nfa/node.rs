@@ -1,8 +1,6 @@
 use pretty_assertions::{assert_eq, assert_ne};
 use regr::adt::Set;
-use regr::{edge, nfa};
-
-type Graph = nfa::Graph<char>;
+use regr::{edge, nfa::Graph};
 
 #[test]
 fn node_partial_eq() {
@@ -21,9 +19,9 @@ fn node_connect() {
     let node_a = graph.node();
     let node_b = graph.node();
     let node_c = graph.node();
-    node_a.connect(node_b, edge!['a']);
-    node_a.connect(node_c, edge!['a']);
-    node_a.connect(node_c, edge!['a']);
+    node_a.connect(node_b, edge![b'a']);
+    node_a.connect(node_c, edge![b'a']);
+    node_a.connect(node_c, edge![b'a']);
     node_c.connect_with_epsilon(node_a);
 }
 
@@ -35,10 +33,10 @@ fn node_eclosure() {
     let c = graph.node();
     let d = graph.node();
 
-    a.connect(b, edge!['a', char::MAX]);
+    a.connect(b, edge![b'a', u8::MAX]);
     a.connect_with_epsilon(b);
     b.connect_with_epsilon(c);
-    c.connect(d, edge!['c']);
+    c.connect(d, edge![b'c']);
     b.connect_with_epsilon(a);
     d.connect_with_epsilon(a);
     d.connect_with_epsilon(b);
@@ -56,10 +54,10 @@ fn node_symbol_targets() {
     let c = graph.node();
     let d = graph.node();
 
-    a.connect(b, edge!['a', char::MAX]);
+    a.connect(b, edge![b'a', u8::MAX]);
     a.connect_with_epsilon(b);
     b.connect_with_epsilon(c);
-    c.connect(d, edge!['c']);
+    c.connect(d, edge![b'c']);
     b.connect_with_epsilon(a);
     d.connect_with_epsilon(a);
     d.connect_with_epsilon(b);
@@ -77,10 +75,10 @@ fn node_epsilon_targets() {
     let c = graph.node();
     let d = graph.node();
 
-    a.connect(b, edge!['a', char::MAX]);
+    a.connect(b, edge![b'a', u8::MAX]);
     a.connect_with_epsilon(b);
     b.connect_with_epsilon(c);
-    c.connect(d, edge!['c']);
+    c.connect(d, edge![b'c']);
     b.connect_with_epsilon(a);
     d.connect_with_epsilon(a);
     d.connect_with_epsilon(b);

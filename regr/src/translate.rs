@@ -2,15 +2,12 @@ use crate::edge;
 use crate::edge::Edge;
 use crate::error::Result;
 use crate::error::err;
-use crate::nfa;
+use crate::nfa::{Graph, Node};
 use regex_syntax::hir::{self, Hir, HirKind};
 use utf8_ranges::{Utf8Sequence, Utf8Sequences};
 
-pub type Graph = nfa::Graph<u8>;
-pub type Node<'a> = nfa::Node<'a, u8>;
-
 pub struct Translator<'a> {
-    graph: &'a nfa::Graph<u8>,
+    graph: &'a Graph,
 }
 
 impl<'a> Translator<'a> {

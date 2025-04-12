@@ -1,10 +1,8 @@
 use pretty_assertions::assert_eq;
 use regex_syntax::Parser;
+use regr::Translator;
+use regr::nfa::{Graph, Node};
 use regr::{Result, err};
-use regr::{Translator, nfa};
-
-type Graph = nfa::Graph<u8>;
-type Node<'a> = nfa::Node<'a, u8>;
 
 fn translate<'a, 'b>(pattern: &'a str, graph: &'b Graph) -> Result<(Node<'b>, Node<'b>)> {
     let translator = Translator::new(&graph);
