@@ -3,6 +3,12 @@ use regr::range;
 use regr::{Edge, edge};
 
 #[test]
+fn edge_from() {
+    _ = Edge::from(range(3));
+    _ = Edge::from(range(3..=4));
+}
+
+#[test]
 fn edge_push() {
     let mut edge = Edge::new();
     edge.push(b'c'..=b'd');
@@ -27,6 +33,14 @@ fn edge_push_panic_1() {
 }
 
 #[test]
+#[should_panic]
+fn edge_push_panic_2() {
+    let mut edge = Edge::new();
+    edge.push(b'c'..=b'd');
+    edge.push(b'c'..=b'd');
+}
+
+#[test]
 fn edge_macro() {
     let _ = edge![];
     let _ = edge![b'a'..=b'b', b'c'..=b'c', b'e'];
@@ -43,6 +57,8 @@ fn edge_partial_eq() {
     assert_eq!(edge![b'a', b'c'..=b'e'], edge![b'a', b'c'..=b'e']);
     assert_eq!(edge![b'a', b'c'..=u8::MAX], edge![b'a', b'c'..=u8::MAX]);
     assert_eq!(edge![b'a', b'b'..=b'e'], edge![b'a'..=b'e']);
+    assert_ne!(edge![1..=3, 5], edge![1..=2, 5]);
+    assert_ne!(edge![1..=2, 5], edge![1..=3, 5]);
 
     // reversed
     assert_eq!(edge![b'a', b'c'..=b'e'], edge![b'a', b'c'..=b'e']);
@@ -58,6 +74,11 @@ fn edge_partial_eq() {
     assert_ne!(edge![b'a', b'd'..=b'e'], edge![b'a', b'c'..=b'e']);
     assert_ne!(edge![b'a', b'c'..=b'd'], edge![b'a', b'c'..=b'e']);
     assert_ne!(edge![b'a', b'c'..=b'f'], edge![b'a', b'c'..=b'e']);
+
+    // empty
+    assert_eq!(edge![], edge![]);
+    assert_ne!(edge![1], edge![]);
+    assert_ne!(edge![], edge![2]);
 }
 
 #[test]

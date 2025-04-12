@@ -4,8 +4,9 @@ use regr::edge;
 use regr::nfa::Graph;
 
 #[test]
-fn graph_new_with_capacity() {
+fn graph_ctor() {
     _ = Graph::new();
+    _ = Graph::default();
     _ = Graph::with_capacity(150);
 }
 

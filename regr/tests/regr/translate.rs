@@ -32,9 +32,18 @@ fn translate_capture() {
 }
 
 #[test]
-fn translate_class() {
+fn translate_unicode_class() {
     let graph = Graph::new();
-    let (start, finish) = translate(r"[a-b]", &graph).unwrap();
+    let (start, finish) = translate(r"[a-bъ-ўऄ-ऩ𐂂-𐂅]", &graph).unwrap();
+    assert_eq!(start.id(), 0);
+    assert_eq!(finish.id(), 1);
+}
+
+
+#[test]
+fn translate_byte_class() {
+    let graph = Graph::new();
+    let (start, finish) = translate(r"(?i-u)[a-b]", &graph).unwrap();
     assert_eq!(start.id(), 0);
     assert_eq!(finish.id(), 1);
 }
