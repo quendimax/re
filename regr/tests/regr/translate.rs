@@ -39,7 +39,6 @@ fn translate_unicode_class() {
     assert_eq!(finish.id(), 1);
 }
 
-
 #[test]
 fn translate_byte_class() {
     let graph = Graph::new();

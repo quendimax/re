@@ -116,6 +116,14 @@ impl std::convert::From<Range> for Edge {
     }
 }
 
+impl std::convert::From<u8> for Edge {
+    fn from(value: u8) -> Self {
+        Self {
+            ranges: smallvec![value.into()]
+        }
+    }
+}
+
 /// Creates an edge from list of symbols and symbol ranges. If there are
 /// intersected ranges, it panics.
 #[macro_export]
