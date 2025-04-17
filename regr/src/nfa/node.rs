@@ -94,9 +94,7 @@ impl<'a> Node<'a> {
             targets.insert(to, with);
         }
     }
-}
 
-impl<'a> Node<'a> {
     pub fn connect_with_epsilon(&self, to: Node<'a>) {
         let mut targets = self.0.epsilon_targets.borrow_mut();
         targets.insert(to.as_ptr());
