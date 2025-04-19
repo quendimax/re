@@ -1,5 +1,5 @@
-mod edge;
 mod dfa;
+mod edge;
 mod nfa;
 mod node;
 mod range;

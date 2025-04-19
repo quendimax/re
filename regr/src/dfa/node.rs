@@ -1,22 +1,23 @@
-use crate::node::NodeId;
 use crate::edge::Edge;
-use std::ptr::NonNull;
+use crate::node::NodeId;
+use crate::range::{Range, range};
 use std::cell::{Ref, RefCell};
+use std::ptr::NonNull;
 
 pub struct Node<'a>(&'a NodeInner);
 
-const SYMBOLS_LEN: usize = 1 << u8::BITS;
+const SYMBOLS_COUNT: usize = 1 << u8::BITS;
 
 pub(super) struct NodeInner {
     id: NodeId,
-    targets: RefCell<[Option<NonNull<NodeInner>>; SYMBOLS_LEN]>,
+    targets: RefCell<[Option<NonNull<NodeInner>>; SYMBOLS_COUNT]>,
 }
 
 impl NodeInner {
     pub(super) fn new(id: NodeId) -> Self {
         Self {
             id,
-            targets: RefCell::new([None; SYMBOLS_LEN])
+            targets: RefCell::new([None; SYMBOLS_COUNT]),
         }
     }
 }
@@ -53,8 +54,9 @@ impl Node<'_> {
         }
     }
 
-    pub fn targets(&self) -> TargetsIter<'_> {
-        TargetsIter::new(*self)
+    #[inline]
+    pub fn symbol_target_pairs(&self) -> SymbolTargetIter<'_> {
+        SymbolTargetIter::new(*self)
     }
 }
 
@@ -92,12 +94,12 @@ impl std::fmt::Debug for Node<'_> {
     }
 }
 
-pub struct TargetsIter<'a> {
+pub struct SymbolTargetIter<'a> {
     index: usize,
-    targets: Ref<'a, [Option<NonNull<NodeInner>>; SYMBOLS_LEN]>
+    targets: Ref<'a, [Option<NonNull<NodeInner>>; SYMBOLS_COUNT]>,
 }
 
-impl<'a> TargetsIter<'a> {
+impl<'a> SymbolTargetIter<'a> {
     pub fn new(node: Node<'a>) -> Self {
         Self {
             index: 0,
@@ -106,17 +108,34 @@ impl<'a> TargetsIter<'a> {
     }
 }
 
-impl<'a> std::iter::Iterator for TargetsIter<'a> {
-    type Item = (u8, Node<'a>);
+impl<'a> std::iter::Iterator for SymbolTargetIter<'a> {
+    type Item = (Range, Node<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        while self.index < SYMBOLS_LEN {
+        while self.index < SYMBOLS_COUNT {
             // TODO: replace with `get_unchecked` after some testing
             if let Some(target_ptr) = self.targets[self.index] {
+                let first_target_ptr = target_ptr;
+                let first_index = self.index;
                 self.index += 1;
-                return Some(((self.index - 1) as u8, unsafe { Node::from_ptr(target_ptr) }));
+                while self.index < SYMBOLS_COUNT {
+                    if let Some(target_ptr) = self.targets[self.index] {
+                        if target_ptr == first_target_ptr {
+                            self.index += 1;
+                        } else {
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                println!("first {first_index}, index {}", self.index);
+                return Some((range(first_index as u8..=(self.index - 1) as u8), unsafe {
+                    Node::from_ptr(target_ptr)
+                }));
+            } else {
+                self.index += 1;
             }
-            self.index += 1;
         }
         None
     }

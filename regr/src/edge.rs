@@ -6,7 +6,7 @@ use smallvec::{SmallVec, smallvec};
 /// connection between two states.
 #[derive(Clone, Default)]
 pub struct Edge {
-    ranges: SmallVec<[Range; 4]>,
+    ranges: SmallVec<[Range; 11]>,
 }
 
 impl Edge {
@@ -119,7 +119,7 @@ impl std::convert::From<Range> for Edge {
 impl std::convert::From<u8> for Edge {
     fn from(value: u8) -> Self {
         Self {
-            ranges: smallvec![value.into()]
+            ranges: smallvec![value.into()],
         }
     }
 }

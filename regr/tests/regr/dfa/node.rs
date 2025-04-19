@@ -1,6 +1,6 @@
-use regr::dfa::{Node, Graph};
-use regr::edge;
 use pretty_assertions::assert_eq;
+use regr::dfa::{Graph, Node};
+use regr::{Range, range};
 
 #[test]
 fn node_id() {
@@ -36,15 +36,22 @@ fn node_connect() {
 }
 
 #[test]
-fn node_targets_iter() {
+fn node_symbol_targets_iter() {
     let graph = Graph::new();
     let node = graph.node();
     let a = graph.node();
     let b = graph.node();
     let c = graph.node();
     node.connect(a, 0);
-    node.connect(b, 1);
+    node.connect(a, 1);
+    node.connect(b, 2);
     node.connect(c, 255);
 
-    assert_eq!(vec![(0, a), (1, b), (255, c)], node.targets().collect::<Vec<(u8, Node<'_>)>>());
+    let symbol_target_vec = node
+        .symbol_target_pairs()
+        .collect::<Vec<(Range, Node<'_>)>>();
+    assert_eq!(
+        vec![(range(0..=1), a), (range(2), b), (range(255), c)],
+        symbol_target_vec
+    );
 }

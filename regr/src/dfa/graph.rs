@@ -63,14 +63,14 @@ impl std::fmt::Debug for Graph {
             }
             let mut is_empty = true;
             write!(f, "node {} {{", node.id())?;
-
-            // TODO:
-
-
+            for (range, node) in node.symbol_target_pairs() {
+                write!(f, "\n    {:?} -> node {}", range, node.id())?;
+                is_empty = false;
+            }
             if !is_empty {
                 f.write_char('\n')?;
             }
-            f.write_char('}');
+            f.write_char('}')?;
         }
         Ok(())
     }
