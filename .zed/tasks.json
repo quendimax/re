@@ -2,17 +2,11 @@
   {
     "label": "qm::cargo_test",
     "command": "cargo",
-    "args": ["test", "--features=regr/ordered-hash"],
-    "shell": {
-      "program": "bash"
-    }
+    "args": ["test", "--features=regr/ordered-hash"]
   },
   {
     "label": "qm::cargo_nextest_run",
     "command": "cargo",
-    "args": ["nextest", "run", "--features=regr/ordered-hash"],
-    "shell": {
-      "program": "bash"
-    }
+    "args": ["nextest", "run", "--features=regr/ordered-hash"]
   }
 ]
