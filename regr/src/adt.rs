@@ -6,12 +6,15 @@ cfg_if::cfg_if! {
     if #[cfg(feature = "ordered-hash-map")] {
         pub type Map<K, V> = linked_hash_map::LinkedHashMap<K, V>;
         pub type MapIter<'a, K, V> = linked_hash_map::Iter<'a, K, V>;
+        pub type MapKeyIter<'a, K, V> = linked_hash_map::Keys<'a, K, V>;
     } else if #[cfg(feature = "hash-map")] {
         pub type Map<K, V> = std::collections::HashMap<K, V>;
         pub type MapIter<'a, K, V> = std::collections::hash_map::Iter<'a, K, V>;
+        pub type MapKeyIter<'a, K, V> = std::collections::hash_map::Keys<'a, K, V>;
     } else {
         pub type Map<K, V> = std::collections::BTreeMap<K, V>;
         pub type MapIter<'a, K, V> = std::collections::btree_map::Iter<'a, K, V>;
+        pub type MapKeyIter<'a, K, V> = std::collections::btree_map::Keys<'a, K, V>;
     }
 }
 

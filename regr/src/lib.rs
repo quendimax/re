@@ -13,7 +13,7 @@ pub use error::{Error, Result, err};
 pub mod nfa;
 
 mod node;
-pub use node::NodeId;
+pub use node::{NodeId, nfa as nfa_new};
 
 mod range;
 pub use range::{Range, range};

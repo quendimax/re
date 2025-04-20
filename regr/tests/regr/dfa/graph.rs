@@ -31,8 +31,7 @@ fn graph_start_node() {
 
 #[test]
 #[cfg_attr(not(feature = "ordered-hash"), ignore)]
-fn graph_debug_fmt()
-{
+fn graph_debug_fmt() {
     let graph = Graph::new();
     let a = graph.node();
     let b = graph.node();
