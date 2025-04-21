@@ -18,6 +18,9 @@ pub use node::{NodeId, nfa as nfa_new};
 mod range;
 pub use range::{Range, range};
 
+mod symbl;
+pub use symbl::{Symbl, symbl};
+
 mod symbol;
 pub use symbol::Symbol;
 

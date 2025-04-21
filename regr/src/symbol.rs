@@ -54,10 +54,9 @@ impl Symbol for u8 {
     /// is graphical ASCII character, i.e. within range `U+0021`..=`U+007E`.
     fn format(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.is_ascii_graphic() {
-            std::fmt::Debug::fmt(&char::from(*self), f)?;
+            std::fmt::Debug::fmt(&char::from(*self), f)
         } else {
-            std::fmt::Debug::fmt(self, f)?;
+            std::fmt::Debug::fmt(self, f)
         }
-        Ok(())
     }
 }
