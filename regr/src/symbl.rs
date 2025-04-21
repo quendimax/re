@@ -62,6 +62,13 @@ impl std::convert::From<u8> for Symbl {
     }
 }
 
+impl std::convert::From<&u8> for Symbl {
+    #[inline]
+    fn from(value: &u8) -> Self {
+        Symbl(*value)
+    }
+}
+
 impl std::convert::From<Symbl> for u8 {
     #[inline]
     fn from(value: Symbl) -> Self {

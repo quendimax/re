@@ -21,6 +21,9 @@ pub use range::{Range, range};
 mod symbl;
 pub use symbl::{Symbl, symbl};
 
+mod symrng;
+pub use symrng::{SymRng, rng};
+
 mod symbol;
 pub use symbol::Symbol;
 
