@@ -14,7 +14,28 @@ impl Symbl {
     /// other words both symbls are neighbours.
     #[inline]
     pub fn adjoins(self, other: Symbl) -> bool {
-        self.0.abs_diff(other.0) == 1
+        self.steps_between(other) == 1
+    }
+
+    #[inline]
+    pub fn steps_between(self, other: Self) -> usize {
+        self.0.abs_diff(other.0).into()
+    }
+
+    pub fn forward(self, count: usize) -> Option<Self> {
+        if let Ok(count) = u8::try_from(count) {
+            self.0.checked_add(count).map(|v| symbl(v))
+        } else {
+            None
+        }
+    }
+
+    pub fn backward(self, count: usize) -> Option<Self> {
+        if let Ok(count) = u8::try_from(count) {
+            self.0.checked_sub(count).map(|v| symbl(v))
+        } else {
+            None
+        }
     }
 }
 
@@ -41,15 +62,62 @@ impl std::convert::From<u8> for Symbl {
     }
 }
 
+impl std::convert::From<Symbl> for u8 {
+    #[inline]
+    fn from(value: Symbl) -> Self {
+        value.0
+    }
+}
+
+impl std::convert::TryFrom<usize> for Symbl {
+    type Error = std::num::TryFromIntError;
+
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        Ok(Symbl(u8::try_from(value)?))
+    }
+}
+
 impl std::convert::AsRef<u8> for Symbl {
+    #[inline]
     fn as_ref(&self) -> &u8 {
         &self.0
     }
 }
 
 impl std::convert::AsMut<u8> for Symbl {
+    #[inline]
     fn as_mut(&mut self) -> &mut u8 {
         &mut self.0
+    }
+}
+
+impl std::cmp::Eq for Symbl {}
+
+impl std::cmp::PartialEq for Symbl {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        std::cmp::PartialEq::eq(&self.0, &other.0)
+    }
+}
+
+impl std::cmp::Ord for Symbl {
+    #[inline]
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        std::cmp::Ord::cmp(&self.0, &other.0)
+    }
+}
+
+impl std::cmp::PartialOrd for Symbl {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        std::cmp::PartialOrd::partial_cmp(&self.0, &other.0)
+    }
+}
+
+impl std::hash::Hash for Symbl {
+    #[inline]
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state)
     }
 }
 
@@ -70,7 +138,6 @@ impl std::fmt::Debug for Symbl {
         } else {
             std::fmt::Debug::fmt(&self.0, f)
         }
-
     }
 }
 
