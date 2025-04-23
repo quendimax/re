@@ -1,5 +1,6 @@
 use crate::error::{Error, err};
-use crate::symbl::Symbl;
+use crate::symbol::Symbol;
+use std::num::NonZeroU8;
 
 /// Inclusive range of symbls with invariant `start` is always less or equal to `end`.
 ///
@@ -9,84 +10,106 @@ use crate::symbl::Symbl;
 /// uses additional data [`std::iter::Iterator`], but my custom range doesn't.
 #[derive(Copy, Clone, PartialEq)]
 pub struct SymRng {
-    start: Symbl,
-    end: Symbl,
+    start: u8,
+    end: u8,
 }
 
 /// Just a short [`Range`] constructor.
-pub fn rng(into_range: impl Into<SymRng>) -> SymRng {
-    into_range.into()
+#[inline]
+pub fn rng(start: u8, end: u8) -> SymRng {
+    SymRng::new(start, end)
 }
 
 impl SymRng {
     /// Creates a new range with inclusive bounds from `start` to `end`.
     ///
     /// Panics if `end` is less than `start`.
-    pub fn new(start: impl Into<Symbl>, end: impl Into<Symbl>) -> Self {
-        let start = start.into();
-        let end = end.into();
-        assert!(start <= end);
+    pub fn new(start: u8, end: u8) -> Self {
+        assert!(
+            start <= end,
+            "`start` {start} can't be greater than `end` {end}"
+        );
         Self { start, end }
     }
 
-    /// Returns the start position of the range
+    /// Creates a new range with inclusive bounds from `start` to `end`.
+    ///
+    /// It expects that `start <= end`.
     #[inline]
-    pub fn start(&self) -> Symbl {
+    pub fn new_unchecked(start: u8, end: u8) -> Self {
+        Self { start, end }
+    }
+
+    /// Returns the start position of the range.
+    #[inline]
+    pub fn start(self) -> u8 {
         self.start
     }
 
-    /// Returns the end position of the range
+    /// Returns the end position of the range.
     #[inline]
-    pub fn end(&self) -> Symbl {
+    pub fn end(self) -> u8 {
         self.end
     }
 
-    /// Sets a new value of `start` filed.
+    /// Returns the range's length.
+    #[inline]
+    pub fn len(self) -> u8 {
+        self.end - self.start + 1
+    }
+
+    /// Sets a new value of the `start` field.
     ///
     /// Panics if the new `start` is greater than `end`.
-    pub fn set_start(&mut self, value: impl Into<Symbl>) {
-        let value = value.into();
-        assert!(value <= self.end);
-        self.start = value
+    pub fn set_start(&mut self, new_start: u8) {
+        let end = self.end;
+        assert!(
+            new_start <= end,
+            "new `start` {new_start} can't be greater than `end` {end}"
+        );
+        self.start = new_start
     }
 
     /// Sets a new value of `end` filed.
     ///
-    /// Panics if the new `end` is less than `start`.
-    pub fn set_end(&mut self, value: impl Into<Symbl>) {
-        let value = value.into();
-        assert!(self.start <= value);
-        self.end = value
+    /// Panics if the new `end` is lesser than `start`.
+    pub fn set_end(&mut self, new_end: u8) {
+        let start = self.start;
+        assert!(
+            start <= new_end,
+            "new `end` {new_end} can't be lesser than `start` {start}"
+        );
+        self.end = new_end
     }
 
     /// Checks if `self` range is at left of `other`, and they don't have
     /// intersections (but can be joint).
     #[inline]
-    pub fn is_at_left(&self, other: Self) -> bool {
-        self.end < other.start
+    pub fn is_at_left(self, other: Self) -> bool {
+        self.end() < other.start
     }
 
     /// Checks if `self` range is at right of `other`, and they don't have
     /// intersections (but can be joint).
     #[inline]
-    pub fn is_at_right(&self, other: Self) -> bool {
-        other.end < self.start
+    pub fn is_at_right(self, other: Self) -> bool {
+        other.end() < self.start
     }
 
     /// Checks if the two ranges have common elements.
-    pub fn intersects(&self, other: Self) -> bool {
+    pub fn intersects(self, other: Self) -> bool {
         !(self.end < other.start || other.end < self.start)
     }
 
     /// Checks if the two range have a joint, but not common elements.
-    pub fn adjoins(&self, other: Self) -> bool {
+    pub fn adjoins(self, other: Self) -> bool {
         (self.end < other.start && self.end.adjoins(other.start))
             || (other.end < self.start && other.end.adjoins(self.start))
     }
 
     /// Merges two ranges if they are either intersected or adjoint. Otherwise
-    /// returns error message.
-    pub fn try_merge(&self, other: Self) -> Result<Self, Error> {
+    /// returns an error.
+    pub fn try_merge(self, other: Self) -> Result<Self, Error> {
         if self.intersects(other) || self.adjoins(other) {
             Ok(Self {
                 start: self.start.min(other.start),
@@ -99,47 +122,42 @@ impl SymRng {
 
     /// Merges two ranges if they are either intersected or adjoint. Otherwise
     /// it panics.
-    pub fn merge(&self, other: Self) -> Self {
+    pub fn merge(self, other: Self) -> Self {
         self.try_merge(other).unwrap_or_else(|e| panic!("{}", e))
     }
 }
 
-impl std::convert::From<Symbl> for SymRng {
-    fn from(value: Symbl) -> Self {
-        Self::new(value, value)
-    }
-}
-
 impl std::convert::From<u8> for SymRng {
+    #[inline]
     fn from(value: u8) -> Self {
-        Self::new(value, value)
-    }
-}
-
-impl std::convert::From<std::ops::RangeInclusive<Symbl>> for SymRng {
-    fn from(value: std::ops::RangeInclusive<Symbl>) -> Self {
-        if value.start() <= value.end() {
-            Self::new(*value.start(), *value.end())
-        } else {
-            Self::new(*value.end(), *value.start())
+        Self {
+            start: value,
+            end: value,
         }
     }
 }
 
 impl std::convert::From<std::ops::RangeInclusive<u8>> for SymRng {
-    #[inline]
     fn from(value: std::ops::RangeInclusive<u8>) -> Self {
-        let start = value.start().into();
-        let end = value.end().into();
-        std::convert::From::<std::ops::RangeInclusive::<Symbl>>::from(start..=end)
+        if value.start() <= value.end() {
+            Self {
+                start: *value.start(),
+                end: *value.end(),
+            }
+        } else {
+            Self {
+                start: *value.end(),
+                end: *value.start(),
+            }
+        }
     }
 }
 
 impl std::fmt::Display for SymRng {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}", self.start)?;
+        write!(f, "[{}", self.start.formatted())?;
         if self.start != self.end {
-            write!(f, "-{}", self.end)?;
+            write!(f, "-{}", self.end.formatted())?;
         }
         f.write_str("]")
     }
@@ -147,9 +165,9 @@ impl std::fmt::Display for SymRng {
 
 impl std::fmt::Debug for SymRng {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{:?}", self.start)?;
+        write!(f, "[{:?}", self.start.formatted())?;
         if self.start != self.end {
-            write!(f, "-{:?}", self.end)?;
+            write!(f, "-{:?}", self.end.formatted())?;
         }
         f.write_str("]")
     }

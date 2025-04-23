@@ -27,6 +27,10 @@ pub trait Symbol: Sized + Copy {
     /// Prints a symbol using character corresponding to its value if it is
     /// possible.
     fn format(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
+
+    /// Returns a wrapper for symbol that can be used for more human legible
+    /// formatting.
+    fn formatted(self) -> SymbolDisplay;
 }
 
 impl Symbol for u8 {
@@ -59,4 +63,47 @@ impl Symbol for u8 {
             std::fmt::Debug::fmt(self, f)
         }
     }
+
+    fn formatted(self) -> SymbolDisplay {
+        SymbolDisplay(self)
+    }
 }
+
+/// A wrapper around a symbol that can be used within formatting strings for
+/// better legibility.
+///
+/// It doesn't have own constructor and shoud be created by [`Symbol::fmtd`]
+/// method.
+pub struct SymbolDisplay(u8);
+
+impl std::fmt::Display for SymbolDisplay {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.0.is_ascii_graphic() {
+            std::fmt::Display::fmt(&char::from(self.0), f)
+        } else {
+            std::fmt::Display::fmt(&self.0, f)
+        }
+    }
+}
+
+impl std::fmt::Debug for SymbolDisplay {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(&self.0, f)
+    }
+}
+
+macro_rules! reimpl {
+    (std::fmt::$trait:ident for $outer_type:ident) => {
+        impl std::fmt::$trait for $outer_type {
+            #[inline]
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                std::fmt::$trait::fmt(&self.0, f)
+            }
+        }
+    };
+}
+
+reimpl!(std::fmt::Binary for SymbolDisplay);
+reimpl!(std::fmt::Octal for SymbolDisplay);
+reimpl!(std::fmt::LowerHex for SymbolDisplay);
+reimpl!(std::fmt::UpperHex for SymbolDisplay);

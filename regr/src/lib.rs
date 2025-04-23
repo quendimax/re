@@ -21,8 +21,14 @@ pub use range::{Range, range};
 mod symbl;
 pub use symbl::{Symbl, symbl};
 
+mod symmap;
+pub use symmap::Symmap;
+
 mod symrng;
 pub use symrng::{SymRng, rng};
+
+mod symset;
+pub use symset::SymSet;
 
 mod symbol;
 pub use symbol::Symbol;
