@@ -94,7 +94,7 @@ impl<'a, N> TargetIter<'a, N> {
     }
 }
 
-impl<'a, N> std::iter::Iterator for TargetIter<'a, N> {
+impl<N> std::iter::Iterator for TargetIter<'_, N> {
     type Item = NonNull<N>;
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -14,7 +14,8 @@ fn node_copy_clone() {
     let graph = Graph::new();
     let node = graph.node();
     let node_copy = node;
-    let node_clone = node.clone();
+    #[allow(clippy::clone_on_copy)]
+    let node_clone = node.clone(); // for coverage
     assert_eq!(node.id(), node_copy.id());
     assert_eq!(node.id(), node_clone.id());
 }

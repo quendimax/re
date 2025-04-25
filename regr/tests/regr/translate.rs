@@ -4,8 +4,8 @@ use regr::Translator;
 use regr::nfa::{Graph, Node};
 use regr::{Result, err};
 
-fn translate<'a, 'b>(pattern: &'a str, graph: &'b Graph) -> Result<(Node<'b>, Node<'b>)> {
-    let translator = Translator::new(&graph);
+fn translate<'b>(pattern: &str, graph: &'b Graph) -> Result<(Node<'b>, Node<'b>)> {
+    let translator = Translator::new(graph);
     let mut parser = Parser::new();
     let hir = parser.parse(pattern).unwrap();
     translator.from_hir_to_nfa(&hir)

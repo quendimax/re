@@ -42,6 +42,7 @@ fn node_eclosure() {
     d.connect_with_epsilon(b);
     d.connect_with_epsilon(c);
 
+    #[allow(clippy::mutable_key_type)]
     let set = Set::from_iter(vec![a, b, c]);
     assert_eq!(a.eclosure(), set)
 }

@@ -54,12 +54,6 @@ impl Range {
         self.end
     }
 
-    /// Returns the range's length.
-    #[inline]
-    pub fn len(self) -> usize {
-        (self.end() - self.start() + 1) as usize
-    }
-
     /// Sets a new value of the `start` field.
     ///
     /// Panics if the new `start` is greater than `end`.

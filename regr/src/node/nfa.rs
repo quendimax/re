@@ -45,7 +45,7 @@ impl<'a> Node<'a> {
 }
 
 /// Private API
-impl<'a> Node<'a> {
+impl Node<'_> {
     #[inline]
     unsafe fn from_ptr(ptr: NonNull<NodeInner>) -> Self {
         Self(unsafe { ptr.as_ref() })
@@ -84,7 +84,7 @@ impl std::cmp::Ord for Node<'_> {
 impl std::cmp::PartialOrd for Node<'_> {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.0.base.partial_cmp(&other.0.base)
+        Some(self.cmp(other))
     }
 }
 

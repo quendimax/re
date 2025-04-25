@@ -3,7 +3,7 @@ use crate::range::Range;
 /// Quantity of `u64` values in the `bitmap` member.
 const SYM_BITMAP_LEN: usize = 4;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Transition {
     bitmap: [u64; SYM_BITMAP_LEN],
 }
@@ -26,14 +26,6 @@ impl Transition {
         self.bitmap[1] |= other.bitmap[1];
         self.bitmap[2] |= other.bitmap[2];
         self.bitmap[3] |= other.bitmap[3];
-    }
-}
-
-impl std::default::Default for Transition {
-    fn default() -> Self {
-        Self {
-            bitmap: Default::default(),
-        }
     }
 }
 
@@ -61,7 +53,7 @@ impl<'a> RangeIter<'a> {
     }
 }
 
-impl<'a> std::iter::Iterator for RangeIter<'a> {
+impl std::iter::Iterator for RangeIter<'_> {
     type Item = Range;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -83,7 +75,7 @@ impl<'a> std::iter::Iterator for RangeIter<'a> {
             self.index += 1;
             if self.index < SYM_BITMAP_LEN as u32 {
                 self.reg = self.bitmap[self.index as usize];
-                self.already_shifted = (self.index as u32) << 6;
+                self.already_shifted = self.index << 6;
             } else {
                 break;
             }

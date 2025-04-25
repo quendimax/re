@@ -137,7 +137,7 @@ mod utest {
         }
 
         let iter = arena.iter();
-        let collect = iter.map(|x| *x).collect::<Vec<_>>();
+        let collect = iter.copied().collect::<Vec<_>>();
         assert_eq!(collect, items);
 
         let arena = Arena::<u32>::with_capacity(10);
@@ -158,6 +158,6 @@ mod utest {
         }
 
         assert_eq!(items.len(), 10);
-        assert_eq!(items, arena.iter().map(|x| *x).collect::<Vec<_>>());
+        assert_eq!(items, arena.iter().copied().collect::<Vec<_>>());
     }
 }
