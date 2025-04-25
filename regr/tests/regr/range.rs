@@ -29,9 +29,7 @@ fn range_from_range_inclusive() {
 
 #[test]
 fn range_fn() {
-    let _ = range(3..=3);
     let _ = range(3);
-    let _ = range(b'a'..=b'a');
     let _ = range(b'a');
 }
 
@@ -138,8 +136,41 @@ fn range_merge_panic() {
 }
 
 #[test]
+fn symbol_range_display_fmt() {
+    assert_eq!(format!("{}", Range::from(b'a'..=b'a')), r"['a']");
+    assert_eq!(format!("{}", Range::from(b'\0'..=b'Z')), r"[0-'Z']");
+    assert_eq!(format!("{}", Range::from(b'\x7E'..=b'~')), r"['~']");
+}
+
+#[test]
 fn symbol_range_debug_fmt() {
-    assert_eq!(format!("{:?}", Range::from(b'a'..=b'a')), r"['a']");
-    assert_eq!(format!("{:?}", Range::from(b'\0'..=b'Z')), r"[0-'Z']");
-    assert_eq!(format!("{:?}", Range::from(b'\x7E'..=b'~')), r"['~']");
+    assert_eq!(format!("{:?}", Range::from(b'a'..=b'a')), r"[97]");
+    assert_eq!(format!("{:?}", Range::from(b'\0'..=b'Z')), r"[0-90]");
+    assert_eq!(format!("{:?}", Range::from(b'\x7E'..=b'~')), r"[126]");
+}
+
+#[test]
+fn symbol_range_binary_fmt() {
+    assert_eq!(format!("{:b}", range(b'a'..=b'a')), r"[1100001]");
+    assert_eq!(format!("{:b}", range(b'\0'..=b'Z')), r"[0-1011010]");
+    assert_eq!(format!("{:b}", range(b'\x7E'..=b'~')), r"[1111110]");
+}
+
+#[test]
+fn symbol_range_octal_fmt() {
+    assert_eq!(format!("{:o}", range(b'a'..=b'a')), r"[141]");
+    assert_eq!(format!("{:o}", range(b'\0'..=b'Z')), r"[0-132]");
+    assert_eq!(format!("{:o}", range(b'\x7E'..=b'~')), r"[176]");
+}
+
+#[test]
+fn symbol_range_lowerhex_fmt() {
+    assert_eq!(format!("{:x}", range(b'\0'..=b'Z')), r"[0-5a]");
+    assert_eq!(format!("{:x}", range(b'\x7E'..=b'~')), r"[7e]");
+}
+
+#[test]
+fn symbol_range_upperhex_fmt() {
+    assert_eq!(format!("{:X}", range(b'\0'..=b'Z')), r"[0-5A]");
+    assert_eq!(format!("{:X}", range(b'\x7E'..=b'~')), r"[7E]");
 }

@@ -79,7 +79,7 @@ pub struct SymbolDisplay(u8);
 impl std::fmt::Display for SymbolDisplay {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.0.is_ascii_graphic() {
-            std::fmt::Display::fmt(&char::from(self.0), f)
+            write!(f, "'{}'", char::from(self.0))
         } else {
             std::fmt::Display::fmt(&self.0, f)
         }

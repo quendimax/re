@@ -9,7 +9,6 @@ repository.workspace = true
 [dependencies]
 bumpalo = "3.17"
 cfg-if = "1"
-i256 = "0.2.2"
 linked-hash-map = { version = "0.5.6", optional = true }
 linked_hash_set = { version = "0.1.5", optional = true }
 regex-syntax = "0.8.5"
