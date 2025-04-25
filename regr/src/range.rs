@@ -25,10 +25,7 @@ impl Range {
     /// `start` is greater than `end`, ther are swapped.
     pub fn new(start: u8, end: u8) -> Self {
         if start <= end {
-            Self {
-                start,
-                end,
-            }
+            Self { start, end }
         } else {
             Self {
                 start: end,

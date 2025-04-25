@@ -22,6 +22,7 @@ fn range_from_range_inclusive() {
     assert_eq!(r.start(), 3);
     assert_eq!(r.end(), 3);
 
+    #[allow(clippy::reversed_empty_ranges)]
     let r = Range::from(3..=0);
     assert_eq!(r.start(), 0);
     assert_eq!(r.end(), 3);
@@ -115,13 +116,13 @@ fn range_try_merge() {
     assert_eq!(r_0_1.try_merge(r_2_4), Ok((b'0'..=b'4').into()));
     assert_eq!(r_2_4.try_merge(r_3_5), Ok((b'2'..=b'5').into()));
     assert_eq!(r_3_5.try_merge(r_5_7), Ok((b'3'..=b'7').into()));
-    assert_eq!(r_5_7.try_merge(r_6), Ok(r_5_7.clone()));
+    assert_eq!(r_5_7.try_merge(r_6), Ok(r_5_7));
 
     // reverted
     assert_eq!(r_2_4.try_merge(r_0_1), Ok((b'0'..=b'4').into()));
     assert_eq!(r_3_5.try_merge(r_2_4), Ok((b'2'..=b'5').into()));
     assert_eq!(r_5_7.try_merge(r_3_5), Ok((b'3'..=b'7').into()));
-    assert_eq!(r_6.try_merge(r_5_7), Ok(r_5_7.clone()));
+    assert_eq!(r_6.try_merge(r_5_7), Ok(r_5_7));
 
     assert_eq!(r_0_1.try_merge(r_5_7), err::merge_delimited_ranges());
     assert_eq!(r_5_7.try_merge(r_0_1), err::merge_delimited_ranges());

@@ -111,7 +111,12 @@ mod test {
         assert_eq!(sm(0, 0, 0, 255), vec![range(192..=199)]);
         assert_eq!(
             sm(255, 255, 255, 255),
-            vec![range(0..=7), range(64..=71), range(128..=135), range(192..=199)]
+            vec![
+                range(0..=7),
+                range(64..=71),
+                range(128..=135),
+                range(192..=199)
+            ]
         );
         assert_eq!(sm(u64::MAX, 0, 0, 0), vec![range(0..=63)]);
         assert_eq!(sm(0, u64::MAX, 0, 0), vec![range(64..=127)]);
@@ -121,13 +126,15 @@ mod test {
         );
         assert_eq!(
             sm(u64::MAX, u64::MAX, u64::MAX, u64::MAX),
-            vec![range(0..=63), range(64..=127), range(128..=191), range(192..=255)]
+            vec![
+                range(0..=63),
+                range(64..=127),
+                range(128..=191),
+                range(192..=255)
+            ]
         );
         assert_eq!(sm(1, 0, 0, 0), vec![range(0)]);
-        assert_eq!(
-            sm(0x8000000000000001, 0, 0, 0),
-            vec![range(0), range(63)]
-        );
+        assert_eq!(sm(0x8000000000000001, 0, 0, 0), vec![range(0), range(63)]);
         assert_eq!(
             sm(0x8000000000000001, 0x8000000000000001, 0, 0),
             vec![range(0), range(63), range(64), range(127)]
