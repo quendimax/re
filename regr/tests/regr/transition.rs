@@ -3,7 +3,7 @@ use regr::{Range, Transition, range};
 
 #[test]
 fn transition_symbols() {
-    type Vec = smallvec::SmallVec<[u8; 16]>;
+    type Vec = smallvec::SmallVec<[u8; 8]>;
     fn symbols(a: u64, b: u64, c: u64, d: u64) -> Vec {
         let smap = Transition::new(&[a, b, c, d]);
         smap.symbols().collect::<Vec>()

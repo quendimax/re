@@ -1,6 +1,6 @@
 use super::{NodeBase, NodeId};
 use crate::adt::Set;
-use crate::edge::Edge;
+use crate::transition::Transition;
 use std::cell::RefCell;
 use std::ptr::NonNull;
 
@@ -32,7 +32,7 @@ impl<'a> Node<'a> {
     }
 
     #[inline]
-    pub fn connect(self, to: Node<'a>, with: impl Into<Edge>) {
+    pub fn connect(self, to: Node<'a>, with: impl Into<Transition>) {
         self.0.base.connect(to.as_ptr(), with);
     }
 

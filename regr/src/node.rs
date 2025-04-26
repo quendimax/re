@@ -1,7 +1,7 @@
 pub mod nfa;
 
 use crate::adt::{Map, MapKeyIter};
-use crate::edge::Edge;
+use crate::transition::Transition;
 use std::cell::{Ref, RefCell};
 use std::ptr::NonNull;
 
@@ -12,7 +12,7 @@ pub type NodeId = u32;
 #[derive(Debug)]
 struct NodeBase<N> {
     id: NodeId,
-    targets: RefCell<Map<NonNull<N>, Edge>>,
+    targets: RefCell<Map<NonNull<N>, Transition>>,
 }
 
 impl<N> NodeBase<N> {
@@ -33,7 +33,7 @@ impl<N> NodeBase<N> {
     ///
     /// * `to` - The target node to connect to
     /// * `with` - The edge rule describing valid transitions to the target
-    fn connect(&self, to: NonNull<N>, with: impl Into<Edge>) {
+    fn connect(&self, to: NonNull<N>, with: impl Into<Transition>) {
         let with = with.into();
         let mut targets = self.targets.borrow_mut();
         if let Some(edge) = targets.get_mut(&to) {
@@ -71,8 +71,8 @@ impl<N> std::hash::Hash for NodeBase<N> {
 }
 
 struct TargetIter<'a, N> {
-    _lock: Ref<'a, Map<NonNull<N>, Edge>>,
-    iter: MapKeyIter<'a, NonNull<N>, Edge>,
+    _lock: Ref<'a, Map<NonNull<N>, Transition>>,
+    iter: MapKeyIter<'a, NonNull<N>, Transition>,
 }
 
 impl<'a, N> TargetIter<'a, N> {
