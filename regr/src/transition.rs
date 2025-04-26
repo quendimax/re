@@ -38,8 +38,7 @@ impl std::convert::AsRef<[u64; SYM_BITMAP_LEN]> for Transition {
 pub struct RangeIter<'a> {
     bitmap: &'a [u64; SYM_BITMAP_LEN],
     reg: u64,
-    index: u32,
-    already_shifted: u32,
+    shift: u32,
 }
 
 impl<'a> RangeIter<'a> {
@@ -47,8 +46,7 @@ impl<'a> RangeIter<'a> {
         Self {
             bitmap,
             reg: bitmap[0],
-            index: 0,
-            already_shifted: 0,
+            shift: 0,
         }
     }
 }
@@ -57,28 +55,27 @@ impl std::iter::Iterator for RangeIter<'_> {
     type Item = Range;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while self.index < SYM_BITMAP_LEN as u32 {
+        const SHIFT_OVERFLOW: u32 = (SYM_BITMAP_LEN << 6) as u32;
+        while self.shift < SHIFT_OVERFLOW {
             if self.reg != 0 {
                 let trailing_zeros = self.reg.trailing_zeros();
-                self.reg >>= trailing_zeros;
+                self.reg |= self.reg.wrapping_sub(1);
 
                 let trailing_ones = self.reg.trailing_ones();
-                self.reg = self.reg.checked_shr(trailing_ones).unwrap_or(0);
+                self.reg &= self.reg.wrapping_add(1);
 
-                let start = trailing_zeros + self.already_shifted;
-                let end = start + (trailing_ones - 1);
+                let start = trailing_zeros + self.shift;
+                let end = trailing_ones - 1 + self.shift;
 
-                self.already_shifted += trailing_zeros + trailing_ones;
                 return Some(Range::new_unchecked(start as u8, end as u8));
             }
 
-            self.index += 1;
-            if self.index < SYM_BITMAP_LEN as u32 {
-                self.reg = self.bitmap[self.index as usize];
-                self.already_shifted = self.index << 6;
-            } else {
-                break;
+            if self.shift < SHIFT_OVERFLOW - 64 {
+                self.shift += 64;
+                self.reg = self.bitmap[self.shift as usize >> 6];
+                continue;
             }
+            break;
         }
         None
     }
