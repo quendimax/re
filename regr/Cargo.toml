@@ -24,3 +24,4 @@ ordered-hash = ["ordered-hash-map", "ordered-hash-set"]
 
 [dev-dependencies]
 pretty_assertions = "1"
+smallvec = "1"

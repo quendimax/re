@@ -88,49 +88,62 @@ mod test {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn symmap_ranges() {
-        fn sm(a: u64, b: u64, c: u64, d: u64) -> Vec<Range> {
+    fn transition_ranges() {
+        type Vec = smallvec::SmallVec<[Range; 4]>;
+        fn collect(a: u64, b: u64, c: u64, d: u64) -> Vec {
             let smap = Transition::new(&[a, b, c, d]);
-            smap.ranges().collect::<Vec<Range>>()
+            smap.ranges().collect::<Vec>()
         }
-        assert_eq!(sm(0, 0, 0, 0), vec![]);
-        assert_eq!(sm(255, 0, 0, 0), vec![range(0..=7)]);
-        assert_eq!(sm(255, 255, 0, 0), vec![range(0..=7), range(64..=71)]);
-        assert_eq!(sm(0, 255, 0, 0), vec![range(64..=71)]);
-        assert_eq!(sm(0, 0, 0, 255), vec![range(192..=199)]);
+        fn vec(buf: &[Range]) -> Vec {
+            Vec::from(buf)
+        }
+
+        assert_eq!(collect(0, 0, 0, 0), vec(&[]));
+        assert_eq!(collect(255, 0, 0, 0), vec(&[range(0..=7)]));
         assert_eq!(
-            sm(255, 255, 255, 255),
-            vec![
+            collect(255, 255, 0, 0),
+            vec(&[range(0..=7), range(64..=71)])
+        );
+        assert_eq!(collect(0, 255, 0, 0), vec(&[range(64..=71)]));
+        assert_eq!(collect(0, 0, 0, 255), vec(&[range(192..=199)]));
+        assert_eq!(
+            collect(255, 255, 255, 255),
+            vec(&[
                 range(0..=7),
                 range(64..=71),
                 range(128..=135),
                 range(192..=199)
-            ]
+            ])
         );
-        assert_eq!(sm(u64::MAX, 0, 0, 0), vec![range(0..=63)]);
-        assert_eq!(sm(0, u64::MAX, 0, 0), vec![range(64..=127)]);
+        assert_eq!(collect(u64::MAX, 0, 0, 0), vec(&[range(0..=63)]));
+        assert_eq!(collect(0, u64::MAX, 0, 0), vec(&[range(64..=127)]));
+        assert_eq!(collect(0, 0, u64::MAX, 0), vec(&[range(128..=191)]));
+        assert_eq!(collect(0, 0, 0, u64::MAX), vec(&[range(192..=255)]));
         assert_eq!(
-            sm(u64::MAX, 0, 0, u64::MAX),
-            vec![range(0..=63), range(192..=255)]
+            collect(u64::MAX, 0, 0, u64::MAX),
+            vec(&[range(0..=63), range(192..=255)])
         );
         assert_eq!(
-            sm(u64::MAX, u64::MAX, u64::MAX, u64::MAX),
-            vec![
+            collect(u64::MAX, u64::MAX, u64::MAX, u64::MAX),
+            vec(&[
                 range(0..=63),
                 range(64..=127),
                 range(128..=191),
                 range(192..=255)
-            ]
+            ])
         );
-        assert_eq!(sm(1, 0, 0, 0), vec![range(0)]);
-        assert_eq!(sm(0x8000000000000001, 0, 0, 0), vec![range(0), range(63)]);
+        assert_eq!(collect(1, 0, 0, 0), vec(&[range(0)]));
         assert_eq!(
-            sm(0x8000000000000001, 0x8000000000000001, 0, 0),
-            vec![range(0), range(63), range(64), range(127)]
+            collect(0x8000000000000001, 0, 0, 0),
+            vec(&[range(0), range(63)])
         );
         assert_eq!(
-            sm(0xC000000000000007, 0x1F000001, 0, 0),
-            vec![range(0..=2), range(62..=63), range(64), range(88..=92)]
+            collect(0x8000000000000001, 0x8000000000000001, 0, 0),
+            vec(&[range(0), range(63), range(64), range(127)])
+        );
+        assert_eq!(
+            collect(0xC000000000000007, 0x1F000001, 0, 0),
+            vec(&[range(0..=2), range(62..=63), range(64), range(88..=92)])
         );
     }
 }
