@@ -1,6 +1,6 @@
 pub mod nfa;
 
-use crate::adt::{Map, MapKeyIter};
+use crate::adt::{Map, MapIter, MapKeyIter};
 use crate::transition::Transition;
 use std::cell::{Ref, RefCell};
 use std::ptr::NonNull;
@@ -8,6 +8,20 @@ use std::ptr::NonNull;
 /// Integer type that represents node identifier. It is expected that it is
 /// unique within a graph.
 pub type NodeId = u32;
+
+pub(crate) trait Nodal<'a>: Copy {
+    type InnerNode;
+
+    fn new_inner(id: NodeId) -> Self::InnerNode;
+
+    fn from_ref(node_ref: &'a Self::InnerNode) -> Self;
+
+    fn from_mut(node_mut: &'a mut Self::InnerNode) -> Self;
+
+    unsafe fn from_ptr(node_ptr: NonNull<Self::InnerNode>) -> Self;
+
+    fn as_ptr(self) -> NonNull<Self::InnerNode>;
+}
 
 #[derive(Debug)]
 struct NodeBase<N> {
@@ -99,5 +113,37 @@ impl<N> std::iter::Iterator for TargetIter<'_, N> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next().cloned()
+    }
+}
+
+struct SymbolTargetIter<'a, N> {
+    _lock: Ref<'a, Map<NonNull<N>, Transition>>,
+    iter: MapIter<'a, NonNull<N>, Transition>,
+}
+
+impl<'a, N> SymbolTargetIter<'a, N> {
+    pub fn new(node: &'a NodeBase<N>) -> Self {
+        // `_lock` (with type `cell::Ref`) should return an iterator of inside
+        // structure with lifetime of `_lock` itself. But I break it here, to
+        // get iterator with lifetime 'a instead of `_lock`s one. It will allow
+        // in `Iterator` implementation to convert references to
+        // `NonNull<NodeInner>` into `Node` instances with lifetime 'a. It is
+        // safe though it is not allowed to put references to the RefCell's
+        // inner structure outside, because the RefCell contains pointers to the
+        // nodes, and the iterator will return copies of these pointers (via
+        // Node wrapper), but not references to the pointers. So references to
+        // the RefCell's inner contents are never gone out of this iterator.
+        let lock = node.targets.borrow();
+        let ptr = node.targets.as_ptr();
+        let iter = unsafe { &*ptr }.iter();
+        Self { _lock: lock, iter }
+    }
+}
+
+impl<'a, N> std::iter::Iterator for SymbolTargetIter<'a, N> {
+    type Item = (NonNull<N>, &'a Transition);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(|(node_ptr, transition)| (*node_ptr, transition))
     }
 }

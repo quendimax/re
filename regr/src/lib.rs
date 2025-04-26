@@ -10,6 +10,9 @@ pub use edge::Edge;
 mod error;
 pub use error::{Error, Result, err};
 
+mod graph;
+pub use graph::Graph;
+
 pub mod nfa;
 
 mod node;
