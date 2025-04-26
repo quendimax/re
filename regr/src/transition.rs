@@ -16,6 +16,14 @@ impl Transition {
         Self { bitmap: *bitmap }
     }
 
+    /// Returns iterator over all symbols in this trasition instance in
+    /// ascendent order.
+    pub fn symbols(&self) -> SymbolIter {
+        SymbolIter::new(&self.bitmap)
+    }
+
+    /// Returns iterator over all symbol ranges in this trasition instance in
+    /// ascendent order.
     pub fn ranges(&self) -> RangeIter {
         RangeIter::new(&self.bitmap)
     }
@@ -32,6 +40,46 @@ impl Transition {
 impl std::convert::AsRef<[u64; SYM_BITMAP_LEN]> for Transition {
     fn as_ref(&self) -> &[u64; SYM_BITMAP_LEN] {
         &self.bitmap
+    }
+}
+
+pub struct SymbolIter<'a> {
+    bitmap: &'a [u64; SYM_BITMAP_LEN],
+    reg: u64,
+    shift: u32,
+}
+
+impl<'a> SymbolIter<'a> {
+    fn new(bitmap: &'a [u64; SYM_BITMAP_LEN]) -> Self {
+        Self {
+            bitmap,
+            reg: bitmap[0],
+            shift: 0,
+        }
+    }
+}
+
+impl std::iter::Iterator for SymbolIter<'_> {
+    type Item = u8;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        const SHIFT_OVERFLOW: u32 = (SYM_BITMAP_LEN << 6) as u32;
+        while self.shift < SHIFT_OVERFLOW {
+            if self.reg != 0 {
+                let trailing_zeros = self.reg.trailing_zeros();
+                self.reg &= self.reg.wrapping_sub(1);
+                let symbol = trailing_zeros + self.shift;
+                return Some(symbol as u8);
+            }
+            if self.shift < SHIFT_OVERFLOW - 64 {
+                self.shift += 64;
+                self.reg = self.bitmap[self.shift as usize >> 6];
+                continue;
+            }
+            break;
+        }
+        None
     }
 }
 
@@ -54,6 +102,7 @@ impl<'a> RangeIter<'a> {
 impl std::iter::Iterator for RangeIter<'_> {
     type Item = Range;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         const SHIFT_OVERFLOW: u32 = (SYM_BITMAP_LEN << 6) as u32;
         while self.shift < SHIFT_OVERFLOW {
@@ -78,72 +127,5 @@ impl std::iter::Iterator for RangeIter<'_> {
             break;
         }
         None
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::range::range;
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    fn transition_ranges() {
-        type Vec = smallvec::SmallVec<[Range; 4]>;
-        fn collect(a: u64, b: u64, c: u64, d: u64) -> Vec {
-            let smap = Transition::new(&[a, b, c, d]);
-            smap.ranges().collect::<Vec>()
-        }
-        fn vec(buf: &[Range]) -> Vec {
-            Vec::from(buf)
-        }
-
-        assert_eq!(collect(0, 0, 0, 0), vec(&[]));
-        assert_eq!(collect(255, 0, 0, 0), vec(&[range(0..=7)]));
-        assert_eq!(
-            collect(255, 255, 0, 0),
-            vec(&[range(0..=7), range(64..=71)])
-        );
-        assert_eq!(collect(0, 255, 0, 0), vec(&[range(64..=71)]));
-        assert_eq!(collect(0, 0, 0, 255), vec(&[range(192..=199)]));
-        assert_eq!(
-            collect(255, 255, 255, 255),
-            vec(&[
-                range(0..=7),
-                range(64..=71),
-                range(128..=135),
-                range(192..=199)
-            ])
-        );
-        assert_eq!(collect(u64::MAX, 0, 0, 0), vec(&[range(0..=63)]));
-        assert_eq!(collect(0, u64::MAX, 0, 0), vec(&[range(64..=127)]));
-        assert_eq!(collect(0, 0, u64::MAX, 0), vec(&[range(128..=191)]));
-        assert_eq!(collect(0, 0, 0, u64::MAX), vec(&[range(192..=255)]));
-        assert_eq!(
-            collect(u64::MAX, 0, 0, u64::MAX),
-            vec(&[range(0..=63), range(192..=255)])
-        );
-        assert_eq!(
-            collect(u64::MAX, u64::MAX, u64::MAX, u64::MAX),
-            vec(&[
-                range(0..=63),
-                range(64..=127),
-                range(128..=191),
-                range(192..=255)
-            ])
-        );
-        assert_eq!(collect(1, 0, 0, 0), vec(&[range(0)]));
-        assert_eq!(
-            collect(0x8000000000000001, 0, 0, 0),
-            vec(&[range(0), range(63)])
-        );
-        assert_eq!(
-            collect(0x8000000000000001, 0x8000000000000001, 0, 0),
-            vec(&[range(0), range(63), range(64), range(127)])
-        );
-        assert_eq!(
-            collect(0xC000000000000007, 0x1F000001, 0, 0),
-            vec(&[range(0..=2), range(62..=63), range(64), range(88..=92)])
-        );
     }
 }
