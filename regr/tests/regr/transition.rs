@@ -2,6 +2,18 @@ use pretty_assertions::assert_eq;
 use regr::{Range, Transition, range};
 
 #[test]
+fn transition_new() {
+    let transition = Transition::new(&[0, 1, 2, 3]);
+    assert_eq!(transition.symbols().collect::<Vec<_>>(), vec![64, 129, 192, 193]);
+}
+
+#[test]
+fn transition_from_bytes() {
+    let transition = Transition::from_bytes(b"\0abc\xFF");
+    assert_eq!(transition.symbols().collect::<Vec<_>>(), vec![0, 97, 98, 99, 255]);
+}
+
+#[test]
 fn transition_symbols() {
     type Vec = smallvec::SmallVec<[u8; 8]>;
     fn symbols(a: u64, b: u64, c: u64, d: u64) -> Vec {
@@ -79,4 +91,24 @@ fn transition_ranges() {
         ranges(0xC000000000000007, 0x1F000001, 0, 0),
         vec([range(0..=2), range(62..=63), range(64), range(88..=92)])
     );
+}
+
+#[test]
+fn transition_merge() {
+    let mut tr_a = Transition::from_bytes(b"abc");
+    let tr_b = Transition::from_bytes(b"bcde");
+    let tr_c = Transition::from_bytes(b"abcde");
+    tr_a.merge(&tr_b);
+    assert_eq!(tr_a, tr_c);
+}
+
+#[test]
+fn transition_display_fmt() {
+    fn tr(bytes: &[u8]) -> String {
+        format!("{}", Transition::from_bytes(bytes))
+    }
+    assert_eq!(tr(b""), "[]");
+    assert_eq!(tr(b"abc"), "['a'-'c']");
+    assert_eq!(tr(b"abc"), "['a'-'c']");
+    assert_eq!(tr(b"abcE"), "['E' | 'a'-'c']");
 }

@@ -27,3 +27,21 @@ fn u8_adjoins() {
     assert!(!1u8.adjoins(1));
     assert!(!1u8.adjoins(3));
 }
+
+#[test]
+fn u8_display() {
+    assert_eq!(0.display().to_string(), r"\x00");
+    assert_eq!(b'\t'.display().to_string(), r"\x09");
+    assert_eq!(b'\r'.display().to_string(), r"\x0D");
+    assert_eq!(b'\n'.display().to_string(), r"\x0A");
+    assert_eq!(b'\''.display().to_string(), r"'''");
+    assert_eq!(b'"'.display().to_string(), r#"'"'"#);
+    assert_eq!(b'\\'.display().to_string(), r"'\'");
+    assert_eq!(0x1B.display().to_string(), r"\x1B");
+    assert_eq!(0x1f.display().to_string(), r"\x1F");
+    assert_eq!(b' '.display().to_string(), "' '");
+    assert_eq!(b'a'.display().to_string(), "'a'");
+    assert_eq!(0x7F.display().to_string(), r"\x7F");
+    assert_eq!(129.display().to_string(), r"\x81");
+    assert_eq!(255.display().to_string(), r"\xFF");
+}

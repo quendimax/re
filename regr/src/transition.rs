@@ -1,9 +1,10 @@
 use crate::range::Range;
+use std::fmt::Write;
 
 /// Quantity of `u64` values in the `bitmap` member.
 const SYM_BITMAP_LEN: usize = 4;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct Transition {
     bitmap: [u64; SYM_BITMAP_LEN],
 }
@@ -11,9 +12,19 @@ pub struct Transition {
 impl Transition {
     pub const BITS: u32 = 256;
 
-    /// Creates a new empty Symmap.
+    /// Creates a new transition initialized with the given bitmap.
     pub fn new(bitmap: &[u64; SYM_BITMAP_LEN]) -> Self {
         Self { bitmap: *bitmap }
+    }
+
+    /// Creates a new transition parsing the given byte array, and setting a bit
+    /// corresponding to each byte value in the array.
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let mut bitmap = [0u64; SYM_BITMAP_LEN];
+        for byte in bytes {
+            bitmap[*byte as usize >> 6] |= 1 << (byte & 0x3F);
+        }
+        Self::new(&bitmap)
     }
 
     /// Returns iterator over all symbols in this trasition instance in
@@ -42,6 +53,37 @@ impl std::convert::AsRef<[u64; SYM_BITMAP_LEN]> for Transition {
         &self.bitmap
     }
 }
+
+macro_rules! impl_fmt {
+    (std::fmt::$trait:ident) => {
+        impl std::fmt::$trait for Transition {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_char('[')?;
+                let mut iter = self.ranges();
+                let mut range = iter.next();
+                loop {
+                    if let Some(range) = range {
+                        std::fmt::$trait::fmt(&range, f)?;
+                    }
+                    if let Some(next_range)= iter.next() {
+                        f.write_str(" | ")?;
+                        range = Some(next_range);
+                    } else {
+                        break;
+                    }
+                }
+                f.write_char(']')
+            }
+        }
+    };
+}
+
+impl_fmt!(std::fmt::Display);
+impl_fmt!(std::fmt::Debug);
+impl_fmt!(std::fmt::Binary);
+impl_fmt!(std::fmt::Octal);
+impl_fmt!(std::fmt::LowerHex);
+impl_fmt!(std::fmt::UpperHex);
 
 pub struct SymbolIter<'a> {
     bitmap: &'a [u64; SYM_BITMAP_LEN],

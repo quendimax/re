@@ -142,21 +142,11 @@ impl std::convert::From<std::ops::RangeInclusive<u8>> for Range {
 
 impl std::fmt::Display for Range {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}", self.start().formatted())?;
+        write!(f, "{}", self.start().display())?;
         if self.start() != self.end() {
-            write!(f, "-{}", self.end().formatted())?;
+            write!(f, "-{}", self.end().display())?;
         }
-        f.write_str("]")
-    }
-}
-
-impl std::fmt::Debug for Range {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{:?}", self.start().formatted())?;
-        if self.start() != self.end() {
-            write!(f, "-{:?}", self.end().formatted())?;
-        }
-        f.write_str("]")
+        Ok(())
     }
 }
 
@@ -165,18 +155,18 @@ macro_rules! reimpl {
         impl std::fmt::$trait for $outer_type {
             #[inline]
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                f.write_char('[')?;
                 std::fmt::$trait::fmt(&self.start(), f)?;
                 if self.start() != self.end() {
                     f.write_char('-')?;
                     std::fmt::$trait::fmt(&self.end(), f)?;
                 }
-                f.write_char(']')
+                Ok(())
             }
         }
     };
 }
 
+reimpl!(std::fmt::Debug for Range);
 reimpl!(std::fmt::Binary for Range);
 reimpl!(std::fmt::Octal for Range);
 reimpl!(std::fmt::LowerHex for Range);
