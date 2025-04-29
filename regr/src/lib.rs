@@ -11,12 +11,12 @@ mod error;
 pub use error::{Error, Result, err};
 
 mod graph;
-pub use graph::Graph;
+pub use graph::{AutomatonKind, Graph};
 
 pub mod nfa;
 
-mod node;
-pub use node::{NodeId, nfa as nfa_new};
+pub mod node;
+pub use node::{Node, NodeId};
 
 mod range;
 pub use range::{Range, range};

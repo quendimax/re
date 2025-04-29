@@ -4,13 +4,19 @@ use regr::{Range, Transition, range};
 #[test]
 fn transition_new() {
     let transition = Transition::new(&[0, 1, 2, 3]);
-    assert_eq!(transition.symbols().collect::<Vec<_>>(), vec![64, 129, 192, 193]);
+    assert_eq!(
+        transition.symbols().collect::<Vec<_>>(),
+        vec![64, 129, 192, 193]
+    );
 }
 
 #[test]
 fn transition_from_bytes() {
     let transition = Transition::from_bytes(b"\0abc\xFF");
-    assert_eq!(transition.symbols().collect::<Vec<_>>(), vec![0, 97, 98, 99, 255]);
+    assert_eq!(
+        transition.symbols().collect::<Vec<_>>(),
+        vec![0, 97, 98, 99, 255]
+    );
 }
 
 #[test]

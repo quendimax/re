@@ -65,7 +65,7 @@ macro_rules! impl_fmt {
                     if let Some(range) = range {
                         std::fmt::$trait::fmt(&range, f)?;
                     }
-                    if let Some(next_range)= iter.next() {
+                    if let Some(next_range) = iter.next() {
                         f.write_str(" | ")?;
                         range = Some(next_range);
                     } else {
