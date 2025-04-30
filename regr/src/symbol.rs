@@ -2,7 +2,7 @@
 ///
 /// It could be based on [`std::iter::Step`] trait, but it is experimental and
 /// is not available within Rust's stable standard library.
-pub trait Symbol: Sized + Copy {
+pub trait Symbol: Sized + Copy + crate::private::Sealed {
     /// Returns the number of steps required to get from `self` to `other` or
     /// vice versa.
     fn steps_between(&self, other: Self) -> usize;
@@ -26,12 +26,15 @@ pub trait Symbol: Sized + Copy {
 
     /// Prints a symbol using character corresponding to its value if it is
     /// possible.
+    #[deprecated]
     fn format(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
 
     /// Returns a wrapper for symbol that can be used for more human legible
     /// formatting.
     fn display(self) -> SymbolDisplay;
 }
+
+impl crate::private::Sealed for u8 {}
 
 impl Symbol for u8 {
     fn steps_between(&self, other: Self) -> usize {

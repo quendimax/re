@@ -18,14 +18,18 @@ pub mod nfa;
 pub mod node;
 pub use node::{Node, NodeId};
 
+mod private {
+    pub trait Sealed {}
+}
+
 mod range;
 pub use range::{Range, range};
 
-mod transition;
-pub use transition::Transition;
-
 mod symbol;
 pub use symbol::Symbol;
+
+mod transition;
+pub use transition::Transition;
 
 mod translate;
 pub use translate::Translator;
