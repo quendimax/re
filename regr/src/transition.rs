@@ -6,51 +6,94 @@ const SYM_BITMAP_LEN: usize = 4;
 
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct Transition {
-    bitmap: [u64; SYM_BITMAP_LEN],
+    chunks: [u64; SYM_BITMAP_LEN],
 }
 
 impl Transition {
     pub const BITS: u32 = 256;
 
     /// Creates a new transition initialized with the given bitmap.
-    pub fn new(bitmap: &[u64; SYM_BITMAP_LEN]) -> Self {
-        Self { bitmap: *bitmap }
+    pub fn new(chunks: &[u64; SYM_BITMAP_LEN]) -> Self {
+        Self { chunks: *chunks }
     }
 
     /// Creates a new transition parsing the given byte array, and setting a bit
     /// corresponding to each byte value in the array.
     pub fn from_bytes(bytes: &[u8]) -> Self {
-        let mut bitmap = [0u64; SYM_BITMAP_LEN];
+        let mut tr = Transition::default();
         for byte in bytes {
-            bitmap[*byte as usize >> 6] |= 1 << (byte & 0x3F);
+            tr.merge_symbol(*byte);
         }
-        Self::new(&bitmap)
+        tr
     }
 
     /// Returns iterator over all symbols in this trasition instance in
     /// ascendent order.
     pub fn symbols(&self) -> SymbolIter {
-        SymbolIter::new(&self.bitmap)
+        SymbolIter::new(&self.chunks)
     }
 
     /// Returns iterator over all symbol ranges in this trasition instance in
     /// ascendent order.
     pub fn ranges(&self) -> RangeIter {
-        RangeIter::new(&self.bitmap)
+        RangeIter::new(&self.chunks)
     }
 
     /// Merges the `other` symmap into `self` one.
     pub fn merge(&mut self, other: &Self) {
-        self.bitmap[0] |= other.bitmap[0];
-        self.bitmap[1] |= other.bitmap[1];
-        self.bitmap[2] |= other.bitmap[2];
-        self.bitmap[3] |= other.bitmap[3];
+        self.chunks[0] |= other.chunks[0];
+        self.chunks[1] |= other.chunks[1];
+        self.chunks[2] |= other.chunks[2];
+        self.chunks[3] |= other.chunks[3];
+    }
+
+    /// Merges a symbol into this transition.
+    pub fn merge_symbol(&mut self, symbol: u8) {
+        self.chunks[symbol as usize >> 6] |= 1 << (symbol & (u8::MAX >> 2));
+    }
+
+    pub fn merge_range(&mut self, range: Range) {
+        let mut ls_mask = 1 << (range.start() & (u8::MAX >> 2));
+        ls_mask = !(ls_mask - 1);
+
+        let mut ms_mask = 1 << (range.end() & (u8::MAX >> 2));
+        ms_mask |= ms_mask - 1;
+
+        let ls_index = range.start() as usize >> 6;
+        let ms_index = range.end() as usize >> 6;
+
+        unsafe {
+            match ms_index - ls_index {
+                0 => *self.chunks.get_unchecked_mut(ls_index) |= ls_mask & ms_mask,
+                1 => {
+                    *self.chunks.get_unchecked_mut(ls_index) |= ls_mask;
+                    *self.chunks.get_unchecked_mut(ls_index + 1) |= ms_mask;
+                },
+                2 => {
+                    *self.chunks.get_unchecked_mut(ls_index) |= ls_mask;
+                    *self.chunks.get_unchecked_mut(ls_index + 1) = u64::MAX;
+                    *self.chunks.get_unchecked_mut(ls_index + 2) |= ms_mask;
+                },
+                3 => {
+                    *self.chunks.get_unchecked_mut(ls_index) |= ls_mask;
+                    *self.chunks.get_unchecked_mut(ls_index + 1) = u64::MAX;
+                    *self.chunks.get_unchecked_mut(ls_index + 2) = u64::MAX;
+                    *self.chunks.get_unchecked_mut(ls_index + 3) |= ms_mask;
+                },
+                _ => std::hint::unreachable_unchecked()
+            }
+        }
+    }
+
+    pub fn contains(&self, symbol: u8) -> bool {
+        let res = self.chunks[symbol as usize >> 6] & 1 << (symbol & (u8::MAX >> 2));
+        res != 0
     }
 }
 
 impl std::convert::AsRef<[u64; SYM_BITMAP_LEN]> for Transition {
     fn as_ref(&self) -> &[u64; SYM_BITMAP_LEN] {
-        &self.bitmap
+        &self.chunks
     }
 }
 
@@ -86,16 +129,16 @@ impl_fmt!(std::fmt::LowerHex);
 impl_fmt!(std::fmt::UpperHex);
 
 pub struct SymbolIter<'a> {
-    bitmap: &'a [u64; SYM_BITMAP_LEN],
-    reg: u64,
+    chunks: &'a [u64; SYM_BITMAP_LEN],
+    chunk: u64,
     shift: u32,
 }
 
 impl<'a> SymbolIter<'a> {
-    fn new(bitmap: &'a [u64; SYM_BITMAP_LEN]) -> Self {
+    fn new(chunks: &'a [u64; SYM_BITMAP_LEN]) -> Self {
         Self {
-            bitmap,
-            reg: bitmap[0],
+            chunks,
+            chunk: chunks[0],
             shift: 0,
         }
     }
@@ -108,15 +151,15 @@ impl std::iter::Iterator for SymbolIter<'_> {
     fn next(&mut self) -> Option<Self::Item> {
         const SHIFT_OVERFLOW: u32 = (SYM_BITMAP_LEN << 6) as u32;
         while self.shift < SHIFT_OVERFLOW {
-            if self.reg != 0 {
-                let trailing_zeros = self.reg.trailing_zeros();
-                self.reg &= self.reg.wrapping_sub(1);
+            if self.chunk != 0 {
+                let trailing_zeros = self.chunk.trailing_zeros();
+                self.chunk &= self.chunk.wrapping_sub(1);
                 let symbol = trailing_zeros + self.shift;
                 return Some(symbol as u8);
             }
             if self.shift < SHIFT_OVERFLOW - 64 {
                 self.shift += 64;
-                self.reg = self.bitmap[self.shift as usize >> 6];
+                self.chunk = self.chunks[self.shift as usize >> 6];
                 continue;
             }
             break;
@@ -126,16 +169,16 @@ impl std::iter::Iterator for SymbolIter<'_> {
 }
 
 pub struct RangeIter<'a> {
-    bitmap: &'a [u64; SYM_BITMAP_LEN],
-    reg: u64,
+    chunks: &'a [u64; SYM_BITMAP_LEN],
+    chunk: u64,
     shift: u32,
 }
 
 impl<'a> RangeIter<'a> {
     fn new(bitmap: &'a [u64; SYM_BITMAP_LEN]) -> Self {
         Self {
-            bitmap,
-            reg: bitmap[0],
+            chunks: bitmap,
+            chunk: bitmap[0],
             shift: 0,
         }
     }
@@ -148,12 +191,12 @@ impl std::iter::Iterator for RangeIter<'_> {
     fn next(&mut self) -> Option<Self::Item> {
         const SHIFT_OVERFLOW: u32 = (SYM_BITMAP_LEN << 6) as u32;
         while self.shift < SHIFT_OVERFLOW {
-            if self.reg != 0 {
-                let trailing_zeros = self.reg.trailing_zeros();
-                self.reg |= self.reg.wrapping_sub(1);
+            if self.chunk != 0 {
+                let trailing_zeros = self.chunk.trailing_zeros();
+                self.chunk |= self.chunk.wrapping_sub(1);
 
-                let trailing_ones = self.reg.trailing_ones();
-                self.reg &= self.reg.wrapping_add(1);
+                let trailing_ones = self.chunk.trailing_ones();
+                self.chunk &= self.chunk.wrapping_add(1);
 
                 let start = trailing_zeros + self.shift;
                 let end = trailing_ones - 1 + self.shift;
@@ -163,7 +206,7 @@ impl std::iter::Iterator for RangeIter<'_> {
 
             if self.shift < SHIFT_OVERFLOW - 64 {
                 self.shift += 64;
-                self.reg = self.bitmap[self.shift as usize >> 6];
+                self.chunk = self.chunks[self.shift as usize >> 6];
                 continue;
             }
             break;

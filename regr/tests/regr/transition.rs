@@ -109,6 +109,45 @@ fn transition_merge() {
 }
 
 #[test]
+fn transition_merge_symbol() {
+    let mut a = Transition::default();
+    a.merge_symbol(64);
+    a.merge_symbol(63);
+    a.merge_symbol(0);
+    let mut iter = a.symbols();
+    assert_eq!(iter.next(), Some(0));
+    assert_eq!(iter.next(), Some(63));
+    assert_eq!(iter.next(), Some(64));
+    assert_eq!(iter.next(), None);
+}
+
+#[test]
+fn transition_merge_range() {
+    fn check(range: impl Into<Range>) -> Option<Range> {
+        let range = range.into();
+        let mut a = Transition::default();
+        a.merge_range(range);
+        let mut range: Option<Range> = None;
+        for next_range in a.ranges() {
+            range = if let Some(range) = range {
+                Some(range.merge(next_range))
+            } else {
+                Some(next_range)
+            }
+        }
+        range
+    }
+    assert_eq!(check(0..=2), Some(range(0..=2)));
+    assert_eq!(check(3..=12), Some(range(3..=12)));
+    assert_eq!(check(0..=63), Some(range(0..=63)));
+    assert_eq!(check(0..=100), Some(range(0..=100)));
+    assert_eq!(check(63..=127), Some(range(63..=127)));
+    assert_eq!(check(63..=200), Some(range(63..=200)));
+    assert_eq!(check(0..=255), Some(range(0..=255)));
+    assert_eq!(check(192..=255), Some(range(192..=255)));
+}
+
+#[test]
 fn transition_display_fmt() {
     fn tr(bytes: &[u8]) -> String {
         format!("{}", Transition::from_bytes(bytes))

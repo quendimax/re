@@ -22,15 +22,15 @@ pub(crate) struct NodeInner {
 }
 
 enum NodeVariant {
-    Nfa {
-        epsilon_targets: RefCell<Set<NonNull<NodeInner>>>,
-    },
-    Dfa {
+    DfaNode {
         occupied_symbols: RefCell<Transition>,
+    },
+    NfaNode {
+        epsilon_targets: RefCell<Set<NonNull<NodeInner>>>,
     },
 }
 
-use NodeVariant::{Dfa, Nfa};
+use NodeVariant::{DfaNode, NfaNode};
 
 /// Public API
 impl<'a> Node<'a> {
@@ -87,14 +87,14 @@ impl<'a> Node<'a> {
             AutomatonKind::NFA => NodeInner {
                 id,
                 targets: Default::default(),
-                variant: NodeVariant::Nfa {
+                variant: NfaNode {
                     epsilon_targets: Default::default(),
                 },
             },
             AutomatonKind::DFA => NodeInner {
                 id,
                 targets: Default::default(),
-                variant: NodeVariant::Dfa {
+                variant: DfaNode {
                     occupied_symbols: Default::default(),
                 },
             },
@@ -290,7 +290,7 @@ impl<'a> EpsilonTargetIter<'a> {
         // nodes, and the iterator will return copies of these pointers (via
         // Node wrapper), but not references to the pointers. So references to
         // the RefCell's inner contents are never gone out of this iterator.
-        if let Nfa { epsilon_targets } = &node.0.variant {
+        if let NfaNode { epsilon_targets } = &node.0.variant {
             let lock = epsilon_targets.borrow();
             let ptr = epsilon_targets.as_ptr();
             let iter = unsafe { &*ptr }.iter();

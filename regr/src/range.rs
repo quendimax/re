@@ -54,6 +54,11 @@ impl Range {
         self.end
     }
 
+    #[inline]
+    pub fn width(self) -> u32 {
+        self.end() as u32 - self.start() as u32 + 1
+    }
+
     /// Sets a new value of the `start` field.
     ///
     /// Panics if the new `start` is greater than `end`.
