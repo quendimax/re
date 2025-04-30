@@ -26,7 +26,7 @@ mod range;
 pub use range::{Range, range};
 
 mod symbol;
-pub use symbol::Symbol;
+pub use symbol::{Epsilon, Symbol};
 
 mod transition;
 pub use transition::Transition;
