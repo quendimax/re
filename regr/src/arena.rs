@@ -2,7 +2,7 @@ use bumpalo::Bump;
 use smallvec::SmallVec;
 use std::cell::RefCell;
 
-pub struct Arena<T> {
+pub(crate) struct Arena<T> {
     bump: Bump,
     len: RefCell<usize>,
     _phantom: std::marker::PhantomData<T>,

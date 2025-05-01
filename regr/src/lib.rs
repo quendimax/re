@@ -1,4 +1,4 @@
-pub(crate) mod arena;
+mod arena;
 
 pub mod adt;
 
