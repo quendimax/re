@@ -18,6 +18,8 @@ pub mod nfa;
 pub mod node;
 pub use node::{Node, NodeId};
 
+mod ops;
+
 mod private {
     pub trait Sealed {}
 }

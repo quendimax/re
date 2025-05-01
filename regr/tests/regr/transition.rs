@@ -100,6 +100,77 @@ fn transition_ranges() {
 }
 
 #[test]
+fn transition_contains_symbol() {
+    let tr = Transition::from_bytes(b"\x00bcde\xFF");
+    assert_eq!(tr.contains(0), true);
+    assert_eq!(tr.contains(255), true);
+    assert_eq!(tr.contains(b'b'), true);
+    assert_eq!(tr.contains(b'c'), true);
+    assert_eq!(tr.contains(b'f'), false);
+    assert_eq!(tr.contains(254), false);
+}
+
+#[test]
+fn transition_contains_range() {
+    let tr = Transition::from_bytes(&[0, 1, 5, 6, 7, 255]);
+    assert!(tr.contains(range(0)));
+    assert!(tr.contains(range(0..=1)));
+    assert!(tr.contains(range(5..=7)));
+    assert!(tr.contains(range(255)));
+    assert!(!tr.contains(range(0..=3)));
+    assert!(!tr.contains(range(2..=4)));
+    assert!(!tr.contains(range(254)));
+}
+
+#[test]
+fn transition_contains_transition() {
+    let tr_a = Transition::from_bytes(b"ace");
+    let tr_b = Transition::from_bytes(b"bdf");
+    let tr_c = Transition::from_bytes(b"abcdefg");
+    assert!(tr_a.contains(&tr_a));
+    assert!(tr_b.contains(&tr_b));
+    assert!(tr_c.contains(&tr_c));
+    assert!(tr_c.contains(&tr_a));
+    assert!(tr_c.contains(&tr_a));
+    assert!(!tr_a.contains(&tr_b));
+    assert!(!tr_a.contains(&tr_c));
+    assert!(!tr_b.contains(&tr_a));
+    assert!(!tr_b.contains(&tr_c));
+}
+
+#[test]
+fn transition_intersects_symbol() {
+    let tr = Transition::from_bytes(b"\x00bcde\xFF");
+    assert_eq!(tr.intersects(0), true);
+    assert_eq!(tr.intersects(255), true);
+    assert_eq!(tr.intersects(b'b'), true);
+    assert_eq!(tr.intersects(b'c'), true);
+    assert_eq!(tr.intersects(b'f'), false);
+    assert_eq!(tr.intersects(254), false);
+}
+
+#[test]
+fn transition_intersects_range() {
+    let tr = Transition::from_bytes(b"\x00bcde\xFF");
+    assert_eq!(tr.intersects(range(0..=255)), true);
+    assert_eq!(tr.intersects(range(0)), true);
+    assert_eq!(tr.intersects(range(b'a'..=b'b')), true);
+    assert_eq!(tr.intersects(range(255)), true);
+    assert_eq!(tr.intersects(range(102..=254)), false);
+    assert_eq!(tr.intersects(254), false);
+}
+
+#[test]
+fn transition_intersects_transition() {
+    let tr_a = Transition::from_bytes(b"ace");
+    let tr_b = Transition::from_bytes(b"bdf");
+    let tr_c = Transition::from_bytes(b"abcde");
+    assert_eq!(tr_a.intersects(&tr_b), false);
+    assert_eq!(tr_a.intersects(&tr_c), true);
+    assert_eq!(tr_b.intersects(&tr_c), true);
+}
+
+#[test]
 fn transition_merge_transition() {
     let mut tr_a = Transition::from_bytes(b"abc");
     let tr_b = Transition::from_bytes(b"bcde");

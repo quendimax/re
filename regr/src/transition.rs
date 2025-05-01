@@ -1,3 +1,4 @@
+use crate::ops::{ContainOp, IntersectOp, MergeOp};
 use crate::range::Range;
 use std::fmt::Write;
 
@@ -42,20 +43,86 @@ impl Transition {
     /// Merges the `other` boject into this transition.
     pub fn merge<T>(&mut self, other: T)
     where
-        Self: std::ops::BitOrAssign<T>,
+        Self: MergeOp<T>,
     {
-        *self |= other;
+        MergeOp::merge(self, other);
     }
 
-    pub fn contains(&self, symbol: u8) -> bool {
-        let res = self.chunks[symbol as usize >> 6] & 1 << (symbol & (u8::MAX >> 2));
-        res != 0
+    pub fn intersects<T>(&self, other: T) -> bool
+    where
+        Self: IntersectOp<T>,
+    {
+        IntersectOp::intersects(self, other)
+    }
+
+    pub fn contains<T>(&self, other: T) -> bool
+    where
+        Self: ContainOp<T>,
+    {
+        ContainOp::contains(self, other)
     }
 }
 
-impl std::ops::BitOrAssign<&Transition> for Transition {
+impl ContainOp<u8> for Transition {
     #[inline]
-    fn bitor_assign(&mut self, other: &Transition) {
+    fn contains(&self, symbol: u8) -> bool {
+        IntersectOp::intersects(self, symbol)
+    }
+}
+
+impl ContainOp<Range> for Transition {
+    #[inline]
+    fn contains(&self, range: Range) -> bool {
+        let mut other_tr = Transition::default();
+        other_tr.merge(range);
+        ContainOp::contains(self, &other_tr)
+    }
+}
+
+impl ContainOp<&Transition> for Transition {
+    fn contains(&self, other: &Transition) -> bool {
+        self.chunks[0] & other.chunks[0] == other.chunks[0]
+            && self.chunks[1] & other.chunks[1] == other.chunks[1]
+            && self.chunks[2] & other.chunks[2] == other.chunks[2]
+            && self.chunks[3] & other.chunks[3] == other.chunks[3]
+    }
+}
+
+impl IntersectOp<u8> for Transition {
+    #[inline]
+    fn intersects(&self, symbol: u8) -> bool {
+        self.chunks[symbol as usize >> 6] & (1 << (symbol & (u8::MAX >> 2))) != 0
+    }
+}
+
+impl IntersectOp<Range> for Transition {
+    fn intersects(&self, other: Range) -> bool {
+        let mut other_tr = Transition::default();
+        other_tr.merge(other);
+        IntersectOp::intersects(self, &other_tr)
+    }
+}
+
+impl IntersectOp<&Transition> for Transition {
+    fn intersects(&self, other: &Transition) -> bool {
+        self.chunks[0] & other.chunks[0] != 0
+            || self.chunks[1] & other.chunks[1] != 0
+            || self.chunks[2] & other.chunks[2] != 0
+            || self.chunks[3] & other.chunks[3] != 0
+    }
+}
+
+impl MergeOp<u8> for Transition {
+    /// Merges a symbol into this transition.
+    #[inline]
+    fn merge(&mut self, symbol: u8) {
+        self.chunks[symbol as usize >> 6] |= 1 << (symbol & (u8::MAX >> 2));
+    }
+}
+
+impl MergeOp<&Transition> for Transition {
+    #[inline]
+    fn merge(&mut self, other: &Transition) {
         self.chunks[0] |= other.chunks[0];
         self.chunks[1] |= other.chunks[1];
         self.chunks[2] |= other.chunks[2];
@@ -63,15 +130,8 @@ impl std::ops::BitOrAssign<&Transition> for Transition {
     }
 }
 
-impl std::ops::BitOrAssign<Transition> for Transition {
-    #[inline]
-    fn bitor_assign(&mut self, other: Transition) {
-        self.bitor_assign(&other)
-    }
-}
-
-impl std::ops::BitOrAssign<Range> for Transition {
-    fn bitor_assign(&mut self, range: Range) {
+impl MergeOp<Range> for Transition {
+    fn merge(&mut self, range: Range) {
         let mut ls_mask = 1 << (range.start() & (u8::MAX >> 2));
         ls_mask = !(ls_mask - 1);
 
@@ -104,14 +164,6 @@ impl std::ops::BitOrAssign<Range> for Transition {
                 _ => std::hint::unreachable_unchecked(),
             }
         }
-    }
-}
-
-impl std::ops::BitOrAssign<u8> for Transition {
-    /// Merges a symbol into this transition.
-    #[inline]
-    fn bitor_assign(&mut self, symbol: u8) {
-        self.chunks[symbol as usize >> 6] |= 1 << (symbol & (u8::MAX >> 2));
     }
 }
 
