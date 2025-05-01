@@ -100,7 +100,7 @@ fn transition_ranges() {
 }
 
 #[test]
-fn transition_merge() {
+fn transition_merge_transition() {
     let mut tr_a = Transition::from_bytes(b"abc");
     let tr_b = Transition::from_bytes(b"bcde");
     let tr_c = Transition::from_bytes(b"abcde");
@@ -111,9 +111,9 @@ fn transition_merge() {
 #[test]
 fn transition_merge_symbol() {
     let mut a = Transition::default();
-    a.merge_symbol(64);
-    a.merge_symbol(63);
-    a.merge_symbol(0);
+    a.merge(64);
+    a.merge(63);
+    a.merge(0);
     let mut iter = a.symbols();
     assert_eq!(iter.next(), Some(0));
     assert_eq!(iter.next(), Some(63));
@@ -126,7 +126,7 @@ fn transition_merge_range() {
     fn check(range: impl Into<Range>) -> Option<Range> {
         let range = range.into();
         let mut a = Transition::default();
-        a.merge_range(range);
+        a.merge(range);
         let mut range: Option<Range> = None;
         for next_range in a.ranges() {
             range = if let Some(range) = range {

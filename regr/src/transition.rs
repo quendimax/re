@@ -22,7 +22,7 @@ impl Transition {
     pub fn from_bytes(bytes: &[u8]) -> Self {
         let mut tr = Transition::default();
         for byte in bytes {
-            tr.merge_symbol(*byte);
+            tr.merge(*byte);
         }
         tr
     }
@@ -39,20 +39,39 @@ impl Transition {
         RangeIter::new(&self.chunks)
     }
 
-    /// Merges the `other` symmap into `self` one.
-    pub fn merge(&mut self, other: &Self) {
+    /// Merges the `other` boject into this transition.
+    pub fn merge<T>(&mut self, other: T)
+    where
+        Self: std::ops::BitOrAssign<T>,
+    {
+        *self |= other;
+    }
+
+    pub fn contains(&self, symbol: u8) -> bool {
+        let res = self.chunks[symbol as usize >> 6] & 1 << (symbol & (u8::MAX >> 2));
+        res != 0
+    }
+}
+
+impl std::ops::BitOrAssign<&Transition> for Transition {
+    #[inline]
+    fn bitor_assign(&mut self, other: &Transition) {
         self.chunks[0] |= other.chunks[0];
         self.chunks[1] |= other.chunks[1];
         self.chunks[2] |= other.chunks[2];
         self.chunks[3] |= other.chunks[3];
     }
+}
 
-    /// Merges a symbol into this transition.
-    pub fn merge_symbol(&mut self, symbol: u8) {
-        self.chunks[symbol as usize >> 6] |= 1 << (symbol & (u8::MAX >> 2));
+impl std::ops::BitOrAssign<Transition> for Transition {
+    #[inline]
+    fn bitor_assign(&mut self, other: Transition) {
+        self.bitor_assign(&other)
     }
+}
 
-    pub fn merge_range(&mut self, range: Range) {
+impl std::ops::BitOrAssign<Range> for Transition {
+    fn bitor_assign(&mut self, range: Range) {
         let mut ls_mask = 1 << (range.start() & (u8::MAX >> 2));
         ls_mask = !(ls_mask - 1);
 
@@ -64,30 +83,35 @@ impl Transition {
 
         unsafe {
             match ms_index - ls_index {
-                0 => *self.chunks.get_unchecked_mut(ls_index) |= ls_mask & ms_mask,
+                0 => {
+                    *self.chunks.get_unchecked_mut(ls_index) |= ls_mask & ms_mask;
+                }
                 1 => {
                     *self.chunks.get_unchecked_mut(ls_index) |= ls_mask;
                     *self.chunks.get_unchecked_mut(ls_index + 1) |= ms_mask;
-                },
+                }
                 2 => {
                     *self.chunks.get_unchecked_mut(ls_index) |= ls_mask;
-                    *self.chunks.get_unchecked_mut(ls_index + 1) = u64::MAX;
+                    *self.chunks.get_unchecked_mut(ls_index + 1) |= u64::MAX;
                     *self.chunks.get_unchecked_mut(ls_index + 2) |= ms_mask;
-                },
+                }
                 3 => {
                     *self.chunks.get_unchecked_mut(ls_index) |= ls_mask;
-                    *self.chunks.get_unchecked_mut(ls_index + 1) = u64::MAX;
-                    *self.chunks.get_unchecked_mut(ls_index + 2) = u64::MAX;
+                    *self.chunks.get_unchecked_mut(ls_index + 1) |= u64::MAX;
+                    *self.chunks.get_unchecked_mut(ls_index + 2) |= u64::MAX;
                     *self.chunks.get_unchecked_mut(ls_index + 3) |= ms_mask;
-                },
-                _ => std::hint::unreachable_unchecked()
+                }
+                _ => std::hint::unreachable_unchecked(),
             }
         }
     }
+}
 
-    pub fn contains(&self, symbol: u8) -> bool {
-        let res = self.chunks[symbol as usize >> 6] & 1 << (symbol & (u8::MAX >> 2));
-        res != 0
+impl std::ops::BitOrAssign<u8> for Transition {
+    /// Merges a symbol into this transition.
+    #[inline]
+    fn bitor_assign(&mut self, symbol: u8) {
+        self.chunks[symbol as usize >> 6] |= 1 << (symbol & (u8::MAX >> 2));
     }
 }
 

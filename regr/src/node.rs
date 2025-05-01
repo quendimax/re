@@ -51,8 +51,8 @@ impl<'a> Node<'a> {
         let with = with.into();
         let to = to.as_ptr();
         let mut targets = self.0.targets.borrow_mut();
-        if let Some(edge) = targets.get_mut(&to) {
-            edge.merge(&with);
+        if let Some(tr) = targets.get_mut(&to) {
+            tr.merge(&with);
         } else {
             targets.insert(to, with);
         }
