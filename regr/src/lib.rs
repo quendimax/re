@@ -2,18 +2,11 @@ mod arena;
 
 pub mod adt;
 
-pub mod dfa;
-
-mod edge;
-pub use edge::Edge;
-
 mod error;
 pub use error::{Error, Result, err};
 
 mod graph;
 pub use graph::{AutomatonKind, Graph};
-
-pub mod nfa;
 
 pub mod node;
 pub use node::{Node, NodeId};

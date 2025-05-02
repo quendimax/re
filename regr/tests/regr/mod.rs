@@ -1,6 +1,4 @@
-mod dfa;
-mod edge;
-mod nfa;
+mod graph;
 mod node;
 mod range;
 mod symbol;

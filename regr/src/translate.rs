@@ -1,8 +1,10 @@
-use crate::edge;
-use crate::edge::Edge;
 use crate::error::Result;
 use crate::error::err;
-use crate::nfa::{Graph, Node};
+use crate::graph::Graph;
+use crate::node::Node;
+use crate::range::{Range, range};
+use crate::symbol::Epsilon;
+use crate::transition::Transition;
 use regex_syntax::hir::{self, Hir, HirKind};
 use utf8_ranges::{Utf8Sequence, Utf8Sequences};
 
@@ -39,9 +41,9 @@ impl<'a> Translator<'a> {
         let finish = self.graph.node();
         for alter in alters {
             let sub_start = self.graph.node();
-            start.connect_with_epsilon(sub_start);
+            start.connect(sub_start, Epsilon);
             let sub_finish = self.walk_hir(alter, sub_start)?;
-            sub_finish.connect_with_epsilon(finish);
+            sub_finish.connect(finish, Epsilon);
         }
         Ok(finish)
     }
@@ -52,12 +54,12 @@ impl<'a> Translator<'a> {
     }
 
     fn walk_class_bytes(&self, class: &hir::ClassBytes, start: Node<'a>) -> Result<Node<'a>> {
-        let mut edge = Edge::new();
+        let mut tr = Transition::default();
         for rg in class.ranges() {
-            edge.push(rg.start()..=rg.end());
+            tr.merge(range(rg.start()..=rg.end()));
         }
         let finish = self.graph.node();
-        start.connect(finish, edge);
+        start.connect(finish, &tr);
         Ok(finish)
     }
 
@@ -67,28 +69,28 @@ impl<'a> Translator<'a> {
             for utf8_seq in Utf8Sequences::new(rg.start(), rg.end()) {
                 match utf8_seq {
                     Utf8Sequence::One(range) => {
-                        start.connect(finish, edge![range.start..=range.end]);
+                        start.connect(finish, Range::from(range.start..=range.end));
                     }
                     Utf8Sequence::Two([r1, r2]) => {
                         let mid = self.graph.node();
-                        start.connect(mid, edge![r1.start..=r1.end]);
-                        mid.connect(finish, edge![r2.start..=r2.end]);
+                        start.connect(mid, Range::from(r1.start..=r1.end));
+                        mid.connect(finish, Range::from(r2.start..=r2.end));
                     }
                     Utf8Sequence::Three([r1, r2, r3]) => {
                         let mid1 = self.graph.node();
                         let mid2 = self.graph.node();
-                        start.connect(mid1, edge![r1.start..=r1.end]);
-                        mid1.connect(mid2, edge![r2.start..=r2.end]);
-                        mid2.connect(finish, edge![r3.start..=r3.end]);
+                        start.connect(mid1, Range::from(r1.start..=r1.end));
+                        mid1.connect(mid2, Range::from(r2.start..=r2.end));
+                        mid2.connect(finish, Range::from(r3.start..=r3.end));
                     }
                     Utf8Sequence::Four([r1, r2, r3, r4]) => {
                         let mid1 = self.graph.node();
                         let mid2 = self.graph.node();
                         let mid3 = self.graph.node();
-                        start.connect(mid1, edge![r1.start..=r1.end]);
-                        mid1.connect(mid2, edge![r2.start..=r2.end]);
-                        mid2.connect(mid3, edge![r3.start..=r3.end]);
-                        mid3.connect(finish, edge![r4.start..=r4.end]);
+                        start.connect(mid1, Range::from(r1.start..=r1.end));
+                        mid1.connect(mid2, Range::from(r2.start..=r2.end));
+                        mid2.connect(mid3, Range::from(r3.start..=r3.end));
+                        mid3.connect(finish, Range::from(r4.start..=r4.end));
                     }
                 }
             }
@@ -106,7 +108,7 @@ impl<'a> Translator<'a> {
 
     fn walk_empty(&self, start: Node<'a>) -> Result<Node<'a>> {
         let new_node = self.graph.node();
-        start.connect_with_epsilon(new_node);
+        start.connect(new_node, Epsilon);
         Ok(new_node)
     }
 
@@ -114,7 +116,7 @@ impl<'a> Translator<'a> {
         let mut prev_node = start;
         for c in literal.0.iter() {
             let new_node = self.graph.node();
-            prev_node.connect(new_node, edge![*c]);
+            prev_node.connect(new_node, range(*c));
             prev_node = new_node;
         }
         Ok(prev_node)
@@ -136,16 +138,16 @@ impl<'a> Translator<'a> {
         if let Some(max) = repetition.max {
             for _ in repetition.min..max {
                 last = self.walk_hir(&repetition.sub, last)?;
-                bypass_start.connect_with_epsilon(last);
+                bypass_start.connect(last, Epsilon);
             }
         } else {
             let sub_start = self.graph.node();
             let sub_finish = self.walk_hir(&repetition.sub, sub_start)?;
             let bypass_finish = self.graph.node();
-            bypass_start.connect_with_epsilon(sub_start);
-            sub_finish.connect_with_epsilon(bypass_finish);
-            sub_finish.connect_with_epsilon(sub_start);
-            bypass_start.connect_with_epsilon(bypass_finish);
+            bypass_start.connect(sub_start, Epsilon);
+            sub_finish.connect(bypass_finish, Epsilon);
+            sub_finish.connect(sub_start, Epsilon);
+            bypass_start.connect(bypass_finish, Epsilon);
             last = bypass_finish;
         }
         Ok(last)

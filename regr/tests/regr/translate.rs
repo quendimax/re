@@ -1,7 +1,7 @@
 use pretty_assertions::assert_eq;
 use regex_syntax::Parser;
 use regr::Translator;
-use regr::nfa::{Graph, Node};
+use regr::{Graph, Node};
 use regr::{Result, err};
 
 fn translate<'b>(pattern: &str, graph: &'b Graph) -> Result<(Node<'b>, Node<'b>)> {
@@ -13,7 +13,7 @@ fn translate<'b>(pattern: &str, graph: &'b Graph) -> Result<(Node<'b>, Node<'b>)
 
 #[test]
 fn translate_alternation() {
-    let graph = Graph::new();
+    let graph = Graph::nfa();
     let (start, finish) = translate("abc|df", &graph).unwrap();
     assert_eq!(start.id(), 0);
     assert_eq!(finish.id(), 1);
@@ -21,7 +21,7 @@ fn translate_alternation() {
 
 #[test]
 fn translate_capture() {
-    let graph = Graph::new();
+    let graph = Graph::nfa();
     let (start, finish) = translate("(abc)", &graph).unwrap();
     assert_eq!(start.id(), 0);
     assert_eq!(finish.id(), 3);
@@ -33,7 +33,7 @@ fn translate_capture() {
 
 #[test]
 fn translate_unicode_class() {
-    let graph = Graph::new();
+    let graph = Graph::nfa();
     let (start, finish) = translate(r"[a-bъ-ўऄ-ऩ𐂂-𐂅]", &graph).unwrap();
     assert_eq!(start.id(), 0);
     assert_eq!(finish.id(), 1);
@@ -41,7 +41,7 @@ fn translate_unicode_class() {
 
 #[test]
 fn translate_byte_class() {
-    let graph = Graph::new();
+    let graph = Graph::nfa();
     let (start, finish) = translate(r"(?i-u)[a-b]", &graph).unwrap();
     assert_eq!(start.id(), 0);
     assert_eq!(finish.id(), 1);
@@ -49,7 +49,7 @@ fn translate_byte_class() {
 
 #[test]
 fn translate_concat() {
-    let graph = Graph::new();
+    let graph = Graph::nfa();
     let (start, finish) = translate(r"abc(df)", &graph).unwrap();
     assert_eq!(start.id(), 0);
     assert_eq!(finish.id(), 5);
@@ -57,7 +57,7 @@ fn translate_concat() {
 
 #[test]
 fn translate_empty() {
-    let graph = Graph::new();
+    let graph = Graph::nfa();
     let (start, finish) = translate("", &graph).unwrap();
     assert_eq!(start.id(), 0);
     assert_eq!(finish.id(), 1);
@@ -69,7 +69,7 @@ fn translate_empty() {
 
 #[test]
 fn translate_literal() {
-    let graph = Graph::new();
+    let graph = Graph::nfa();
     let (start, finish) = translate("abў", &graph).unwrap();
     assert_eq!(start.id(), 0);
     assert_eq!(finish.id(), 4);
@@ -81,7 +81,7 @@ fn translate_literal() {
 
 #[test]
 fn translate_look() {
-    let graph = Graph::new();
+    let graph = Graph::nfa();
     assert_eq!(
         translate(r"\b", &graph),
         err::unsupported_feature("look around is not supported")
@@ -90,7 +90,7 @@ fn translate_look() {
 
 #[test]
 fn translate_repetition() {
-    let graph = Graph::new();
+    let graph = Graph::nfa();
     assert_eq!(
         translate("a*?", &graph),
         err::unsupported_feature("non-greedy repetitions are not supported")
