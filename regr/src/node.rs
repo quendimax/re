@@ -1,3 +1,4 @@
+use crate::Epsilon;
 use crate::adt::{Map, MapIter, MapKeyIter, Set, SetIter};
 use crate::graph::AutomatonKind;
 use crate::transition::Transition;
@@ -47,15 +48,11 @@ impl<'a> Node<'a> {
     ///
     /// * `to` - The target node to connect to
     /// * `with` - The edge rule describing valid transitions to the target
-    pub fn connect(&self, to: Node<'a>, with: impl Into<Transition>) {
-        let with = with.into();
-        let to = to.as_ptr();
-        let mut targets = self.0.targets.borrow_mut();
-        if let Some(tr) = targets.get_mut(&to) {
-            tr.merge(&with);
-        } else {
-            targets.insert(to, with);
-        }
+    pub fn connect<T>(self, to: Node<'a>, with: T)
+    where
+        Self: ConnectOp<'a, T>,
+    {
+        ConnectOp::connect(self, to, with);
     }
 
     /// Returns an iterator over target nodes, i.e. nodes that this node is
@@ -119,6 +116,50 @@ impl<'a> Node<'a> {
     #[inline]
     pub(crate) fn as_ptr(self) -> NonNull<NodeInner> {
         unsafe { NonNull::<NodeInner>::new_unchecked(self.0 as *const NodeInner as *mut NodeInner) }
+    }
+}
+
+pub trait ConnectOp<'a, T> {
+    fn connect(self, to: Node<'a>, with: T);
+}
+
+impl<'a, T> ConnectOp<'a, T> for Node<'a>
+where
+    T: Copy + std::fmt::Debug,
+    Transition: crate::ops::ContainOp<T> + crate::ops::MergeOp<T>,
+{
+    fn connect(self, to: Node<'a>, with: T) {
+        if let DfaNode { occupied_symbols } = &self.0.variant {
+            let mut occupied_symbols = occupied_symbols.borrow_mut();
+            if occupied_symbols.contains(with) {
+                panic!("connection {with:?} already exists; DFA node can't have more");
+            }
+            occupied_symbols.merge(with);
+        }
+
+        let to = to.as_ptr();
+        let mut targets = self.0.targets.borrow_mut();
+        if let Some(tr) = targets.get_mut(&to) {
+            tr.merge(with);
+        } else {
+            let mut tr = Transition::default();
+            tr.merge(with);
+            targets.insert(to, tr);
+        }
+    }
+}
+
+impl<'a> ConnectOp<'a, Epsilon> for Node<'a> {
+    fn connect(self, to: Node<'a>, _with: Epsilon) {
+        match &self.0.variant {
+            DfaNode { .. } => {
+                panic!("NFA nodes can't be connected with Epsilon");
+            }
+            NfaNode { epsilon_targets } => {
+                let mut epsilon_targets = epsilon_targets.borrow_mut();
+                epsilon_targets.insert(to.as_ptr());
+            }
+        }
     }
 }
 

@@ -167,6 +167,14 @@ impl MergeOp<Range> for Transition {
     }
 }
 
+impl std::convert::From<u8> for Transition {
+    fn from(value: u8) -> Self {
+        let mut tr = Self::default();
+        tr.merge(value);
+        tr
+    }
+}
+
 impl std::convert::AsRef<[u64; SYM_BITMAP_LEN]> for Transition {
     fn as_ref(&self) -> &[u64; SYM_BITMAP_LEN] {
         &self.chunks
