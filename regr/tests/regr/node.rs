@@ -1,5 +1,5 @@
 use pretty_assertions::{assert_eq, assert_ne};
-// use regr::adt::Set;
+use regr::adt::Set;
 use regr::{Epsilon, Graph, NodeId, Range};
 
 #[test]
@@ -32,27 +32,48 @@ fn node_connect() {
     node_c.connect(node_a, Epsilon);
 }
 
-// #[test]
-// fn node_eclosure() {
-//     let graph = Graph::nfa();
-//     let a = graph.node();
-//     let b = graph.node();
-//     let c = graph.node();
-//     let d = graph.node();
+#[test]
+fn node_closure() {
+    let graph = Graph::nfa();
+    let a = graph.node();
+    let b = graph.node();
+    let c = graph.node();
+    let d = graph.node();
+    let e = graph.node();
 
-//     a.connect(b, Range::new(b'a', u8::MAX));
-//     a.connect(b, Epsilon);
-//     b.connect(c, Epsilon);
-//     c.connect(d, b'c');
-//     b.connect(a, Epsilon);
-//     d.connect(a, Epsilon);
-//     d.connect(b, Epsilon);
-//     d.connect(c, Epsilon);
+    a.connect(b, b'a');
+    b.connect(c, b'a');
+    c.connect(d, Epsilon);
+    b.connect(a, Epsilon);
+    a.connect(d, Epsilon);
+    d.connect(e, b'a');
 
-//     #[allow(clippy::mutable_key_type)]
-//     let set = Set::from_iter(vec![a, b, c]);
-//     assert_eq!(a.eclosure(), set)
-// }
+    #[allow(clippy::mutable_key_type)]
+    let set = Set::from_iter(vec![a, b, d, e]);
+    assert_eq!(a.closure(b'a'), set)
+}
+
+#[test]
+fn node_eclosure() {
+    let graph = Graph::nfa();
+    let a = graph.node();
+    let b = graph.node();
+    let c = graph.node();
+    let d = graph.node();
+
+    a.connect(b, Range::new(b'a', u8::MAX));
+    a.connect(b, Epsilon);
+    b.connect(c, Epsilon);
+    c.connect(d, b'c');
+    b.connect(a, Epsilon);
+    d.connect(a, Epsilon);
+    d.connect(b, Epsilon);
+    d.connect(c, Epsilon);
+
+    #[allow(clippy::mutable_key_type)]
+    let set = Set::from_iter(vec![a, b, c]);
+    assert_eq!(a.closure(Epsilon), set)
+}
 
 #[test]
 fn node_symbol_targets() {

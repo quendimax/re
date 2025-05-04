@@ -13,7 +13,7 @@ pub type NodeId = u32;
 /// Node for an NFA graph.
 ///
 /// It contains ID (unique within its graph owner). Also it can be connected to
-/// another node using [`Edge`] of symbols.
+/// another node via [`Transition`]'s.
 pub struct Node<'a>(&'a NodeInner);
 
 pub(crate) struct NodeInner {
@@ -136,18 +136,15 @@ impl<'a> ClosureOp<'a, u8> for Node<'a> {
     #[allow(clippy::mutable_key_type)]
     fn closure(self, symbol: u8) -> Set<Node<'a>> {
         let mut closure = Set::new();
-        fn closure_impl<'a>(node: Node<'a>, closure: &mut Set<Node<'a>>, symbol: u8) {
-            if closure.contains(&node) {
-                return;
-            }
-            closure.insert(node);
+        let eclosure = self.closure(Epsilon);
+        for node in eclosure.iter() {
             for (target_node, transition) in node.symbol_targets() {
                 if transition.contains(symbol) {
-                    closure_impl(target_node, closure, symbol);
+                    closure.insert(target_node);
                 }
             }
         }
-        closure_impl(self, &mut closure, symbol);
+        closure.extend(eclosure);
         closure
     }
 }
