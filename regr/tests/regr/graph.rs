@@ -11,28 +11,28 @@ fn graph_ctor() {
 #[test]
 fn graph_node() {
     let graph = Graph::nfa();
-    assert_eq!(graph.node().id(), 0);
-    assert_eq!(graph.node().id(), 1);
-    assert_eq!(graph.node().id(), 2);
+    assert_eq!(graph.node().nid(), 0);
+    assert_eq!(graph.node().nid(), 1);
+    assert_eq!(graph.node().nid(), 2);
     let graph = Graph::with_capacity(9, AutomatonKind::NFA);
-    assert_eq!(graph.node().id(), 0);
-    assert_eq!(graph.node().id(), 1);
-    assert_eq!(graph.node().id(), 2);
+    assert_eq!(graph.node().nid(), 0);
+    assert_eq!(graph.node().nid(), 1);
+    assert_eq!(graph.node().nid(), 2);
 }
 
 #[test]
 fn graph_start_node() {
     let graph = Graph::nfa();
-    assert_eq!(graph.start_node().id(), 0);
-    assert_eq!(graph.node().id(), 1);
-    assert_eq!(graph.node().id(), 2);
+    assert_eq!(graph.start_node().nid(), 0);
+    assert_eq!(graph.node().nid(), 1);
+    assert_eq!(graph.node().nid(), 2);
 
     let graph = Graph::nfa();
     assert_eq!(graph.node(), graph.start_node());
-    assert_eq!(graph.start_node().id(), 0);
-    assert_eq!(graph.node().id(), 1);
-    assert_eq!(graph.node().id(), 2);
-    assert_eq!(graph.start_node().id(), 0);
+    assert_eq!(graph.start_node().nid(), 0);
+    assert_eq!(graph.node().nid(), 1);
+    assert_eq!(graph.node().nid(), 2);
+    assert_eq!(graph.start_node().nid(), 0);
 }
 
 #[test]

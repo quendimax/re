@@ -10,6 +10,10 @@ use std::ptr::NonNull;
 /// unique within a graph.
 pub type NodeId = u32;
 
+/// Integer type that represents node identifier. It is expected that it is
+/// unique both within a graph and in the running process.
+pub type UniqId = u64;
+
 /// Node for an NFA graph.
 ///
 /// It contains ID (unique within its graph owner). Also it can be connected to
@@ -17,7 +21,8 @@ pub type NodeId = u32;
 pub struct Node<'a>(&'a NodeInner);
 
 pub(crate) struct NodeInner {
-    id: NodeId,
+    node_id: NodeId,
+    graph_id: NodeId,
     targets: RefCell<Map<NonNull<NodeInner>, Transition>>,
     variant: NodeVariant,
 }
@@ -35,9 +40,24 @@ use NodeVariant::{DfaNode, NfaNode};
 
 /// Public API
 impl<'a> Node<'a> {
+    /// Returns the node's identifier that is unique within its graph owner.
     #[inline]
-    pub fn id(self) -> NodeId {
-        self.0.id
+    pub fn nid(self) -> NodeId {
+        self.0.node_id
+    }
+
+    /// Returns the node's graph owner identifier.
+    #[inline]
+    pub fn gid(self) -> NodeId {
+        self.0.graph_id
+    }
+
+    /// Returns the node's identifier unique within the running process.
+    #[inline]
+    pub fn uid(self) -> UniqId {
+        let gid = (self.0.graph_id as UniqId) << NodeId::BITS;
+        let nid = self.0.node_id as UniqId;
+        gid | nid
     }
 
     /// Checks if the node is an DFA node.
@@ -97,17 +117,19 @@ impl<'a> Node<'a> {
 
 /// Private API
 impl<'a> Node<'a> {
-    pub(crate) fn new_inner(id: NodeId, kind: AutomatonKind) -> NodeInner {
+    pub(crate) fn new_inner(graph_id: u32, node_id: u32, kind: AutomatonKind) -> NodeInner {
         match kind {
             AutomatonKind::NFA => NodeInner {
-                id,
+                graph_id,
+                node_id,
                 targets: Default::default(),
                 variant: NfaNode {
                     epsilon_targets: Default::default(),
                 },
             },
             AutomatonKind::DFA => NodeInner {
-                id,
+                graph_id,
+                node_id,
                 targets: Default::default(),
                 variant: DfaNode {
                     occupied_symbols: Default::default(),
@@ -233,13 +255,13 @@ impl std::cmp::Eq for Node<'_> {}
 
 impl std::cmp::PartialEq for Node<'_> {
     fn eq(&self, other: &Self) -> bool {
-        self.0.id.eq(&other.0.id)
+        self.uid().eq(&other.uid())
     }
 }
 
 impl std::cmp::Ord for Node<'_> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.id.cmp(&other.0.id)
+        self.uid().cmp(&other.uid())
     }
 }
 
@@ -251,7 +273,7 @@ impl std::cmp::PartialOrd for Node<'_> {
 
 impl std::hash::Hash for Node<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.id.hash(state)
+        self.uid().hash(state)
     }
 }
 
@@ -260,7 +282,7 @@ macro_rules! impl_fmt {
         impl std::fmt::$trait for Node<'_> {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 f.write_str("node(")?;
-                std::fmt::$trait::fmt(&self.0.id, f)?;
+                std::fmt::$trait::fmt(&self.nid(), f)?;
                 f.write_char(')')
             }
         }

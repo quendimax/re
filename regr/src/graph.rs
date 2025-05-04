@@ -5,6 +5,7 @@ use std::cell::RefCell;
 use std::fmt::Write;
 use std::ops::Deref;
 use std::ptr::NonNull;
+use std::sync::Mutex;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum AutomatonKind {
@@ -12,9 +13,12 @@ pub enum AutomatonKind {
     DFA,
 }
 
+static GRAPH_ID: Mutex<NodeId> = Mutex::new(0);
+
 #[allow(private_bounds)]
 pub struct Graph {
     arena: Arena<NodeInner>,
+    graph_id: u32,
     next_id: RefCell<NodeId>,
     start_node: RefCell<Option<NonNull<NodeInner>>>,
     kind: AutomatonKind,
@@ -36,8 +40,14 @@ impl Graph {
     /// nodes.
     pub fn with_capacity(capacity: usize, kind: AutomatonKind) -> Self {
         let arena = Arena::with_capacity(capacity);
+
+        let mut graph_id = GRAPH_ID.lock().expect("graph id mutex failed");
+        let new_graph_id = *graph_id;
+        *graph_id = graph_id.checked_add(1).expect("graph id overflow");
+
         Self {
             arena,
+            graph_id: new_graph_id,
             next_id: RefCell::new(0),
             start_node: RefCell::new(None),
             kind,
@@ -46,10 +56,12 @@ impl Graph {
 
     /// Creates a new NFA node.
     pub fn node(&self) -> Node<'_> {
-        let new_id = self
+        let new_node_id = self
             .next_id
             .replace_with(|v| v.checked_add(1).expect("node id overflow"));
-        let node_mut = self.arena.alloc_with(|| Node::new_inner(new_id, self.kind));
+        let node_mut = self
+            .arena
+            .alloc_with(|| Node::new_inner(self.graph_id, new_node_id, self.kind));
         let node = Node::from_mut(node_mut);
         let mut start_node = self.start_node.borrow_mut();
         if start_node.is_none() {
@@ -103,7 +115,11 @@ macro_rules! impl_fmt {
                             f.write_str("\n    ")?;
                             std::fmt::$trait::fmt(&Epsilon, f)?;
                             f.write_str(" -> ")?;
-                            std::fmt::$trait::fmt(&target, f)?;
+                            if node == target {
+                                f.write_str("self")?;
+                            } else {
+                                std::fmt::$trait::fmt(&target, f)?;
+                            }
                             is_empty = false;
                         }
                     }

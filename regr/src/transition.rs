@@ -176,12 +176,6 @@ impl std::convert::From<u8> for Transition {
     }
 }
 
-impl std::convert::AsRef<[u64; SYM_BITMAP_LEN]> for Transition {
-    fn as_ref(&self) -> &[u64; SYM_BITMAP_LEN] {
-        &self.chunks
-    }
-}
-
 macro_rules! impl_fmt {
     (std::fmt::$trait:ident) => {
         impl std::fmt::$trait for Transition {

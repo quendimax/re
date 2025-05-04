@@ -15,68 +15,68 @@ fn translate<'b>(pattern: &str, graph: &'b Graph) -> Result<(Node<'b>, Node<'b>)
 fn translate_alternation() {
     let graph = Graph::nfa();
     let (start, finish) = translate("abc|df", &graph).unwrap();
-    assert_eq!(start.id(), 0);
-    assert_eq!(finish.id(), 1);
+    assert_eq!(start.nid(), 0);
+    assert_eq!(finish.nid(), 1);
 }
 
 #[test]
 fn translate_capture() {
     let graph = Graph::nfa();
     let (start, finish) = translate("(abc)", &graph).unwrap();
-    assert_eq!(start.id(), 0);
-    assert_eq!(finish.id(), 3);
+    assert_eq!(start.nid(), 0);
+    assert_eq!(finish.nid(), 3);
 
     let (start, finish) = translate("(abc)|(?:cd)", &graph).unwrap();
-    assert_eq!(start.id(), 4);
-    assert_eq!(finish.id(), 5);
+    assert_eq!(start.nid(), 4);
+    assert_eq!(finish.nid(), 5);
 }
 
 #[test]
 fn translate_unicode_class() {
     let graph = Graph::nfa();
     let (start, finish) = translate(r"[a-bъ-ўऄ-ऩ𐂂-𐂅]", &graph).unwrap();
-    assert_eq!(start.id(), 0);
-    assert_eq!(finish.id(), 1);
+    assert_eq!(start.nid(), 0);
+    assert_eq!(finish.nid(), 1);
 }
 
 #[test]
 fn translate_byte_class() {
     let graph = Graph::nfa();
     let (start, finish) = translate(r"(?i-u)[a-b]", &graph).unwrap();
-    assert_eq!(start.id(), 0);
-    assert_eq!(finish.id(), 1);
+    assert_eq!(start.nid(), 0);
+    assert_eq!(finish.nid(), 1);
 }
 
 #[test]
 fn translate_concat() {
     let graph = Graph::nfa();
     let (start, finish) = translate(r"abc(df)", &graph).unwrap();
-    assert_eq!(start.id(), 0);
-    assert_eq!(finish.id(), 5);
+    assert_eq!(start.nid(), 0);
+    assert_eq!(finish.nid(), 5);
 }
 
 #[test]
 fn translate_empty() {
     let graph = Graph::nfa();
     let (start, finish) = translate("", &graph).unwrap();
-    assert_eq!(start.id(), 0);
-    assert_eq!(finish.id(), 1);
+    assert_eq!(start.nid(), 0);
+    assert_eq!(finish.nid(), 1);
 
     let (start, finish) = translate("a|", &graph).unwrap();
-    assert_eq!(start.id(), 2);
-    assert_eq!(finish.id(), 3);
+    assert_eq!(start.nid(), 2);
+    assert_eq!(finish.nid(), 3);
 }
 
 #[test]
 fn translate_literal() {
     let graph = Graph::nfa();
     let (start, finish) = translate("abў", &graph).unwrap();
-    assert_eq!(start.id(), 0);
-    assert_eq!(finish.id(), 4);
+    assert_eq!(start.nid(), 0);
+    assert_eq!(finish.nid(), 4);
 
     let (start, finish) = translate(r"a\x64", &graph).unwrap();
-    assert_eq!(start.id(), 5);
-    assert_eq!(finish.id(), 7);
+    assert_eq!(start.nid(), 5);
+    assert_eq!(finish.nid(), 7);
 }
 
 #[test]
@@ -97,22 +97,22 @@ fn translate_repetition() {
     );
 
     let (start, finish) = translate("a*", &graph).unwrap();
-    assert_eq!(start.id(), 1);
-    assert_eq!(finish.id(), 4);
+    assert_eq!(start.nid(), 1);
+    assert_eq!(finish.nid(), 4);
 
     let (start, finish) = translate("a+", &graph).unwrap();
-    assert_eq!(start.id(), 5);
-    assert_eq!(finish.id(), 9);
+    assert_eq!(start.nid(), 5);
+    assert_eq!(finish.nid(), 9);
 
     let (start, finish) = translate("a{3,}", &graph).unwrap();
-    assert_eq!(start.id(), 10);
-    assert_eq!(finish.id(), 16);
+    assert_eq!(start.nid(), 10);
+    assert_eq!(finish.nid(), 16);
 
     let (start, finish) = translate("a{3,5}", &graph).unwrap();
-    assert_eq!(start.id(), 17);
-    assert_eq!(finish.id(), 22);
+    assert_eq!(start.nid(), 17);
+    assert_eq!(finish.nid(), 22);
 
     let (start, finish) = translate("a{3}", &graph).unwrap();
-    assert_eq!(start.id(), 23);
-    assert_eq!(finish.id(), 26);
+    assert_eq!(start.nid(), 23);
+    assert_eq!(finish.nid(), 26);
 }

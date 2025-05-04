@@ -4,9 +4,27 @@ use regr::{Epsilon, Graph, NodeId, Range};
 
 #[test]
 fn node_id() {
-    let a: u32 = 1;
-    let b: NodeId = 2;
-    assert_eq!(a + b, 3);
+    let graph_0 = Graph::dfa();
+    let a = graph_0.node();
+    let b = graph_0.node();
+
+    assert_eq!(a.nid(), 0);
+    assert_eq!(a.uid(), (a.gid() as u64) << NodeId::BITS);
+
+    assert_eq!(b.nid(), 1);
+    assert_eq!(b.uid(), ((b.gid() as u64) << NodeId::BITS) | 1);
+
+    let graph_1 = Graph::dfa();
+    let c = graph_1.node();
+    let d = graph_1.node();
+
+    assert_eq!(c.nid(), 0);
+    assert_eq!(c.gid(), a.gid() + 1);
+    assert_eq!(c.uid(), (c.gid() as u64) << NodeId::BITS);
+
+    assert_eq!(d.nid(), 1);
+    assert_eq!(d.gid(), a.gid() + 1);
+    assert_eq!(d.uid(), ((c.gid() as u64) << NodeId::BITS) | 1);
 }
 
 #[test]
@@ -17,7 +35,7 @@ fn node_partial_eq() {
 
     let graph_2 = Graph::nfa();
     let node_2 = graph_2.node();
-    assert_eq!(node_1, node_2);
+    assert_ne!(node_1, node_2);
 }
 
 #[test]
