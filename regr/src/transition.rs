@@ -1,5 +1,6 @@
 use crate::ops::{ContainOp, IntersectOp, MergeOp};
 use crate::range::Range;
+use crate::symbol::Symbol;
 use std::fmt::Write;
 
 /// Quantity of `u64` values in the `bitmap` member.
@@ -188,14 +189,18 @@ macro_rules! impl_fmt {
                 f.write_char('[')?;
                 let mut iter = self.ranges();
                 let mut range = iter.next();
-                loop {
-                    if let Some(range) = range {
-                        std::fmt::$trait::fmt(&range, f)?;
-                    }
+                while let Some(cur_range) = range {
                     if let Some(next_range) = iter.next() {
-                        f.write_str(" | ")?;
-                        range = Some(next_range);
+                        if cur_range.end().steps_between(next_range.start()) == 1 {
+                            range = Some(Range::new(cur_range.start(), next_range.end()));
+                            continue;
+                        } else {
+                            std::fmt::$trait::fmt(&cur_range, f)?;
+                            f.write_str(" | ")?;
+                            range = Some(next_range);
+                        }
                     } else {
+                        std::fmt::$trait::fmt(&cur_range, f)?;
                         break;
                     }
                 }

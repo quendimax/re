@@ -53,23 +53,23 @@ fn graph_fmt_debug() {
     d.connect(b, Epsilon);
     d.connect(c, Epsilon);
     assert_eq!(
-        format!("{:?}", graph).replace("\n", "\n        "),
+        format!("{}", graph).replace("\n", "\n        "),
         "\
-        node 0 {
-            ['a'-255] -> node 1
-            [EPSILON] -> node 1
+        node(0) {
+            ['a'-\\xFF] -> node(1)
+            Epsilon -> node(1)
         }
-        node 1 {
-            [EPSILON] -> node 2
-            [EPSILON] -> node 0
+        node(1) {
+            Epsilon -> node(2)
+            Epsilon -> node(0)
         }
-        node 2 {
-            ['c'] -> node 3
+        node(2) {
+            ['c'] -> node(3)
         }
-        node 3 {
-            [EPSILON] -> node 0
-            [EPSILON] -> node 1
-            [EPSILON] -> node 2
+        node(3) {
+            Epsilon -> node(0)
+            Epsilon -> node(1)
+            Epsilon -> node(2)
         }"
     );
 }
@@ -82,23 +82,23 @@ fn graph_fmt_debug_1() {
     let hir = regex_syntax::parse("[abd-z]a*").unwrap();
     translator.from_hir_to_nfa(&hir).unwrap();
     assert_eq!(
-        format!("{:?}", graph).replace("\n", "\n        "),
+        format!("{}", graph).replace("\n", "\n        "),
         "\
-        node 0 {
-            ['a'-'b']['d'-'z'] -> node 1
+        node(0) {
+            ['a'-'b' | 'd'-'z'] -> node(1)
         }
-        node 1 {
-            [EPSILON] -> node 2
-            [EPSILON] -> node 4
+        node(1) {
+            Epsilon -> node(2)
+            Epsilon -> node(4)
         }
-        node 2 {
-            ['a'] -> node 3
+        node(2) {
+            ['a'] -> node(3)
         }
-        node 3 {
-            [EPSILON] -> node 4
-            [EPSILON] -> node 2
+        node(3) {
+            Epsilon -> node(4)
+            Epsilon -> node(2)
         }
-        node 4 {}"
+        node(4) {}"
     );
 }
 
@@ -110,30 +110,30 @@ fn graph_fmt_debug_2() {
     let hir = regex_syntax::parse("ab|cd").unwrap();
     translator.from_hir_to_nfa(&hir).unwrap();
     assert_eq!(
-        format!("{:?}", graph).replace("\n", "\n        "),
+        format!("{}", graph).replace("\n", "\n        "),
         "\
-        node 0 {
-            [EPSILON] -> node 2
-            [EPSILON] -> node 5
+        node(0) {
+            Epsilon -> node(2)
+            Epsilon -> node(5)
         }
-        node 1 {}
-        node 2 {
-            ['a'] -> node 3
+        node(1) {}
+        node(2) {
+            ['a'] -> node(3)
         }
-        node 3 {
-            ['b'] -> node 4
+        node(3) {
+            ['b'] -> node(4)
         }
-        node 4 {
-            [EPSILON] -> node 1
+        node(4) {
+            Epsilon -> node(1)
         }
-        node 5 {
-            ['c'] -> node 6
+        node(5) {
+            ['c'] -> node(6)
         }
-        node 6 {
-            ['d'] -> node 7
+        node(6) {
+            ['d'] -> node(7)
         }
-        node 7 {
-            [EPSILON] -> node 1
+        node(7) {
+            Epsilon -> node(1)
         }"
     );
 }

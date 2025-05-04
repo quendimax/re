@@ -1,7 +1,9 @@
 use crate::arena::Arena;
 use crate::node::{Node, NodeId, NodeInner};
+use crate::symbol::Epsilon;
 use std::cell::RefCell;
 use std::fmt::Write;
+use std::ops::Deref;
 use std::ptr::NonNull;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -66,34 +68,50 @@ impl std::default::Default for Graph {
     }
 }
 
-impl std::fmt::Debug for Graph {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut first = true;
-        for node in self.arena.iter().map(Node::from_ref) {
-            if first {
-                first = false;
-            } else {
-                f.write_char('\n')?;
-            }
-            let mut is_empty = true;
-            write!(f, "{:?} {{", node)?;
-            for (target, transition) in node.symbol_targets() {
-                f.write_str("\n    ")?;
-                for range in transition.ranges() {
-                    range.fmt(f)?;
+macro_rules! impl_fmt {
+    (std::fmt::$trait:ident) => {
+        impl std::fmt::$trait for Graph {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let mut first = true;
+                for node in self.arena.iter().map(Node::from_ref) {
+                    if first {
+                        first = false;
+                    } else {
+                        f.write_char('\n')?;
+                    }
+                    let mut is_empty = true;
+                    std::fmt::$trait::fmt(&node, f)?;
+                    f.write_str(" {")?;
+                    for (target, transition) in node.symbol_targets() {
+                        f.write_str("\n    ")?;
+                        std::fmt::$trait::fmt(transition.deref(), f)?;
+                        f.write_str(" -> ")?;
+                        std::fmt::$trait::fmt(&target, f)?;
+                        is_empty = false;
+                    }
+                    if node.is_nfa() {
+                        for target in node.epsilon_targets() {
+                            f.write_str("\n    ")?;
+                            std::fmt::$trait::fmt(&Epsilon, f)?;
+                            f.write_str(" -> ")?;
+                            std::fmt::$trait::fmt(&target, f)?;
+                            is_empty = false;
+                        }
+                    }
+                    if !is_empty {
+                        f.write_char('\n')?;
+                    }
+                    f.write_char('}')?;
                 }
-                write!(f, " -> {:?}", target)?;
-                is_empty = false;
+                Ok(())
             }
-            for target in node.epsilon_targets() {
-                write!(f, "\n    [EPSILON] -> {:?}", target)?;
-                is_empty = false;
-            }
-            if !is_empty {
-                f.write_char('\n')?;
-            }
-            f.write_char('}')?;
         }
-        Ok(())
-    }
+    };
 }
+
+impl_fmt!(std::fmt::Display);
+impl_fmt!(std::fmt::Debug);
+impl_fmt!(std::fmt::Binary);
+impl_fmt!(std::fmt::Octal);
+impl_fmt!(std::fmt::UpperHex);
+impl_fmt!(std::fmt::LowerHex);

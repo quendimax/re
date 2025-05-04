@@ -40,6 +40,16 @@ impl<'a> Node<'a> {
         self.0.id
     }
 
+    /// Checks if the node is an DFA node.
+    pub fn is_dfa(self) -> bool {
+        matches!(self.0.variant, DfaNode { .. })
+    }
+
+    /// Checks if the node is an NFA node.
+    pub fn is_nfa(self) -> bool {
+        matches!(self.0.variant, NfaNode { .. })
+    }
+
     /// Connects this node to another node with a specified edge rule.
     /// If a connection to the target node already exists, it merges
     /// the new edge rule with the existing one.
