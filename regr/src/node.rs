@@ -55,6 +55,14 @@ impl<'a> Node<'a> {
         ConnectOp::connect(self, to, with);
     }
 
+    #[allow(clippy::mutable_key_type)]
+    pub fn closure<T>(self, symbol: T) -> Set<Node<'a>>
+    where
+        Self: ClosureOp<'a, T>,
+    {
+        ClosureOp::closure(self, symbol)
+    }
+
     /// Returns an iterator over target nodes, i.e. nodes that this node is
     /// connected to.
     #[inline]
@@ -116,6 +124,49 @@ impl<'a> Node<'a> {
     #[inline]
     pub(crate) fn as_ptr(self) -> NonNull<NodeInner> {
         unsafe { NonNull::<NodeInner>::new_unchecked(self.0 as *const NodeInner as *mut NodeInner) }
+    }
+}
+
+pub trait ClosureOp<'a, T> {
+    #[allow(clippy::mutable_key_type)]
+    fn closure(self, symbol: T) -> Set<Node<'a>>;
+}
+
+impl<'a> ClosureOp<'a, u8> for Node<'a> {
+    #[allow(clippy::mutable_key_type)]
+    fn closure(self, symbol: u8) -> Set<Node<'a>> {
+        let mut closure = Set::new();
+        fn closure_impl<'a>(node: Node<'a>, closure: &mut Set<Node<'a>>, symbol: u8) {
+            if closure.contains(&node) {
+                return;
+            }
+            closure.insert(node);
+            for (target_node, transition) in node.symbol_targets() {
+                if transition.contains(symbol) {
+                    closure_impl(target_node, closure, symbol);
+                }
+            }
+        }
+        closure_impl(self, &mut closure, symbol);
+        closure
+    }
+}
+
+impl<'a> ClosureOp<'a, Epsilon> for Node<'a> {
+    #[allow(clippy::mutable_key_type)]
+    fn closure(self, _symbol: Epsilon) -> Set<Node<'a>> {
+        let mut closure = Set::new();
+        fn closure_impl<'a>(node: Node<'a>, closure: &mut Set<Node<'a>>) {
+            if closure.contains(&node) {
+                return;
+            }
+            closure.insert(node);
+            for target_node in node.epsilon_targets() {
+                closure_impl(target_node, closure);
+            }
+        }
+        closure_impl(self, &mut closure);
+        closure
     }
 }
 
