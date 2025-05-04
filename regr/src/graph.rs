@@ -22,6 +22,11 @@ pub struct Graph {
 
 #[allow(private_bounds)]
 impl Graph {
+    /// Creates a new DFA graph.
+    pub fn dfa() -> Self {
+        Self::with_capacity(0, AutomatonKind::DFA)
+    }
+
     /// Creates a new NFA graph.
     pub fn nfa() -> Self {
         Self::with_capacity(0, AutomatonKind::NFA)
@@ -86,7 +91,11 @@ macro_rules! impl_fmt {
                         f.write_str("\n    ")?;
                         std::fmt::$trait::fmt(transition.deref(), f)?;
                         f.write_str(" -> ")?;
-                        std::fmt::$trait::fmt(&target, f)?;
+                        if node == target {
+                            f.write_str("self")?;
+                        } else {
+                            std::fmt::$trait::fmt(&target, f)?;
+                        }
                         is_empty = false;
                     }
                     if node.is_nfa() {

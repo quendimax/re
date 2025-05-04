@@ -1,5 +1,5 @@
 use pretty_assertions::assert_eq;
-use regr::{AutomatonKind, Epsilon, Graph, Range, Translator};
+use regr::{AutomatonKind, Epsilon, Graph, Range, range};
 
 #[test]
 fn graph_ctor() {
@@ -37,7 +37,7 @@ fn graph_start_node() {
 
 #[test]
 #[cfg_attr(not(feature = "ordered-hash"), ignore)]
-fn graph_fmt_debug() {
+fn graph_display_fmt_0() {
     let graph = Graph::with_capacity(1, AutomatonKind::NFA);
     let a = graph.node();
     let b = graph.node();
@@ -76,11 +76,20 @@ fn graph_fmt_debug() {
 
 #[test]
 #[cfg_attr(not(feature = "ordered-hash"), ignore)]
-fn graph_fmt_debug_1() {
+fn graph_display_fmt_1() {
     let graph = Graph::nfa();
-    let translator = Translator::new(&graph);
-    let hir = regex_syntax::parse("[abd-z]a*").unwrap();
-    translator.from_hir_to_nfa(&hir).unwrap();
+    let n0 = graph.node();
+    let n1 = graph.node();
+    let n2 = graph.node();
+    let n3 = graph.node();
+    let n4 = graph.node();
+    n0.connect(n1, range(b'a'..=b'b'));
+    n0.connect(n1, range(b'd'..=b'z'));
+    n1.connect(n2, Epsilon);
+    n1.connect(n4, Epsilon);
+    n2.connect(n3, b'a');
+    n3.connect(n4, Epsilon);
+    n3.connect(n2, Epsilon);
     assert_eq!(
         format!("{}", graph).replace("\n", "\n        "),
         "\
@@ -104,11 +113,24 @@ fn graph_fmt_debug_1() {
 
 #[test]
 #[cfg_attr(not(feature = "ordered-hash"), ignore)]
-fn graph_fmt_debug_2() {
+fn graph_display_fmt_2() {
     let graph = Graph::nfa();
-    let translator = Translator::new(&graph);
-    let hir = regex_syntax::parse("ab|cd").unwrap();
-    translator.from_hir_to_nfa(&hir).unwrap();
+    let n0 = graph.node();
+    let n1 = graph.node();
+    let n2 = graph.node();
+    let n3 = graph.node();
+    let n4 = graph.node();
+    let n5 = graph.node();
+    let n6 = graph.node();
+    let n7 = graph.node();
+    n0.connect(n2, Epsilon);
+    n0.connect(n5, Epsilon);
+    n2.connect(n3, b'a');
+    n3.connect(n4, b'b');
+    n4.connect(n1, Epsilon);
+    n5.connect(n6, b'c');
+    n6.connect(n7, b'd');
+    n7.connect(n1, Epsilon);
     assert_eq!(
         format!("{}", graph).replace("\n", "\n        "),
         "\
@@ -135,5 +157,29 @@ fn graph_fmt_debug_2() {
         node(7) {
             Epsilon -> node(1)
         }"
+    );
+}
+
+#[test]
+#[cfg_attr(not(feature = "ordered-hash"), ignore)]
+fn graph_display_fmt_3() {
+    let graph = Graph::dfa();
+    let a = graph.node();
+    let b = graph.node();
+    let c = graph.node();
+    a.connect(b, 1);
+    b.connect(b, 3);
+    b.connect(c, 1);
+    assert_eq!(
+        format!("{:?}", graph).replace("\n", "\n        "),
+        "\
+        node(0) {
+            [1] -> node(1)
+        }
+        node(1) {
+            [3] -> self
+            [1] -> node(2)
+        }
+        node(2) {}"
     );
 }
