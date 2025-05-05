@@ -8,5 +8,10 @@
     "label": "qm::cargo_nextest_run",
     "command": "cargo",
     "args": ["nextest", "run", "--features=regr/ordered-hash"]
+  },
+  {
+    "label": "qm::cargo_llvm_cov",
+    "command": "cargo",
+    "args": ["llvm-cov", "nextest", "--features=ordered-hash", "--open"]
   }
 ]
