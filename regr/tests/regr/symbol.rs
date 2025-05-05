@@ -12,6 +12,7 @@ fn u8_steps_between() {
 fn u8_forward() {
     assert_eq!(1u8.forward(3), Some(4));
     assert_eq!(1u8.forward(1000), None);
+    assert_eq!(255u8.forward(1), None);
 }
 
 #[test]
