@@ -9,7 +9,7 @@ pub(crate) struct Arena<T> {
 }
 
 impl<T: Sized> Arena<T> {
-    pub fn with_capacity(capacity: usize) -> Self {
+    pub(crate) fn with_capacity(capacity: usize) -> Self {
         Self {
             bump: Bump::with_capacity(capacity * std::mem::size_of::<T>()),
             len: RefCell::new(0),
@@ -17,7 +17,7 @@ impl<T: Sized> Arena<T> {
         }
     }
 
-    pub fn alloc_with<F>(&self, f: F) -> &mut T
+    pub(crate) fn alloc_with<F>(&self, f: F) -> &mut T
     where
         F: FnOnce() -> T,
     {
@@ -67,12 +67,12 @@ impl<T> Arena<T> {
     /// items to the arena during iteration. But the iteration won't be affected
     /// by the new items, i.e. if at the moment of creation the iterator the
     /// arena contains `n` items, then the iterator will iterate over `n` items.
-    pub fn iter(&self) -> Iter<'_, T> {
+    pub(crate) fn iter(&self) -> Iter<'_, T> {
         Iter::new(self)
     }
 }
 
-pub struct Iter<'a, T> {
+pub(crate) struct Iter<'a, T> {
     // number of items at current the iterator creating moment
     len: usize,
     chunks: SmallVec<[(*mut u8, usize); 4]>,
