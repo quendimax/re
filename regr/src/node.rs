@@ -91,7 +91,7 @@ impl<'a> Node<'a> {
     where
         Self: ClosureOp<'a, T>,
     {
-        ClosureOp::closure(self, symbol)
+        ClosureOp::closure(&self, symbol)
     }
 
     /// Returns an iterator over target nodes, i.e. nodes that this node is
@@ -162,29 +162,36 @@ impl<'a> Node<'a> {
 
 pub trait ClosureOp<'a, T> {
     #[allow(clippy::mutable_key_type)]
-    fn closure(self, symbol: T) -> Set<Node<'a>>;
+    fn closure(&self, symbol: T) -> Set<Node<'a>>;
 }
 
 impl<'a> ClosureOp<'a, u8> for Node<'a> {
     #[allow(clippy::mutable_key_type)]
-    fn closure(self, symbol: u8) -> Set<Node<'a>> {
+    fn closure(&self, symbol: u8) -> Set<Node<'a>> {
+        let e_closure = self.closure(Epsilon);
+        e_closure.closure(symbol)
+    }
+}
+
+impl<'a> ClosureOp<'a, u8> for Set<Node<'a>> {
+    #[allow(clippy::mutable_key_type)]
+    fn closure(&self, symbol: u8) -> Set<Node<'a>> {
         let mut closure = Set::new();
-        let eclosure = self.closure(Epsilon);
-        for node in eclosure.iter() {
+        for node in self.iter() {
             for (target_node, transition) in node.symbol_targets() {
                 if transition.contains(symbol) {
-                    closure.insert(target_node);
+                    let e_closure = target_node.closure(symbol);
+                    closure.extend(e_closure);
                 }
             }
         }
-        closure.extend(eclosure);
         closure
     }
 }
 
 impl<'a> ClosureOp<'a, Epsilon> for Node<'a> {
     #[allow(clippy::mutable_key_type)]
-    fn closure(self, _symbol: Epsilon) -> Set<Node<'a>> {
+    fn closure(&self, _: Epsilon) -> Set<Node<'a>> {
         let mut closure = Set::new();
         fn closure_impl<'a>(node: Node<'a>, closure: &mut Set<Node<'a>>) {
             if closure.contains(&node) {
@@ -195,7 +202,7 @@ impl<'a> ClosureOp<'a, Epsilon> for Node<'a> {
                 closure_impl(target_node, closure);
             }
         }
-        closure_impl(self, &mut closure);
+        closure_impl(*self, &mut closure);
         closure
     }
 }
