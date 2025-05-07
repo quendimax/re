@@ -5,22 +5,22 @@
 pub trait Symbol: Sized + Copy + crate::private::Sealed {
     /// Returns the number of steps required to get from `self` to `other` or
     /// vice versa.
-    fn steps_between(&self, other: Self) -> usize;
+    fn steps_between(self, other: Self) -> usize;
 
     /// Returns the value that would be obtained by taking the _successor_ of
     /// `self` count times.
     ///
     /// Returns `None` if the value is out of `Self`'s valid range.
-    fn forward(&self, count: usize) -> Option<Self>;
+    fn forward(self, count: usize) -> Option<Self>;
 
     /// Returns the value that would be obtained by taking the _predecessor_ of
     /// `self` count times.
     ///
     /// Returns `None` if the value is out of `Self`'s valid range.
-    fn backward(&self, count: usize) -> Option<Self>;
+    fn backward(self, count: usize) -> Option<Self>;
 
     /// Checks if there is one step between the specified two values.
-    fn adjoins(&self, other: Self) -> bool {
+    fn adjoins(self, other: Self) -> bool {
         self.steps_between(other) == 1
     }
 
@@ -32,11 +32,11 @@ pub trait Symbol: Sized + Copy + crate::private::Sealed {
 impl crate::private::Sealed for u8 {}
 
 impl Symbol for u8 {
-    fn steps_between(&self, other: Self) -> usize {
+    fn steps_between(self, other: Self) -> usize {
         self.abs_diff(other).into()
     }
 
-    fn forward(&self, count: usize) -> Option<Self> {
+    fn forward(self, count: usize) -> Option<Self> {
         if let Ok(count) = Self::try_from(count) {
             self.checked_add(count)
         } else {
@@ -44,7 +44,7 @@ impl Symbol for u8 {
         }
     }
 
-    fn backward(&self, count: usize) -> Option<Self> {
+    fn backward(self, count: usize) -> Option<Self> {
         if let Ok(count) = Self::try_from(count) {
             self.checked_sub(count)
         } else {

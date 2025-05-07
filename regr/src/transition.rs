@@ -80,6 +80,14 @@ impl ContainOp<Range> for Transition {
     }
 }
 
+impl ContainOp<std::ops::RangeInclusive<u8>> for Transition {
+    #[inline]
+    fn contains(&self, range: std::ops::RangeInclusive<u8>) -> bool {
+        let range = Range::from(range);
+        ContainOp::contains(self, range)
+    }
+}
+
 impl ContainOp<&Transition> for Transition {
     fn contains(&self, other: &Transition) -> bool {
         self.chunks[0] & other.chunks[0] == other.chunks[0]
@@ -97,10 +105,17 @@ impl IntersectOp<u8> for Transition {
 }
 
 impl IntersectOp<Range> for Transition {
-    fn intersects(&self, other: Range) -> bool {
-        let mut other_tr = Transition::default();
-        other_tr.merge(other);
-        IntersectOp::intersects(self, &other_tr)
+    fn intersects(&self, range: Range) -> bool {
+        let mut other = Transition::default();
+        other.merge(range);
+        IntersectOp::intersects(self, &other)
+    }
+}
+
+impl IntersectOp<std::ops::RangeInclusive<u8>> for Transition {
+    fn intersects(&self, range: std::ops::RangeInclusive<u8>) -> bool {
+        let range = Range::from(range);
+        IntersectOp::intersects(self, range)
     }
 }
 
@@ -118,16 +133,6 @@ impl MergeOp<u8> for Transition {
     #[inline]
     fn merge(&mut self, symbol: u8) {
         self.chunks[symbol as usize >> 6] |= 1 << (symbol & (u8::MAX >> 2));
-    }
-}
-
-impl MergeOp<&Transition> for Transition {
-    #[inline]
-    fn merge(&mut self, other: &Transition) {
-        self.chunks[0] |= other.chunks[0];
-        self.chunks[1] |= other.chunks[1];
-        self.chunks[2] |= other.chunks[2];
-        self.chunks[3] |= other.chunks[3];
     }
 }
 
@@ -165,6 +170,24 @@ impl MergeOp<Range> for Transition {
                 _ => std::hint::unreachable_unchecked(),
             }
         }
+    }
+}
+
+impl MergeOp<std::ops::RangeInclusive<u8>> for Transition {
+    #[inline]
+    fn merge(&mut self, range: std::ops::RangeInclusive<u8>) {
+        let range = Range::from(range);
+        MergeOp::merge(self, range)
+    }
+}
+
+impl MergeOp<&Transition> for Transition {
+    #[inline]
+    fn merge(&mut self, other: &Transition) {
+        self.chunks[0] |= other.chunks[0];
+        self.chunks[1] |= other.chunks[1];
+        self.chunks[2] |= other.chunks[2];
+        self.chunks[3] |= other.chunks[3];
     }
 }
 

@@ -1,6 +1,7 @@
-use crate::Epsilon;
 use crate::adt::{Map, MapIter, MapKeyIter, Set, SetIter};
 use crate::graph::AutomatonKind;
+use crate::range::Range;
+use crate::symbol::Epsilon;
 use crate::transition::Transition;
 use std::cell::{Ref, RefCell};
 use std::fmt::Write;
@@ -203,29 +204,40 @@ pub trait ConnectOp<'a, T> {
     fn connect(self, to: Node<'a>, with: T);
 }
 
-impl<'a, T> ConnectOp<'a, T> for Node<'a>
-where
-    T: Copy + std::fmt::Debug,
-    Transition: crate::ops::ContainOp<T> + crate::ops::MergeOp<T>,
-{
-    fn connect(self, to: Node<'a>, with: T) {
-        if let DfaNode { occupied_symbols } = &self.0.variant {
-            let mut occupied_symbols = occupied_symbols.borrow_mut();
-            if occupied_symbols.contains(with) {
-                panic!("connection {with:?} already exists; DFA node can't have more");
-            }
-            occupied_symbols.merge(with);
-        }
+macro_rules! impl_connect {
+    ($symty:ty) => {
+        impl<'a> ConnectOp<'a, $symty> for Node<'a> {
+            fn connect(self, to: Node<'a>, with: $symty) {
+                if let DfaNode { occupied_symbols } = &self.0.variant {
+                    let mut occupied_symbols = occupied_symbols.borrow_mut();
+                    if occupied_symbols.contains(with) {
+                        panic!("connection {with:?} already exists; DFA node can't have more");
+                    }
+                    occupied_symbols.merge(with);
+                }
 
-        let to = to.as_ptr();
-        let mut targets = self.0.targets.borrow_mut();
-        if let Some(tr) = targets.get_mut(&to) {
-            tr.merge(with);
-        } else {
-            let mut tr = Transition::default();
-            tr.merge(with);
-            targets.insert(to, tr);
+                let to = to.as_ptr();
+                let mut targets = self.0.targets.borrow_mut();
+                if let Some(tr) = targets.get_mut(&to) {
+                    tr.merge(with);
+                } else {
+                    let mut tr = Transition::default();
+                    tr.merge(with);
+                    targets.insert(to, tr);
+                }
+            }
         }
+    };
+}
+
+impl_connect!(u8);
+impl_connect!(Range);
+impl_connect!(&Transition);
+
+impl<'a> ConnectOp<'a, std::ops::RangeInclusive<u8>> for Node<'a> {
+    #[inline]
+    fn connect(self, to: Node<'a>, with: std::ops::RangeInclusive<u8>) {
+        ConnectOp::connect(self, to, Range::from(with))
     }
 }
 

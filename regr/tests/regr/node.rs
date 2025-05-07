@@ -1,6 +1,6 @@
 use pretty_assertions::{assert_eq, assert_ne};
 use regr::adt::Set;
-use regr::{Epsilon, Graph, NodeId, Range};
+use regr::{Epsilon, Graph, NodeId};
 
 #[test]
 fn node_id() {
@@ -79,7 +79,7 @@ fn node_eclosure() {
     let c = graph.node();
     let d = graph.node();
 
-    a.connect(b, Range::new(b'a', u8::MAX));
+    a.connect(b, b'a'..=u8::MAX);
     a.connect(b, Epsilon);
     b.connect(c, Epsilon);
     c.connect(d, b'c');
@@ -101,7 +101,7 @@ fn node_symbol_targets() {
     let c = graph.node();
     let d = graph.node();
 
-    a.connect(b, Range::new(b'a', u8::MAX));
+    a.connect(b, b'a'..=u8::MAX);
     a.connect(b, Epsilon);
     b.connect(c, Epsilon);
     c.connect(d, b'c');
@@ -122,7 +122,7 @@ fn node_epsilon_targets() {
     let c = graph.node();
     let d = graph.node();
 
-    a.connect(b, Range::new(b'a', u8::MAX));
+    a.connect(b, b'a'..=u8::MAX);
     a.connect(b, Epsilon);
     b.connect(c, Epsilon);
     c.connect(d, b'c');
