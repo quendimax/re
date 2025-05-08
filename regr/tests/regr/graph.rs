@@ -36,6 +36,60 @@ fn graph_start_node() {
 }
 
 #[test]
+fn graph_determined_0() {
+    let nfa = Graph::nfa();
+    let a = nfa.node();
+    a.connect(a, Epsilon);
+    assert_eq!(
+        format!("{nfa}").replace("\n", "\n        "),
+        "\
+        node(0) {
+            Epsilon -> self
+        }"
+    );
+
+    let dfa = Graph::determined(&nfa);
+    assert_eq!(format!("{dfa}"), "node(0) {}");
+}
+
+#[test]
+fn graph_determined_1() {
+    let nfa = Graph::nfa();
+    let a = nfa.node();
+    let b = nfa.node();
+    let c = nfa.node();
+    a.connect(a, 1..=255);
+    a.connect(b, Epsilon);
+    b.connect(c, b'a');
+    assert_eq!(
+        format!("{nfa}").replace("\n", "\n        "),
+        "\
+        node(0) {
+            [\\x01-\\xFF] -> self
+            Epsilon -> node(1)
+        }
+        node(1) {
+            ['a'] -> node(2)
+        }
+        node(2) {}"
+    );
+
+    let dfa = Graph::determined(&nfa);
+    assert_eq!(
+        format!("{dfa}").replace("\n", "\n        "),
+        "\
+        node(0) {
+            ['a'] -> node(1)
+            [\\x01-'`' | 'b'-\\xFF] -> self
+        }
+        node(1) {
+            ['a'] -> self
+            [\\x01-'`' | 'b'-\\xFF] -> node(0)
+        }"
+    );
+}
+
+#[test]
 #[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn graph_display_fmt_0() {
     let graph = Graph::with_capacity(1, AutomatonKind::NFA);

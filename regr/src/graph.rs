@@ -1,10 +1,12 @@
+use crate::adt::{Map, Set};
 use crate::arena::Arena;
-use crate::node::{Node, NodeId, NodeInner};
+use crate::node::{ClosureOp, Node, NodeId, NodeInner};
 use crate::symbol::Epsilon;
 use std::cell::RefCell;
 use std::fmt::Write;
 use std::ops::Deref;
 use std::ptr::NonNull;
+use std::rc::Rc;
 use std::sync::Mutex;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -75,6 +77,44 @@ impl Graph {
             return unsafe { Node::from_ptr(*node_ptr) };
         }
         self.node()
+    }
+
+    /// Builds a new DFA determining the specified NFA.
+    ///
+    /// If instead of NFA, a DFA is passed as the argument, this meathod just
+    /// builds a clone of it.
+    pub fn determined<'n>(nfa: &'n Self) -> Self {
+        let dfa = Graph::dfa();
+        type ConvertMap<'n, 'd> = Map<Rc<Set<Node<'n>>>, Node<'d>>;
+        #[allow(clippy::mutable_key_type)]
+        let mut convert_map: ConvertMap<'n, '_> = Map::new();
+
+        #[allow(clippy::mutable_key_type)]
+        fn convert_impl<'n, 'd>(
+            nfa_closure: Rc<Set<Node<'n>>>,
+            convert_map: &mut ConvertMap<'n, 'd>,
+            dfa: &'d Graph,
+        ) -> Node<'d> {
+            if let Some(dfa_node) = convert_map.get(&nfa_closure) {
+                return *dfa_node;
+            }
+
+            let dfa_node = dfa.node();
+            convert_map.insert(Rc::clone(&nfa_closure), dfa_node);
+
+            for symbol in u8::MIN..=u8::MAX {
+                let symbol_closure = Rc::new(nfa_closure.closure(symbol));
+                if !symbol_closure.is_empty() {
+                    let target_dfa_node = convert_impl(symbol_closure, convert_map, dfa);
+                    dfa_node.connect(target_dfa_node, symbol);
+                }
+            }
+            dfa_node
+        }
+
+        let start_e_closure = Rc::new(nfa.start_node().closure(Epsilon));
+        convert_impl(start_e_closure, &mut convert_map, &dfa);
+        dfa
     }
 }
 

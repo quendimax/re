@@ -83,6 +83,11 @@ impl<'a> Node<'a> {
     where
         Self: ConnectOp<'a, T>,
     {
+        assert_eq!(
+            self.gid(),
+            to.gid(),
+            "only nodes of the same graph can be joint"
+        );
         ConnectOp::connect(self, to, with);
     }
 
@@ -180,7 +185,7 @@ impl<'a> ClosureOp<'a, u8> for Set<Node<'a>> {
         for node in self.iter() {
             for (target_node, transition) in node.symbol_targets() {
                 if transition.contains(symbol) {
-                    let e_closure = target_node.closure(symbol);
+                    let e_closure = target_node.closure(Epsilon);
                     closure.extend(e_closure);
                 }
             }
