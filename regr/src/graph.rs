@@ -56,14 +56,23 @@ impl Graph {
         }
     }
 
-    /// Creates a new NFA node.
+    /// Creates a new node.
     pub fn node(&self) -> Node<'_> {
+        self.new_node(false)
+    }
+
+    /// Creates a new node with acceptable state.
+    pub fn node_acceptable(&self) -> Node<'_> {
+        self.new_node(true)
+    }
+
+    fn new_node(&self, accept: bool) -> Node<'_> {
         let new_node_id = self
             .next_id
             .replace_with(|v| v.checked_add(1).expect("node id overflow"));
         let node_mut = self
             .arena
-            .alloc_with(|| Node::new_inner(self.graph_id, new_node_id, self.kind));
+            .alloc_with(|| Node::new_inner(self.graph_id, new_node_id, accept, self.kind));
         let node = Node::from_mut(node_mut);
         let mut start_node = self.start_node.borrow_mut();
         if start_node.is_none() {

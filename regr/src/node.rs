@@ -25,6 +25,7 @@ pub struct Node<'a>(&'a NodeInner);
 pub(crate) struct NodeInner {
     node_id: NodeId,
     graph_id: NodeId,
+    accept: bool,
     targets: RefCell<Map<NonNull<NodeInner>, Transition>>,
     variant: NodeVariant,
 }
@@ -70,6 +71,12 @@ impl<'a> Node<'a> {
     /// Checks if the node is an NFA node.
     pub fn is_nfa(self) -> bool {
         matches!(self.0.variant, NfaNode { .. })
+    }
+
+    /// Checks if the node is an acceptable N/DFA state.
+    #[inline]
+    pub fn is_acceptable(self) -> bool {
+        self.0.accept
     }
 
     /// Connects this node to another node with a specified edge rule.
@@ -124,11 +131,17 @@ impl<'a> Node<'a> {
 
 /// Private API
 impl<'a> Node<'a> {
-    pub(crate) fn new_inner(graph_id: u32, node_id: u32, kind: AutomatonKind) -> NodeInner {
+    pub(crate) fn new_inner(
+        graph_id: u32,
+        node_id: u32,
+        accept: bool,
+        kind: AutomatonKind,
+    ) -> NodeInner {
         match kind {
             AutomatonKind::NFA => NodeInner {
                 graph_id,
                 node_id,
+                accept,
                 targets: Default::default(),
                 variant: NfaNode {
                     epsilon_targets: Default::default(),
@@ -137,6 +150,7 @@ impl<'a> Node<'a> {
             AutomatonKind::DFA => NodeInner {
                 graph_id,
                 node_id,
+                accept,
                 targets: Default::default(),
                 variant: DfaNode {
                     occupied_symbols: Default::default(),
@@ -306,9 +320,17 @@ macro_rules! impl_fmt {
     (std::fmt::$trait:ident) => {
         impl std::fmt::$trait for Node<'_> {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                f.write_str("node(")?;
+                if self.is_acceptable() {
+                    f.write_str("node((")?;
+                } else {
+                    f.write_str("node(")?;
+                }
                 std::fmt::$trait::fmt(&self.nid(), f)?;
-                f.write_char(')')
+                if self.is_acceptable() {
+                    f.write_str("))")
+                } else {
+                    f.write_char(')')
+                }
             }
         }
     };

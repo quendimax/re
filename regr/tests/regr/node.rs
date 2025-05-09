@@ -139,6 +139,8 @@ fn node_fmt_debug() {
     let graph = Graph::nfa();
     let a = graph.node();
     let b = graph.node();
+    let c = graph.node_acceptable();
     assert_eq!(format!("{:?}", a), "node(0)");
     assert_eq!(format!("{:?}", b), "node(1)");
+    assert_eq!(format!("{:?}", c), "node((2))");
 }
