@@ -18,6 +18,7 @@ utf8-ranges = "1"
 [features]
 hash-map = []
 hash-set = []
+hash = ["hash-map", "hash-set"]
 ordered-hash-map = ["dep:linked-hash-map", "hash-map"]
 ordered-hash-set = ["dep:linked_hash_set", "hash-set"]
 ordered-hash = ["ordered-hash-map", "ordered-hash-set"]

@@ -1,8 +1,8 @@
-use crate::adt::{Map, Set};
 use crate::arena::Arena;
 use crate::node::{ClosureOp, Node, NodeId, NodeInner};
 use crate::symbol::Epsilon;
 use std::cell::RefCell;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 use std::ops::Deref;
 use std::ptr::NonNull;
@@ -85,13 +85,13 @@ impl Graph {
     /// builds a clone of it.
     pub fn determined<'n>(nfa: &'n Self) -> Self {
         let dfa = Graph::dfa();
-        type ConvertMap<'n, 'd> = Map<Rc<Set<Node<'n>>>, Node<'d>>;
+        type ConvertMap<'n, 'd> = BTreeMap<Rc<BTreeSet<Node<'n>>>, Node<'d>>;
         #[allow(clippy::mutable_key_type)]
-        let mut convert_map: ConvertMap<'n, '_> = Map::new();
+        let mut convert_map: ConvertMap<'n, '_> = BTreeMap::new();
 
         #[allow(clippy::mutable_key_type)]
         fn convert_impl<'n, 'd>(
-            nfa_closure: Rc<Set<Node<'n>>>,
+            nfa_closure: Rc<BTreeSet<Node<'n>>>,
             convert_map: &mut ConvertMap<'n, 'd>,
             dfa: &'d Graph,
         ) -> Node<'d> {

@@ -1,6 +1,30 @@
 use pretty_assertions::assert_eq;
 use regr::{AutomatonKind, Epsilon, Graph, Range, range};
 
+fn dsp<T: std::fmt::Display>(obj: &T) -> String {
+    let mut result = String::new();
+    for line in format!("{}", obj).split('\n') {
+        if !line.ends_with('{') && !line.ends_with('}') {
+            result.push_str("    ");
+        }
+        result.push_str(line.trim());
+        result.push('\n');
+    }
+    result.trim().to_string()
+}
+
+fn dbg<T: std::fmt::Debug>(obj: &T) -> String {
+    let mut result = String::new();
+    for line in format!("{:?}", obj).split('\n') {
+        if !line.ends_with('{') && !line.ends_with('}') {
+            result.push_str("    ");
+        }
+        result.push_str(line.trim());
+        result.push('\n');
+    }
+    result.trim().to_string()
+}
+
 #[test]
 fn graph_ctor() {
     _ = Graph::nfa();
@@ -41,11 +65,12 @@ fn graph_determined_0() {
     let a = nfa.node();
     a.connect(a, Epsilon);
     assert_eq!(
-        format!("{nfa}").replace("\n", "\n        "),
-        "\
-        node(0) {
-            Epsilon -> self
-        }"
+        dsp(&nfa),
+        dsp(&"
+            node(0) {
+                Epsilon -> self
+            }
+        ")
     );
 
     let dfa = Graph::determined(&nfa);
@@ -53,39 +78,52 @@ fn graph_determined_0() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn graph_determined_1() {
     let nfa = Graph::nfa();
     let a = nfa.node();
     let b = nfa.node();
     let c = nfa.node();
+    let d = nfa.node();
     a.connect(a, 1..=255);
     a.connect(b, Epsilon);
     b.connect(c, b'a');
+    c.connect(d, b'b');
     assert_eq!(
-        format!("{nfa}").replace("\n", "\n        "),
-        "\
-        node(0) {
-            [\\x01-\\xFF] -> self
-            Epsilon -> node(1)
-        }
-        node(1) {
-            ['a'] -> node(2)
-        }
-        node(2) {}"
+        dsp(&nfa),
+        dsp(&"
+            node(0) {
+                [\\x01-\\xFF] -> self
+                Epsilon -> node(1)
+            }
+            node(1) {
+                ['a'] -> node(2)
+            }
+            node(2) {
+                ['b'] -> node(3)
+            }
+            node(3) {}
+        ")
     );
 
     let dfa = Graph::determined(&nfa);
     assert_eq!(
-        format!("{dfa}").replace("\n", "\n        "),
-        "\
-        node(0) {
-            ['a'] -> node(1)
-            [\\x01-'`' | 'b'-\\xFF] -> self
-        }
-        node(1) {
-            ['a'] -> self
-            [\\x01-'`' | 'b'-\\xFF] -> node(0)
-        }"
+        dsp(&dfa),
+        dsp(&"
+            node(0) {
+                [\\x01-'`' | 'b'-\\xFF] -> self
+                ['a'] -> node(1)
+            }
+            node(1) {
+                [\\x01-'`' | 'c'-\\xFF] -> node(0)
+                ['a'] -> self
+                ['b'] -> node(2)
+            }
+            node(2) {
+                [\\x01-'`' | 'b'-\\xFF] -> node(0)
+                ['a'] -> node(1)
+            }
+        ")
     );
 }
 
@@ -107,24 +145,25 @@ fn graph_display_fmt_0() {
     d.connect(b, Epsilon);
     d.connect(c, Epsilon);
     assert_eq!(
-        format!("{}", graph).replace("\n", "\n        "),
-        "\
-        node(0) {
-            ['a'-\\xFF] -> node(1)
-            Epsilon -> node(1)
-        }
-        node(1) {
-            Epsilon -> node(2)
-            Epsilon -> node(0)
-        }
-        node(2) {
-            ['c'] -> node(3)
-        }
-        node(3) {
-            Epsilon -> node(0)
-            Epsilon -> node(1)
-            Epsilon -> node(2)
-        }"
+        dsp(&graph),
+        dsp(&"
+            node(0) {
+                ['a'-\\xFF] -> node(1)
+                Epsilon -> node(1)
+            }
+            node(1) {
+                Epsilon -> node(2)
+                Epsilon -> node(0)
+            }
+            node(2) {
+                ['c'] -> node(3)
+            }
+            node(3) {
+                Epsilon -> node(0)
+                Epsilon -> node(1)
+                Epsilon -> node(2)
+            }
+        ")
     );
 }
 
@@ -145,8 +184,8 @@ fn graph_display_fmt_1() {
     n3.connect(n4, Epsilon);
     n3.connect(n2, Epsilon);
     assert_eq!(
-        format!("{}", graph).replace("\n", "\n        "),
-        "\
+        dsp(&graph),
+        dsp(&"
         node(0) {
             ['a'-'b' | 'd'-'z'] -> node(1)
         }
@@ -161,7 +200,8 @@ fn graph_display_fmt_1() {
             Epsilon -> node(4)
             Epsilon -> node(2)
         }
-        node(4) {}"
+        node(4) {}
+        ")
     );
 }
 
@@ -186,31 +226,32 @@ fn graph_display_fmt_2() {
     n6.connect(n7, b'd');
     n7.connect(n1, Epsilon);
     assert_eq!(
-        format!("{}", graph).replace("\n", "\n        "),
-        "\
-        node(0) {
-            Epsilon -> node(2)
-            Epsilon -> node(5)
-        }
-        node(1) {}
-        node(2) {
-            ['a'] -> node(3)
-        }
-        node(3) {
-            ['b'] -> node(4)
-        }
-        node(4) {
-            Epsilon -> node(1)
-        }
-        node(5) {
-            ['c'] -> node(6)
-        }
-        node(6) {
-            ['d'] -> node(7)
-        }
-        node(7) {
-            Epsilon -> node(1)
-        }"
+        dsp(&graph),
+        dsp(&"
+            node(0) {
+                Epsilon -> node(2)
+                Epsilon -> node(5)
+            }
+            node(1) {}
+            node(2) {
+                ['a'] -> node(3)
+            }
+            node(3) {
+                ['b'] -> node(4)
+            }
+            node(4) {
+                Epsilon -> node(1)
+            }
+            node(5) {
+                ['c'] -> node(6)
+            }
+            node(6) {
+                ['d'] -> node(7)
+            }
+            node(7) {
+                Epsilon -> node(1)
+            }
+        ")
     );
 }
 
@@ -225,15 +266,16 @@ fn graph_display_fmt_3() {
     b.connect(b, 3);
     b.connect(c, 1);
     assert_eq!(
-        format!("{:?}", graph).replace("\n", "\n        "),
-        "\
-        node(0) {
-            [1] -> node(1)
-        }
-        node(1) {
-            [3] -> self
-            [1] -> node(2)
-        }
-        node(2) {}"
+        dbg(&graph),
+        dsp(&"
+            node(0) {
+                [1] -> node(1)
+            }
+            node(1) {
+                [3] -> self
+                [1] -> node(2)
+            }
+            node(2) {}
+        ")
     );
 }

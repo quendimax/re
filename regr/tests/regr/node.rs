@@ -1,6 +1,6 @@
 use pretty_assertions::{assert_eq, assert_ne};
-use regr::adt::Set;
 use regr::{Epsilon, Graph, NodeId};
+use std::collections::BTreeSet;
 
 #[test]
 fn node_id() {
@@ -67,7 +67,7 @@ fn node_closure() {
     d.connect(e, b'a');
 
     #[allow(clippy::mutable_key_type)]
-    let set = Set::from_iter(vec![a, b, d, e]);
+    let set = BTreeSet::from_iter(vec![a, b, d, e]);
     assert_eq!(a.closure(b'a'), set)
 }
 
@@ -89,7 +89,7 @@ fn node_eclosure() {
     d.connect(c, Epsilon);
 
     #[allow(clippy::mutable_key_type)]
-    let set = Set::from_iter(vec![a, b, c]);
+    let set = BTreeSet::from_iter(vec![a, b, c]);
     assert_eq!(a.closure(Epsilon), set)
 }
 

@@ -4,6 +4,7 @@ use crate::range::Range;
 use crate::symbol::Epsilon;
 use crate::transition::Transition;
 use std::cell::{Ref, RefCell};
+use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::ptr::NonNull;
 
@@ -92,7 +93,7 @@ impl<'a> Node<'a> {
     }
 
     #[allow(clippy::mutable_key_type)]
-    pub fn closure<T>(self, symbol: T) -> Set<Node<'a>>
+    pub fn closure<T>(self, symbol: T) -> BTreeSet<Node<'a>>
     where
         Self: ClosureOp<'a, T>,
     {
@@ -167,21 +168,21 @@ impl<'a> Node<'a> {
 
 pub trait ClosureOp<'a, T> {
     #[allow(clippy::mutable_key_type)]
-    fn closure(&self, symbol: T) -> Set<Node<'a>>;
+    fn closure(&self, symbol: T) -> BTreeSet<Node<'a>>;
 }
 
 impl<'a> ClosureOp<'a, u8> for Node<'a> {
     #[allow(clippy::mutable_key_type)]
-    fn closure(&self, symbol: u8) -> Set<Node<'a>> {
+    fn closure(&self, symbol: u8) -> BTreeSet<Node<'a>> {
         let e_closure = self.closure(Epsilon);
         e_closure.closure(symbol)
     }
 }
 
-impl<'a> ClosureOp<'a, u8> for Set<Node<'a>> {
+impl<'a> ClosureOp<'a, u8> for BTreeSet<Node<'a>> {
     #[allow(clippy::mutable_key_type)]
-    fn closure(&self, symbol: u8) -> Set<Node<'a>> {
-        let mut closure = Set::new();
+    fn closure(&self, symbol: u8) -> BTreeSet<Node<'a>> {
+        let mut closure = BTreeSet::new();
         for node in self.iter() {
             for (target_node, transition) in node.symbol_targets() {
                 if transition.contains(symbol) {
@@ -196,9 +197,9 @@ impl<'a> ClosureOp<'a, u8> for Set<Node<'a>> {
 
 impl<'a> ClosureOp<'a, Epsilon> for Node<'a> {
     #[allow(clippy::mutable_key_type)]
-    fn closure(&self, _: Epsilon) -> Set<Node<'a>> {
-        let mut closure = Set::new();
-        fn closure_impl<'a>(node: Node<'a>, closure: &mut Set<Node<'a>>) {
+    fn closure(&self, _: Epsilon) -> BTreeSet<Node<'a>> {
+        let mut closure = BTreeSet::new();
+        fn closure_impl<'a>(node: Node<'a>, closure: &mut BTreeSet<Node<'a>>) {
             if closure.contains(&node) {
                 return;
             }
