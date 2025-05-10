@@ -12,3 +12,6 @@ regr = { path = "../regr" }
 
 # from workspace
 thiserror.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true

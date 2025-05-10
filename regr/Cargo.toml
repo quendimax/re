@@ -11,9 +11,9 @@ bumpalo = "~3.17"
 cfg-if = "1"
 linked-hash-map = { version = "0.5.6", optional = true }
 linked_hash_set = { version = "0.1.5", optional = true }
-smallvec = "1"
 
 # from workspace
+smallvec.workspace = true
 thiserror.workspace = true
 
 [features]
@@ -25,5 +25,5 @@ ordered-hash-set = ["dep:linked_hash_set", "hash-set"]
 ordered-hash = ["ordered-hash-map", "ordered-hash-set"]
 
 [dev-dependencies]
-pretty_assertions = "1"
-smallvec = "1"
+pretty_assertions.workspace = true
+smallvec.workspace = true
