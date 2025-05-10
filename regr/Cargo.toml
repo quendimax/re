@@ -11,9 +11,7 @@ bumpalo = "3.17"
 cfg-if = "1"
 linked-hash-map = { version = "0.5.6", optional = true }
 linked_hash_set = { version = "0.1.5", optional = true }
-regex-syntax = "0.8.5"
 smallvec = "1"
-utf8-ranges = "1"
 
 [features]
 hash-map = []

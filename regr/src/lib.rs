@@ -25,6 +25,3 @@ pub use symbol::{Epsilon, Symbol};
 
 mod transition;
 pub use transition::Transition;
-
-mod translate;
-pub use translate::Translator;

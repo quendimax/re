@@ -15,11 +15,6 @@ pub enum Error {
     /// A try to merge delimited ranges
     MergeDelimitedRanges,
 
-    /// An error from `regex_syntax` crate.
-    ///
-    /// It usually means a syntax error in a regular expression.
-    RegexSyntax(Box<regex_syntax::Error>),
-
     /// This regex feature is not implemented.
     UnsupportedFeature(&'static str),
 }
@@ -39,15 +34,8 @@ impl std::fmt::Display for Error {
                 write!(f, "can't create a symbol with invalid value {}", value)
             }
             MergeDelimitedRanges => f.write_str("can't merge delimited ranges"),
-            RegexSyntax(err) => err.fmt(f),
             UnsupportedFeature(msg) => f.write_str(msg),
         }
-    }
-}
-
-impl std::convert::From<Box<regex_syntax::Error>> for Error {
-    fn from(value: Box<regex_syntax::Error>) -> Self {
-        Self::RegexSyntax(value)
     }
 }
 
@@ -66,10 +54,6 @@ pub mod err {
 
     pub const fn merge_delimited_ranges<T>() -> Result<T> {
         Err(Error::MergeDelimitedRanges)
-    }
-
-    pub fn regex_syntax<T>(error: impl Into<regex_syntax::Error>) -> Result<T> {
-        Err(Error::RegexSyntax(Box::new(error.into())))
     }
 
     pub fn unsupported_feature<T>(msg: &'static str) -> Result<T> {
