@@ -3,7 +3,7 @@ mod arena;
 pub mod adt;
 
 mod error;
-pub use error::{Error, Result, err};
+pub use error::{Error, Result};
 
 mod graph;
 pub use graph::{AutomatonKind, Graph};

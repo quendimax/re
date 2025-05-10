@@ -9,3 +9,6 @@ repository.workspace = true
 
 [dependencies]
 regr = { path = "../regr" }
+
+# from workspace
+thiserror.workspace = true

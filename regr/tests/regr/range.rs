@@ -1,5 +1,5 @@
 use pretty_assertions::assert_eq;
-use regr::{Range, err, range};
+use regr::{Error, Range, range};
 
 #[test]
 fn range_from_type() {
@@ -124,8 +124,8 @@ fn range_try_merge() {
     assert_eq!(r_5_7.try_merge(r_3_5), Ok((b'3'..=b'7').into()));
     assert_eq!(r_6.try_merge(r_5_7), Ok(r_5_7));
 
-    assert_eq!(r_0_1.try_merge(r_5_7), err::merge_delimited_ranges());
-    assert_eq!(r_5_7.try_merge(r_0_1), err::merge_delimited_ranges());
+    assert_eq!(r_0_1.try_merge(r_5_7), Err(Error::MergeDelimitedRanges));
+    assert_eq!(r_5_7.try_merge(r_0_1), Err(Error::MergeDelimitedRanges));
 }
 
 #[test]

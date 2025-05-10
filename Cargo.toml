@@ -6,3 +6,6 @@ resolver = "2"
 authors = ["Maksim Tomkavich <quendimax@gmail.com>"]
 edition = "2024"
 repository = "https://github.com/quendimax/re.git"
+
+[workspace.dependencies]
+thiserror = "2"

@@ -1,42 +1,40 @@
-use crate::error::{Error, Result};
+use crate::error::{Result, err};
 use regr::{Graph, Node};
 use std::str::Chars;
 
 pub struct Parser<'a> {
     nfa: &'a Graph,
-    last_node: Node<'a>,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(nfa: &'a Graph, first_node: Node<'a>) -> Self {
-        Self {
-            nfa,
-            last_node: first_node,
-        }
+    pub fn new(nfa: &'a Graph) -> Self {
+        Self { nfa }
     }
 
-    pub fn parse(&mut self, pattern: &str) -> Result<()> {
+    pub fn parse(&mut self, pattern: &str, prev_node: Node<'a>) -> Result<Node<'a>> {
         let mut lexer = pattern.chars();
+        let mut last_node = prev_node;
         while let Some(c) = lexer.next() {
-            match c {
-                '\\' => self.parse_escape(&mut lexer)?,
+            last_node = match c {
+                '\\' => self.parse_escape(&mut lexer, prev_node)?,
                 _ => todo!(),
             };
         }
-        Ok(())
+        Ok(last_node)
     }
 
-    fn parse_escape(&mut self, lexer: &mut Chars) -> Result<()> {
+    fn parse_escape(&mut self, lexer: &mut Chars, prev_node: Node<'a>) -> Result<Node<'a>> {
         if let Some(c) = lexer.next() {
-            return match c {
+            match c {
                 '\\' => {
-                    let node = self.nfa.node();
-                    self.last_node.connect(node, b'\\');
-                    Ok(())
+                    let new_node = self.nfa.node();
+                    prev_node.connect(new_node, b'\\');
+                    Ok(new_node)
                 }
-                _ => Err(Error::InvalidEscape(c)),
-            };
+                _ => err::unsupported_escape(c),
+            }
+        } else {
+            err::unexpected_eof("the escape expression completion is expected")
         }
-        Err(Error::UnexpectedEof)
     }
 }
