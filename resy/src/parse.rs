@@ -8,6 +8,7 @@ pub struct Parser<'a> {
 
 impl<'a> Parser<'a> {
     pub fn new(nfa: &'a Graph) -> Self {
+        assert!(nfa.is_nfa(), "`repy::Parser` can build only NFA graph");
         Self { nfa }
     }
 

@@ -38,6 +38,29 @@ impl Graph {
         Self::with_capacity(0, AutomatonKind::NFA)
     }
 
+    /// Returns the graph's kind.
+    pub fn kind(&self) -> AutomatonKind {
+        self.kind
+    }
+
+    /// Checks if this graph is DFA.
+    #[inline]
+    pub fn is_dfa(&self) -> bool {
+        match self.kind {
+            AutomatonKind::DFA => true,
+            AutomatonKind::NFA => false,
+        }
+    }
+
+    /// Checks if this graph is NFA.
+    #[inline]
+    pub fn is_nfa(&self) -> bool {
+        match self.kind {
+            AutomatonKind::DFA => false,
+            AutomatonKind::NFA => true,
+        }
+    }
+
     /// Creates a new NFA graph with preallocated memory for at least `capacity`
     /// nodes.
     pub fn with_capacity(capacity: usize, kind: AutomatonKind) -> Self {
