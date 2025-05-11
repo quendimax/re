@@ -135,11 +135,22 @@ fn node_epsilon_targets() {
 }
 
 #[test]
+fn node_acceptize() {
+    let graph = Graph::nfa();
+    let a = graph.node();
+    assert_eq!(format!("{:?}", a), "node(0)");
+    a.acceptize();
+    assert_eq!(format!("{:?}", a), "node((0))");
+    a.disacceptize();
+    assert_eq!(format!("{:?}", a), "node(0)");
+}
+
+#[test]
 fn node_fmt_debug() {
     let graph = Graph::nfa();
     let a = graph.node();
     let b = graph.node();
-    let c = graph.node_acceptable();
+    let c = graph.node().acceptize();
     assert_eq!(format!("{:?}", a), "node(0)");
     assert_eq!(format!("{:?}", b), "node(1)");
     assert_eq!(format!("{:?}", c), "node((2))");

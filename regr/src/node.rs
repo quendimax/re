@@ -1,5 +1,5 @@
 use crate::adt::{Map, MapIter, MapKeyIter, Set, SetIter};
-use crate::graph::AutomatonKind;
+use crate::graph::{AutomatonKind, Graph};
 use crate::range::Range;
 use crate::symbol::Epsilon;
 use crate::transition::Transition;
@@ -25,7 +25,8 @@ pub struct Node<'a>(&'a NodeInner);
 pub(crate) struct NodeInner {
     node_id: NodeId,
     graph_id: NodeId,
-    accept: bool,
+    owner: NonNull<Graph>,
+    accept: RefCell<bool>,
     targets: RefCell<Map<NonNull<NodeInner>, Transition>>,
     variant: NodeVariant,
 }
@@ -76,7 +77,24 @@ impl<'a> Node<'a> {
     /// Checks if the node is an acceptable N/DFA state.
     #[inline]
     pub fn is_acceptable(self) -> bool {
-        self.0.accept
+        *self.0.accept.borrow()
+    }
+
+    /// Make the node acceptable.
+    pub fn acceptize(self) -> Self {
+        self.0.accept.replace(true);
+        self
+    }
+
+    /// Make the node unacceptable.
+    pub fn disacceptize(self) -> Self {
+        self.0.accept.replace(false);
+        self
+    }
+
+    /// Returns a reference to the graph that is an owner of this node.
+    pub fn owner(self) -> &'a Graph {
+        unsafe { self.0.owner.as_ref() }
     }
 
     /// Connects this node to another node with a specified edge rule.
@@ -131,26 +149,23 @@ impl<'a> Node<'a> {
 
 /// Private API
 impl<'a> Node<'a> {
-    pub(crate) fn new_inner(
-        graph_id: u32,
-        node_id: u32,
-        accept: bool,
-        kind: AutomatonKind,
-    ) -> NodeInner {
-        match kind {
+    pub(crate) fn new_inner(node_id: u32, graph: &'a Graph) -> NodeInner {
+        match graph.kind() {
             AutomatonKind::NFA => NodeInner {
-                graph_id,
+                graph_id: graph.gid(),
                 node_id,
-                accept,
+                owner: graph.into(),
+                accept: RefCell::new(false),
                 targets: Default::default(),
                 variant: NfaNode {
                     epsilon_targets: Default::default(),
                 },
             },
             AutomatonKind::DFA => NodeInner {
-                graph_id,
+                graph_id: graph.gid(),
                 node_id,
-                accept,
+                owner: graph.into(),
+                accept: RefCell::new(false),
                 targets: Default::default(),
                 variant: DfaNode {
                     occupied_symbols: Default::default(),
