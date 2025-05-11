@@ -1,4 +1,4 @@
-use crate::error::{Result, err};
+use crate::error::{Error::*, Result};
 use regr::{Graph, Node};
 use std::str::Chars;
 
@@ -8,7 +8,7 @@ pub struct Parser<'a> {
 
 impl<'a> Parser<'a> {
     pub fn new(nfa: &'a Graph) -> Self {
-        assert!(nfa.is_nfa(), "`repy::Parser` can build only NFA graph");
+        assert!(nfa.is_nfa(), "`repy::Parser` can build only an NFA graph");
         Self { nfa }
     }
 
@@ -32,10 +32,12 @@ impl<'a> Parser<'a> {
                     prev_node.connect(new_node, b'\\');
                     Ok(new_node)
                 }
-                _ => err::unsupported_escape(c),
+                _ => Err(UnsupportedEscape(c)),
             }
         } else {
-            err::unexpected_eof("the escape expression completion is expected")
+            Err(UnexpectedEof(
+                "the escape expression completion is expected",
+            ))
         }
     }
 }

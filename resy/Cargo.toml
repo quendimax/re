@@ -9,6 +9,7 @@ repository.workspace = true
 
 [dependencies]
 regr = { path = "../regr" }
+smallvec.workspace = true
 
 # from workspace
 thiserror.workspace = true
