@@ -14,16 +14,15 @@ impl<'a, T: Codec> Parser<'a, T> {
         Self { nfa, codec }
     }
 
-    pub fn parse(&mut self, pattern: &str, prev_node: Node<'a>) -> Result<Node<'a>> {
+    pub fn parse(&mut self, pattern: &str, mut prev_node: Node<'a>) -> Result<Node<'a>> {
         let mut lexer = pattern.chars();
-        let mut last_node = prev_node;
         while let Some(c) = lexer.next() {
-            last_node = match c {
+            prev_node = match c {
                 '\\' => self.parse_escape(&mut lexer, prev_node)?,
                 symbol => self.parse_char(symbol, prev_node)?,
             };
         }
-        Ok(last_node)
+        Ok(prev_node)
     }
 
     fn parse_escape(&mut self, lexer: &mut Chars, prev_node: Node<'a>) -> Result<Node<'a>> {

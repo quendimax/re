@@ -54,14 +54,17 @@ fn parse_char() {
         ")
     );
 
-    // let nfa = parse(r"ў");
-    // assert_eq!(
-    //     format!("{nfa}"),
-    //     dsp("\
-    //     node(0) {
-    //         ['ў'] -> node(1)
-    //     }
-    //     node(1) {}
-    //     ")
-    // );
+    let nfa = parse(r"ў");
+    assert_eq!(
+        format!("{nfa}"),
+        dsp("\
+        node(0) {
+            [\\xD1] -> node(1)
+        }
+        node(1) {
+            [\\x9E] -> node(2)
+        }
+        node(2) {}
+        ")
+    );
 }
