@@ -3,7 +3,7 @@ use crate::graph::{AutomatonKind, Graph};
 use crate::range::Range;
 use crate::symbol::Epsilon;
 use crate::transition::Transition;
-use std::cell::{Ref, RefCell};
+use std::cell::{Cell, Ref, RefCell, UnsafeCell};
 use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::ptr::NonNull;
@@ -26,7 +26,8 @@ pub(crate) struct NodeInner {
     node_id: NodeId,
     graph_id: NodeId,
     owner: NonNull<Graph>,
-    accept: RefCell<bool>,
+    borrow: Cell<BorrowFlag>,
+    accept: Cell<bool>,
     targets: RefCell<Map<NonNull<NodeInner>, Transition>>,
     variant: NodeVariant,
 }
@@ -36,7 +37,7 @@ enum NodeVariant {
         occupied_symbols: RefCell<Transition>,
     },
     NfaNode {
-        epsilon_targets: RefCell<Set<NonNull<NodeInner>>>,
+        epsilon_targets: UnsafeCell<Set<NonNull<NodeInner>>>,
     },
 }
 
@@ -77,18 +78,18 @@ impl<'a> Node<'a> {
     /// Checks if the node is an acceptable N/DFA state.
     #[inline]
     pub fn is_acceptable(self) -> bool {
-        *self.0.accept.borrow()
+        self.0.accept.get()
     }
 
     /// Make the node acceptable.
     pub fn acceptize(self) -> Self {
-        self.0.accept.replace(true);
+        self.0.accept.set(true);
         self
     }
 
     /// Make the node unacceptable.
     pub fn disacceptize(self) -> Self {
-        self.0.accept.replace(false);
+        self.0.accept.set(false);
         self
     }
 
@@ -155,7 +156,8 @@ impl<'a> Node<'a> {
                 graph_id: graph.gid(),
                 node_id,
                 owner: graph.into(),
-                accept: RefCell::new(false),
+                borrow: Cell::new(0),
+                accept: Cell::new(false),
                 targets: Default::default(),
                 variant: NfaNode {
                     epsilon_targets: Default::default(),
@@ -165,7 +167,8 @@ impl<'a> Node<'a> {
                 graph_id: graph.gid(),
                 node_id,
                 owner: graph.into(),
-                accept: RefCell::new(false),
+                borrow: Cell::new(0),
+                accept: Cell::new(false),
                 targets: Default::default(),
                 variant: DfaNode {
                     occupied_symbols: Default::default(),
@@ -290,7 +293,8 @@ impl<'a> ConnectOp<'a, Epsilon> for Node<'a> {
                 panic!("NFA nodes can't be connected with Epsilon");
             }
             NfaNode { epsilon_targets } => {
-                let mut epsilon_targets = epsilon_targets.borrow_mut();
+                _ = BorrowMut::new(&self.0.borrow);
+                let epsilon_targets = unsafe { epsilon_targets.get().as_mut() }.unwrap();
                 epsilon_targets.insert(to.as_ptr());
             }
         }
@@ -457,29 +461,19 @@ impl std::ops::Deref for TransitionRef<'_> {
 }
 
 pub struct EpsilonTargetIter<'a> {
-    _lock: Ref<'a, Set<NonNull<NodeInner>>>,
+    borrow_ref: BorrowRef<'a>,
     iter: SetIter<'a, NonNull<NodeInner>>,
 }
 
 impl<'a> EpsilonTargetIter<'a> {
     pub fn new(node: Node<'a>) -> Self {
-        // `_lock` (with type `cell::Ref`) should return an iterator of inside
-        // structure with lifetime of `_lock` itself. But I break it here, to
-        // get iterator with lifetime 'a instead of `_lock`s one. It will allow
-        // in `Iterator` implementation to convert references to
-        // `NonNull<NodeInner>` into `Node` instances with lifetime 'a. It is
-        // safe though it is not allowed to put references to the RefCell's
-        // inner structure outside, because the RefCell contains pointers to the
-        // nodes, and the iterator will return copies of these pointers (via
-        // Node wrapper), but not references to the pointers. So references to
-        // the RefCell's inner contents are never gone out of this iterator.
         if let NfaNode { epsilon_targets } = &node.0.variant {
-            let lock = epsilon_targets.borrow();
-            let ptr = epsilon_targets.as_ptr();
-            let iter = unsafe { &*ptr }.iter();
-            return Self { _lock: lock, iter };
+            let borrow_ref = BorrowRef::new(&node.0.borrow);
+            let epsilon_targets = unsafe { epsilon_targets.get().as_ref() }.unwrap();
+            let iter = epsilon_targets.iter();
+            return Self { borrow_ref, iter };
         }
-        panic!("Iterator over Epsilon targets is possible for NFA nodes only")
+        panic!("Iterator over Epsilon targets is possible for NFA nodes only");
     }
 }
 
@@ -490,5 +484,51 @@ impl<'a> std::iter::Iterator for EpsilonTargetIter<'a> {
         self.iter
             .next()
             .map(|node_ptr| unsafe { Node::from_ptr(*node_ptr) })
+    }
+}
+
+type BorrowFlag = isize;
+const UNUSED: BorrowFlag = 0;
+
+struct BorrowRef<'a>(&'a Cell<BorrowFlag>);
+
+impl<'a> BorrowRef<'a> {
+    fn new(borrow: &'a Cell<BorrowFlag>) -> Self {
+        let b = borrow.get().wrapping_add(1);
+        if b > UNUSED {
+            borrow.set(b);
+            Self(borrow)
+        } else {
+            panic!("already mutably borrowed");
+        }
+    }
+}
+
+impl<'a> std::ops::Drop for BorrowRef<'a> {
+    fn drop(&mut self) {
+        let borrow = self.0.get();
+        debug_assert!(borrow > UNUSED);
+        self.0.set(borrow - 1);
+    }
+}
+
+struct BorrowMut<'a>(&'a Cell<BorrowFlag>);
+
+impl<'a> BorrowMut<'a> {
+    fn new(borrow: &'a Cell<BorrowFlag>) -> Self {
+        let b = borrow.get();
+        if b == UNUSED {
+            borrow.set(b - 1);
+            Self(borrow)
+        } else {
+            panic!("already borrowed");
+        }
+    }
+}
+impl<'a> std::ops::Drop for BorrowMut<'a> {
+    fn drop(&mut self) {
+        let borrow = self.0.get().wrapping_add(1);
+        debug_assert!(borrow == UNUSED);
+        self.0.set(borrow)
     }
 }
