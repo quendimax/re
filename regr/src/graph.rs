@@ -1,7 +1,7 @@
 use crate::arena::Arena;
 use crate::node::{ClosureOp, Node, NodeId, NodeInner};
 use crate::symbol::Epsilon;
-use std::cell::RefCell;
+use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 use std::ops::Deref;
@@ -21,8 +21,8 @@ static GRAPH_ID: Mutex<NodeId> = Mutex::new(0);
 pub struct Graph {
     arena: Arena<NodeInner>,
     graph_id: u32,
-    next_id: RefCell<NodeId>,
-    start_node: RefCell<Option<NonNull<NodeInner>>>,
+    next_id: Cell<NodeId>,
+    start_node: Cell<Option<NonNull<NodeInner>>>,
     kind: AutomatonKind,
 }
 
@@ -79,30 +79,29 @@ impl Graph {
         Self {
             arena,
             graph_id: new_graph_id,
-            next_id: RefCell::new(0),
-            start_node: RefCell::new(None),
+            next_id: Cell::new(0),
+            start_node: Cell::new(None),
             kind,
         }
     }
 
     /// Creates a new node.
     pub fn node(&self) -> Node<'_> {
-        let new_node_id = self
-            .next_id
-            .replace_with(|v| v.checked_add(1).expect("node id overflow"));
+        let new_node_id = self.next_id.get();
+        self.next_id
+            .set(new_node_id.checked_add(1).expect("node id overflow"));
         let node_mut = self.arena.alloc_with(|| Node::new_inner(new_node_id, self));
         let node = Node::from_mut(node_mut);
-        let mut start_node = self.start_node.borrow_mut();
-        if start_node.is_none() {
-            start_node.replace(node.as_ptr());
+        if self.start_node.get().is_none() {
+            self.start_node.set(Some(node.as_ptr()));
         }
         node
     }
 
     #[inline]
     pub fn start_node(&self) -> Node<'_> {
-        if let Some(node_ptr) = self.start_node.borrow().as_ref() {
-            return unsafe { Node::from_ptr(*node_ptr) };
+        if let Some(node_ptr) = self.start_node.get() {
+            return unsafe { Node::from_ptr(node_ptr) };
         }
         self.node()
     }
