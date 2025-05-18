@@ -461,7 +461,7 @@ impl std::ops::Deref for TransitionRef<'_> {
 }
 
 pub struct EpsilonTargetIter<'a> {
-    borrow_ref: BorrowRef<'a>,
+    _borrow_ref: BorrowRef<'a>,
     iter: SetIter<'a, NonNull<NodeInner>>,
 }
 
@@ -471,9 +471,12 @@ impl<'a> EpsilonTargetIter<'a> {
             let borrow_ref = BorrowRef::new(&node.0.borrow);
             let epsilon_targets = unsafe { epsilon_targets.get().as_ref() }.unwrap();
             let iter = epsilon_targets.iter();
-            return Self { borrow_ref, iter };
+            return Self {
+                _borrow_ref: borrow_ref,
+                iter,
+            };
         }
-        panic!("Iterator over Epsilon targets is possible for NFA nodes only");
+        panic!("iteration over Epsilon targets is possible for NFA nodes only");
     }
 }
 
