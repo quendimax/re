@@ -3,7 +3,7 @@ use crate::graph::{AutomatonKind, Graph};
 use crate::range::Range;
 use crate::symbol::Epsilon;
 use crate::transition::Transition;
-use std::cell::{Cell, Ref, RefCell, UnsafeCell};
+use std::cell::{Cell, UnsafeCell};
 use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::ptr::NonNull;
@@ -28,13 +28,13 @@ pub(crate) struct NodeInner {
     owner: NonNull<Graph>,
     borrow: Cell<BorrowFlag>,
     accept: Cell<bool>,
-    targets: RefCell<Map<NonNull<NodeInner>, Transition>>,
+    targets: UnsafeCell<Map<NonNull<NodeInner>, Transition>>,
     variant: NodeVariant,
 }
 
 enum NodeVariant {
     DfaNode {
-        occupied_symbols: RefCell<Transition>,
+        occupied_symbols: UnsafeCell<Transition>,
     },
     NfaNode {
         epsilon_targets: UnsafeCell<Set<NonNull<NodeInner>>>,
@@ -253,8 +253,9 @@ macro_rules! impl_connect {
     ($symty:ty) => {
         impl<'a> ConnectOp<'a, $symty> for Node<'a> {
             fn connect(self, to: Node<'a>, with: $symty) {
+                _ = BorrowMut::new(&self.0.borrow);
                 if let DfaNode { occupied_symbols } = &self.0.variant {
-                    let mut occupied_symbols = occupied_symbols.borrow_mut();
+                    let occupied_symbols = unsafe { occupied_symbols.get().as_mut() }.unwrap();
                     if occupied_symbols.contains(with) {
                         panic!("connection {with:?} already exists; DFA node can't have more");
                     }
@@ -262,7 +263,7 @@ macro_rules! impl_connect {
                 }
 
                 let to = to.as_ptr();
-                let mut targets = self.0.targets.borrow_mut();
+                let targets = unsafe { self.0.targets.get().as_mut() }.unwrap();
                 if let Some(tr) = targets.get_mut(&to) {
                     tr.merge(with);
                 } else {
@@ -363,26 +364,19 @@ impl_fmt!(std::fmt::UpperHex);
 impl_fmt!(std::fmt::LowerHex);
 
 pub struct TargetIter<'a> {
-    _lock: Ref<'a, Map<NonNull<NodeInner>, Transition>>,
+    _borrow_ref: BorrowRef<'a>,
     iter: MapKeyIter<'a, NonNull<NodeInner>, Transition>,
 }
 
 impl<'a> TargetIter<'a> {
     pub fn new(node: Node<'a>) -> Self {
-        // `_lock` (with type `cell::Ref`) should return an iterator of inside
-        // structure with lifetime of `_lock` itself. But I break it here, to
-        // get iterator with lifetime 'a instead of `_lock`s one. It will allow
-        // in `Iterator` implementation to convert references to
-        // `NonNull<NodeInner>` into `Node` instances with lifetime 'a. It is
-        // safe though it is not allowed to put references to the RefCell's
-        // inner structure outside, because the RefCell contains pointers to the
-        // nodes, and the iterator will return copies of these pointers (via
-        // Node wrapper), but not references to the pointers. So references to
-        // the RefCell's inner contents are never gone out of this iterator.
-        let lock = node.0.targets.borrow();
-        let ptr = node.0.targets.as_ptr();
-        let iter = unsafe { &*ptr }.keys();
-        Self { _lock: lock, iter }
+        let borrow_ref = BorrowRef::new(&node.0.borrow);
+        let targets = unsafe { node.0.targets.get().as_ref() }.unwrap();
+        let iter = targets.keys();
+        Self {
+            _borrow_ref: borrow_ref,
+            iter,
+        }
     }
 }
 
@@ -397,26 +391,19 @@ impl<'a> std::iter::Iterator for TargetIter<'a> {
 }
 
 pub struct SymbolTargetIter<'a> {
-    _lock: Ref<'a, Map<NonNull<NodeInner>, Transition>>,
+    _borrow_ref: BorrowRef<'a>,
     iter: MapIter<'a, NonNull<NodeInner>, Transition>,
 }
 
 impl<'a> SymbolTargetIter<'a> {
     pub fn new(node: Node<'a>) -> Self {
-        // `_lock` (with type `cell::Ref`) should return an iterator of inside
-        // structure with lifetime of `_lock` itself. But I break it here, to
-        // get iterator with lifetime 'a instead of `_lock`s one. It will allow
-        // in `Iterator` implementation to convert references to
-        // `NonNull<NodeInner>` into `Node` instances with lifetime 'a. It is
-        // safe though it is not allowed to put references to the RefCell's
-        // inner structure outside, because the RefCell contains pointers to the
-        // nodes, and the iterator will return copies of these pointers (via
-        // Node wrapper), but not references to the pointers. So references to
-        // the RefCell's inner contents are never gone out of this iterator.
-        let lock = node.0.targets.borrow();
-        let ptr = node.0.targets.as_ptr();
-        let iter = unsafe { &*ptr }.iter();
-        Self { _lock: lock, iter }
+        let borrow_ref = BorrowRef::new(&node.0.borrow);
+        let targets = unsafe { node.0.targets.get().as_ref() }.unwrap();
+        let iter = targets.iter();
+        Self {
+            _borrow_ref: borrow_ref,
+            iter,
+        }
     }
 }
 
@@ -426,26 +413,24 @@ impl<'a> std::iter::Iterator for SymbolTargetIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next().map(|(node_ptr, transition)| {
             let node = unsafe { Node::from_ptr(*node_ptr) };
-            let transition_ref = unsafe { TransitionRef::new(Ref::clone(&self._lock), transition) };
+            let transition_ref =
+                unsafe { TransitionRef::new(self._borrow_ref.clone(), transition) };
             (node, transition_ref)
         })
     }
 }
 
 pub struct TransitionRef<'a> {
-    _lock: Ref<'a, Map<NonNull<NodeInner>, Transition>>,
+    _borrow_ref: BorrowRef<'a>,
     transition_ptr: NonNull<Transition>,
 }
 
 impl<'a> TransitionRef<'a> {
-    unsafe fn new(
-        lock: Ref<'a, Map<NonNull<NodeInner>, Transition>>,
-        transition: &Transition,
-    ) -> Self {
+    unsafe fn new(borrow_ref: BorrowRef<'a>, transition: &Transition) -> Self {
         let transition_ptr =
             unsafe { NonNull::new_unchecked(transition as *const Transition as *mut Transition) };
         Self {
-            _lock: lock,
+            _borrow_ref: borrow_ref,
             transition_ptr,
         }
     }
@@ -512,6 +497,12 @@ impl<'a> std::ops::Drop for BorrowRef<'a> {
         let borrow = self.0.get();
         debug_assert!(borrow > UNUSED);
         self.0.set(borrow - 1);
+    }
+}
+
+impl Clone for BorrowRef<'_> {
+    fn clone(&self) -> Self {
+        BorrowRef::new(self.0)
     }
 }
 

@@ -115,6 +115,19 @@ fn node_symbol_targets() {
 }
 
 #[test]
+#[should_panic]
+fn node_symbol_targets_panic() {
+    let graph = Graph::nfa();
+    let a = graph.node();
+    let b = graph.node();
+    a.connect(b, b'c');
+
+    // expected that _node_tr is (Node, TransitionRef), and it locks writing to node a
+    let _node_tr = a.symbol_targets().next();
+    a.connect(b, b'a');
+}
+
+#[test]
 fn node_epsilon_targets() {
     let graph = Graph::nfa();
     let a = graph.node();
@@ -132,6 +145,22 @@ fn node_epsilon_targets() {
     d.connect(c, Epsilon);
 
     assert_eq!(a.epsilon_targets().collect::<Vec<_>>(), vec![b]);
+}
+
+#[test]
+#[should_panic]
+fn node_epsilon_targets_panics() {
+    let graph = Graph::nfa();
+    let a = graph.node();
+    let b = graph.node();
+    let c = graph.node();
+    a.connect(b, Epsilon);
+    b.connect(c, Epsilon);
+    for b in a.epsilon_targets() {
+        for c in b.epsilon_targets() {
+            b.connect(c, Epsilon);
+        }
+    }
 }
 
 #[test]
