@@ -519,6 +519,7 @@ impl<'a> BorrowMut<'a> {
         }
     }
 }
+
 impl<'a> std::ops::Drop for BorrowMut<'a> {
     fn drop(&mut self) {
         let borrow = self.0.get().wrapping_add(1);
