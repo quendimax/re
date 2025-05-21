@@ -8,9 +8,15 @@ pub enum Error {
     #[error("escape expression '\\{0}' is not supported")]
     UnsupportedEscape(char),
 
-    #[error("unexpected end of file: {0}")]
-    UnexpectedEof(&'static str),
+    #[error("unexpected end of file within {aborted_expr} expression")]
+    UnexpectedEof { aborted_expr: String },
 
     #[error("codec error: {0}")]
     CodecError(#[from] CodecError),
+
+    #[error("invalid hexadecimal {0}")]
+    InvalidHex(String),
+
+    #[error("value `{value}` is out of allowable range {range}")]
+    OutOfRange { value: String, range: String },
 }
