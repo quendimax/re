@@ -16,33 +16,48 @@ fn dsp<T: std::fmt::Display + ?Sized>(obj: &T) -> String {
     result.trim().to_string()
 }
 
-fn parse(input: &str) -> Graph {
+fn gotten(input: &str) -> String {
     let graph = Graph::nfa();
     let start_node = graph.start_node();
     let mut parser = Parser::new(&graph, CODEC);
     parser.parse(input, start_node).unwrap();
-    graph
+    format!("{graph}")
 }
 
 #[test]
 fn parse_escape() {
-    let nfa = parse(r"\\");
-    assert_eq!(
-        format!("{nfa}"),
-        dsp("\
-        node(0) {
-            ['\\'] -> node(1)
-        }
-        node(1) {}
-        ")
-    );
+    let expect = |c: &str| {
+        dsp(&format!(
+            "\
+            node(0) {{
+                [{c}] -> node(1)
+            }}
+            node(1) {{}}
+            "
+        ))
+    };
+    assert_eq!(gotten("\""), expect("'\"'"));
+    assert_eq!(gotten(r"\n"), expect("\\x0A"));
+    assert_eq!(gotten(r"\r"), expect("\\x0D"));
+    assert_eq!(gotten(r"\t"), expect("\\x09"));
+    assert_eq!(gotten(r"\0"), expect("\\x00"));
+    assert_eq!(gotten(r"\x00"), expect("\\x00"));
+    assert_eq!(gotten(r"\x61"), expect("'a'"));
+    assert_eq!(gotten(r"\x7f"), expect("\\x7F"));
+    assert_eq!(gotten(r"\x7F"), expect("\\x7F"));
+    assert_eq!(gotten(r"\x7F"), expect("\\x7F"));
+}
+
+#[test]
+#[should_panic]
+fn parse_escape_panic() {
+    gotten(r"\x80");
 }
 
 #[test]
 fn parse_char() {
-    let nfa = parse(r"ab");
     assert_eq!(
-        format!("{nfa}"),
+        gotten("ab"),
         dsp("\
         node(0) {
             ['a'] -> node(1)
@@ -54,9 +69,8 @@ fn parse_char() {
         ")
     );
 
-    let nfa = parse(r"ў");
     assert_eq!(
-        format!("{nfa}"),
+        gotten(r"ў"),
         dsp("\
         node(0) {
             [\\xD1] -> node(1)

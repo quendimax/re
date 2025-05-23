@@ -90,9 +90,13 @@ impl<'n, 's, T: Codec> Parser<'n, T> {
                 range: "[0x00..=0x7F]".into(),
             });
         }
-        const UPPERCASE_MASK: u32 = !0b0010_0000;
         let mut codepoint = (first_hex as u32 - '0' as u32) << 4;
-        codepoint |= ((second_hex as u32 - 'A' as u32) & UPPERCASE_MASK) + 10;
+        if second_hex > '9' {
+            const UPPERCASE_MASK: u32 = !0b0010_0000;
+            codepoint |= ((second_hex as u32 - 'A' as u32) & UPPERCASE_MASK) + 10;
+        } else {
+            codepoint |= (second_hex as u32).wrapping_sub('0' as u32);
+        }
 
         debug_assert!(char::from_u32(codepoint).is_some());
         Ok(Some(unsafe { char::from_u32_unchecked(codepoint) }))
