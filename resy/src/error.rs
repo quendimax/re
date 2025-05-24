@@ -14,11 +14,14 @@ pub enum Error {
     #[error("unexpected end of file within {aborted_expr} expression")]
     UnexpectedEof { aborted_expr: String },
 
-    #[error("unexpected token {unexpected} instead of {expected}")]
+    #[error("expected token `{expected}`, but got `{unexpected}`")]
     UnexpectedToken {
         unexpected: String,
         expected: String,
     },
+
+    #[error("unexpected close paren `)` encountered without open one")]
+    UnexpectedCloseParen,
 
     #[error("codec error: {0}")]
     CodecError(#[from] CodecError),

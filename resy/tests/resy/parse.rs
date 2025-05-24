@@ -49,7 +49,18 @@ fn expect(chars: &[&str]) -> String {
 }
 
 #[test]
+fn parse_parens() {
+    assert_eq!(parse("()"), expect(&[]));
+    assert_eq!(parse("((((()))))"), expect(&[]));
+
+    assert_eq!(try_parse(")"), Err(UnexpectedCloseParen));
+    assert_eq!(try_parse("))"), Err(UnexpectedCloseParen));
+    assert_eq!(try_parse("((())))"), Err(UnexpectedCloseParen));
+}
+
+#[test]
 fn parse_escape() {
+    assert_eq!(parse(""), expect(&[]));
     assert_eq!(parse("\""), expect(&["'\"'"]));
     assert_eq!(parse(r"\n"), expect(&["0Ah"]));
     assert_eq!(parse(r"\r"), expect(&["0Dh"]));

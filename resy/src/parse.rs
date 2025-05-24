@@ -17,14 +17,41 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     }
 
     pub fn parse(&mut self, pattern: &'s str, mut prev_node: Node<'n>) -> Result<Node<'n>> {
+        assert!(prev_node.gid() == self.nfa.gid());
         self.lexer = Lexer::new(pattern);
-        while let Some(c) = self.lexer.lex() {
-            prev_node = match c {
-                '\\' => self.parse_escape(prev_node)?,
-                symbol => self.parse_char(symbol, prev_node)?,
-            };
+        loop {
+            prev_node = self.parse_expr(prev_node)?;
+            if let Some(symbol) = self.lexer.peek() {
+                prev_node = match symbol {
+                    ')' => return Err(UnexpectedCloseParen),
+                    _ => self.parse_expr(prev_node)?,
+                };
+            } else {
+                break;
+            }
         }
         self.lexer = Lexer::empty();
+        Ok(prev_node)
+    }
+
+    fn parse_expr(&mut self, mut prev_node: Node<'n>) -> Result<Node<'n>> {
+        while let Some(c) = self.lexer.peek() {
+            prev_node = match c {
+                '(' => self.parse_parens(prev_node)?,
+                ')' => break,
+
+                '\\' => self.parse_escape(prev_node)?,
+
+                _ => self.parse_char(prev_node)?,
+            };
+        }
+        Ok(prev_node)
+    }
+
+    fn parse_parens(&mut self, mut prev_node: Node<'n>) -> Result<Node<'n>> {
+        self.lexer.expect('(')?;
+        prev_node = self.parse_expr(prev_node)?;
+        self.lexer.expect(')')?;
         Ok(prev_node)
     }
 
@@ -41,11 +68,16 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     /// - `\r` - carriage return escape,
     /// - `\t` - horizontal tab escape,
     /// - `\0` - null escape,
-    /// - `\\` - backslash,
+    /// - `\\` - backslash.
+    ///
+    /// Escape sequences extending Rust string literals:
+    /// - `\(` - left parenthesis,
+    /// - `\)` - right parenthesis,
     fn parse_escape(&mut self, mut prev_node: Node<'n>) -> Result<Node<'n>> {
+        self.lexer.expect('\\')?;
         if let Some(c) = self.lexer.lex() {
             let codepoint: Option<u32> = match c {
-                '"' | '\\' => Some(c as u32),
+                '"' | '\\' | '(' | ')' => Some(c as u32),
                 'n' => Some('\n' as u32),
                 'r' => Some('\r' as u32),
                 't' => Some('\t' as u32),
@@ -112,7 +144,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     }
 
     fn parse_unicode_escape(&mut self) -> Result<u32> {
-        self.expect('{')?;
+        self.lexer.expect('{')?;
         let mut codepoint = 0u32;
         for i in 0..6 {
             let Some(c) = self.lexer.lex() else {
@@ -138,11 +170,12 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
                 codepoint |= (c as u32).wrapping_sub('0' as u32);
             }
         }
-        self.expect('}')?;
+        self.lexer.expect('}')?;
         Ok(codepoint)
     }
 
-    fn parse_char(&mut self, symbol: char, mut prev_node: Node<'n>) -> Result<Node<'n>> {
+    fn parse_char(&mut self, mut prev_node: Node<'n>) -> Result<Node<'n>> {
+        let symbol = self.lexer.lex().unwrap();
         let mut buffer = [0u8; 4];
         let len = self.codec.encode_char(symbol, &mut buffer)?;
         for byte in buffer[..len].iter() {
@@ -151,23 +184,6 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
             prev_node = new_node;
         }
         Ok(prev_node)
-    }
-
-    fn expect(&mut self, symbol: char) -> Result<()> {
-        if let Some(c) = self.lexer.lex() {
-            if c == symbol {
-                Ok(())
-            } else {
-                Err(UnexpectedToken {
-                    unexpected: c.into(),
-                    expected: symbol.into(),
-                })
-            }
-        } else {
-            Err(UnexpectedEof {
-                aborted_expr: "regular".into(),
-            })
-        }
     }
 }
 
@@ -191,10 +207,6 @@ impl<'s> Lexer<'s> {
         }
     }
 
-    fn is_empty(&self) -> bool {
-        self.iter.is_none() && self.peeked.is_none()
-    }
-
     fn peek(&mut self) -> Option<char> {
         if let Some(c) = self.peeked {
             return Some(c);
@@ -216,5 +228,22 @@ impl<'s> Lexer<'s> {
             return iter.next();
         }
         None
+    }
+
+    fn expect(&mut self, symbol: char) -> Result<()> {
+        if let Some(c) = self.lex() {
+            if c == symbol {
+                Ok(())
+            } else {
+                Err(UnexpectedToken {
+                    unexpected: c.into(),
+                    expected: symbol.into(),
+                })
+            }
+        } else {
+            Err(UnexpectedEof {
+                aborted_expr: "regular".into(),
+            })
+        }
     }
 }
