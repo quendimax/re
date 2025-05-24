@@ -39,25 +39,28 @@ impl<'n, 's, T: Codec> Parser<'n, T> {
     /// - `\t` - horizontal tab escape,
     /// - `\0` - null escape,
     /// - `\\` - backslash,
-    fn parse_escape(&mut self, iter: &mut Chars<'s>, prev_node: Node<'n>) -> Result<Node<'n>> {
+    fn parse_escape(&mut self, iter: &mut Chars<'s>, mut prev_node: Node<'n>) -> Result<Node<'n>> {
         if let Some(c) = iter.next() {
-            let real_char = match c {
-                '"' | '\\' => Some(c),
-                'n' => Some('\n'),
-                'r' => Some('\r'),
-                't' => Some('\t'),
-                '0' => Some('\0'),
-                'x' => self.parse_7bit_codepoint(iter)?,
-                // 'u' => self.parse_unicode_codepoint(iter)?,
+            let codepoint: Option<u32> = match c {
+                '"' | '\\' => Some(c as u32),
+                'n' => Some('\n' as u32),
+                'r' => Some('\r' as u32),
+                't' => Some('\t' as u32),
+                '0' => Some('\0' as u32),
+                'x' => Some(self.parse_7bit_codepoint(iter)?),
+                'u' => Some(self.parse_unicode_codepoint(iter)?),
                 _ => None,
             };
-            if let Some(c) = real_char {
-                let new_node = self.nfa.node();
+            if let Some(c) = codepoint {
                 let mut buf = [0u8; 16];
-                self.codec.encode_char(c, &mut buf)?;
+                let len = self.codec.encode_ucp(c, &mut buf)?;
 
-                prev_node.connect(new_node, c as u8);
-                Ok(new_node)
+                for byte in &buf[0..len] {
+                    let new_node = self.nfa.node();
+                    prev_node.connect(new_node, *byte);
+                    prev_node = new_node;
+                }
+                Ok(prev_node)
             } else {
                 Err(UnsupportedEscape(c))
             }
@@ -68,15 +71,15 @@ impl<'n, 's, T: Codec> Parser<'n, T> {
         }
     }
 
-    fn parse_7bit_codepoint(&mut self, iter: &mut Chars<'s>) -> Result<Option<char>> {
+    fn parse_7bit_codepoint(&mut self, iter: &mut Chars<'s>) -> Result<u32> {
         let Some(first_hex) = iter.next() else {
             return Err(UnexpectedEof {
-                aborted_expr: "7-bit codepoint escape".into(),
+                aborted_expr: "ascii escape".into(),
             });
         };
         let Some(second_hex) = iter.next() else {
             return Err(UnexpectedEof {
-                aborted_expr: "7-bit codepoint escape".into(),
+                aborted_expr: "ascii escape".into(),
             });
         };
         if !first_hex.is_ascii_hexdigit() || !second_hex.is_ascii_hexdigit() {
@@ -98,8 +101,36 @@ impl<'n, 's, T: Codec> Parser<'n, T> {
             codepoint |= (second_hex as u32).wrapping_sub('0' as u32);
         }
 
+        // for 7 bit codepoint must always be a correct unicode codepoint
         debug_assert!(char::from_u32(codepoint).is_some());
-        Ok(Some(unsafe { char::from_u32_unchecked(codepoint) }))
+        Ok(codepoint)
+    }
+
+    fn parse_unicode_codepoint(&mut self, iter: &mut Chars<'s>) -> Result<u32> {
+        self.expect('{', iter)?;
+        let mut codepoint = 0u32;
+        for _ in 0..6 {
+            let Some(c) = iter.next() else {
+                return Err(UnexpectedEof {
+                    aborted_expr: "unicode escape".into(),
+                });
+            };
+            if c == '}' {
+                return Ok(codepoint);
+            }
+            if !c.is_ascii_hexdigit() {
+                return Err(InvalidHex(c.into()));
+            }
+            codepoint <<= 4;
+            if c > '9' {
+                const UPPERCASE_MASK: u32 = !0b0010_0000;
+                codepoint |= ((c as u32 - 'A' as u32) & UPPERCASE_MASK) + 10;
+            } else {
+                codepoint |= (c as u32).wrapping_sub('0' as u32);
+            }
+        }
+        self.expect('}', iter)?;
+        Ok(codepoint)
     }
 
     fn parse_char(&mut self, symbol: char, mut prev_node: Node<'n>) -> Result<Node<'n>> {
@@ -111,5 +142,22 @@ impl<'n, 's, T: Codec> Parser<'n, T> {
             prev_node = new_node;
         }
         Ok(prev_node)
+    }
+
+    fn expect(&mut self, symbol: char, iter: &mut Chars<'s>) -> Result<()> {
+        if let Some(c) = iter.next() {
+            if c == symbol {
+                Ok(())
+            } else {
+                Err(UnexpectedToken {
+                    unexpected: c.into(),
+                    expected: symbol.into(),
+                })
+            }
+        } else {
+            Err(UnexpectedEof {
+                aborted_expr: "regular".into(),
+            })
+        }
     }
 }

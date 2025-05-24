@@ -1,3 +1,4 @@
+use ntest::assert_panics;
 use pretty_assertions::assert_eq;
 use regr::Graph;
 use resy::{Parser, Utf8Codec};
@@ -24,34 +25,56 @@ fn gotten(input: &str) -> String {
     format!("{graph}")
 }
 
-#[test]
-fn parse_escape() {
-    let expect = |c: &str| {
-        dsp(&format!(
+fn expect(chars: &[&str]) -> String {
+    let mut res = "".to_string();
+    for (i, &c) in chars.iter().enumerate() {
+        let j = i + 1;
+        res += &format!(
             "\
-            node(0) {{
-                [{c}] -> node(1)
+            node({i}) {{
+                [{c}] -> node({j})
             }}
-            node(1) {{}}
             "
-        ))
-    };
-    assert_eq!(gotten("\""), expect("'\"'"));
-    assert_eq!(gotten(r"\n"), expect("\\x0A"));
-    assert_eq!(gotten(r"\r"), expect("\\x0D"));
-    assert_eq!(gotten(r"\t"), expect("\\x09"));
-    assert_eq!(gotten(r"\0"), expect("\\x00"));
-    assert_eq!(gotten(r"\x00"), expect("\\x00"));
-    assert_eq!(gotten(r"\x61"), expect("'a'"));
-    assert_eq!(gotten(r"\x7f"), expect("\\x7F"));
-    assert_eq!(gotten(r"\x7F"), expect("\\x7F"));
-    assert_eq!(gotten(r"\x7F"), expect("\\x7F"));
+        );
+    }
+    res += &format!("node({}) {{}}", chars.len());
+    dsp(&res)
 }
 
 #[test]
-#[should_panic]
-fn parse_escape_panic() {
-    gotten(r"\x80");
+fn parse_escape() {
+    assert_eq!(gotten("\""), expect(&["'\"'"]));
+    assert_eq!(gotten(r"\n"), expect(&["\\x0A"]));
+    assert_eq!(gotten(r"\r"), expect(&["\\x0D"]));
+    assert_eq!(gotten(r"\t"), expect(&["\\x09"]));
+    assert_eq!(gotten(r"\0"), expect(&["\\x00"]));
+    assert_eq!(gotten(r"\x00"), expect(&["\\x00"]));
+    assert_eq!(gotten(r"\x61"), expect(&["'a'"]));
+    assert_eq!(gotten(r"\x7f"), expect(&["\\x7F"]));
+    assert_eq!(gotten(r"\x7F"), expect(&["\\x7F"]));
+    assert_eq!(gotten(r"\x7F"), expect(&["\\x7F"]));
+    assert_eq!(gotten(r"\u{0}"), expect(&["\\x00"]));
+    assert_eq!(gotten(r"\u{000000}"), expect(&["\\x00"]));
+    assert_eq!(
+        gotten(r"\u{10FFFF}"),
+        expect(&["\\xF4", "\\x8F", "\\xBF", "\\xBF"])
+    );
+}
+
+#[test]
+fn parse_ascii_escape_panic() {
+    assert_panics!({ gotten(r"\x80") });
+    assert_panics!({ gotten(r"\xFF") });
+}
+
+#[test]
+fn parse_unicode_escape_panic() {
+    assert_panics!({ gotten(r"\u{0000000}") });
+    assert_panics!({ gotten(r"\u{110000}") });
+    assert_panics!({ gotten(r"\u{D800}") });
+    assert_panics!({ gotten(r"\u{DBff}") });
+    assert_panics!({ gotten(r"\u{DC00}") });
+    assert_panics!({ gotten(r"\u{dFFf}") });
 }
 
 #[test]

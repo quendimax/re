@@ -8,6 +8,7 @@ edition = "2024"
 repository = "https://github.com/quendimax/re.git"
 
 [workspace.dependencies]
+ntest = "*"
 pretty_assertions = "1"
 smallvec = "1"
 thiserror = "2"

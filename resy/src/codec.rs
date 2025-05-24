@@ -8,8 +8,8 @@ pub use error::CodecError;
 pub trait Codec {
     const CODEC_NAME: &'static str;
 
-    /// Encode unicode code point int oa byte sequence
-    fn encode_ucp(&self, code_point: u32, buffer: &mut [u8]) -> Result<usize, CodecError>;
+    /// Encode unicode code point into a byte sequence
+    fn encode_ucp(&self, codepoint: u32, buffer: &mut [u8]) -> Result<usize, CodecError>;
 
     /// Encode char into a byte sequence.
     fn encode_char(&self, c: char, buffer: &mut [u8]) -> Result<usize, CodecError> {
