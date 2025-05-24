@@ -3,25 +3,28 @@ use crate::error::{Error::*, Result};
 use regr::{Graph, Node};
 use std::str::Chars;
 
-pub struct Parser<'n, T: Codec> {
+pub struct Parser<'n, 's, T: Codec> {
     nfa: &'n Graph,
+    lexer: Lexer<'s>,
     codec: T,
 }
 
-impl<'n, 's, T: Codec> Parser<'n, T> {
+impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     pub fn new(nfa: &'n Graph, codec: T) -> Self {
         assert!(nfa.is_nfa(), "`repy::Parser` can build only an NFA graph");
-        Self { nfa, codec }
+        let lexer = Lexer::empty();
+        Self { nfa, lexer, codec }
     }
 
     pub fn parse(&mut self, pattern: &'s str, mut prev_node: Node<'n>) -> Result<Node<'n>> {
-        let mut iter = pattern.chars();
-        while let Some(c) = iter.next() {
+        self.lexer = Lexer::new(pattern);
+        while let Some(c) = self.lexer.lex() {
             prev_node = match c {
-                '\\' => self.parse_escape(&mut iter, prev_node)?,
+                '\\' => self.parse_escape(prev_node)?,
                 symbol => self.parse_char(symbol, prev_node)?,
             };
         }
+        self.lexer = Lexer::empty();
         Ok(prev_node)
     }
 
@@ -39,16 +42,16 @@ impl<'n, 's, T: Codec> Parser<'n, T> {
     /// - `\t` - horizontal tab escape,
     /// - `\0` - null escape,
     /// - `\\` - backslash,
-    fn parse_escape(&mut self, iter: &mut Chars<'s>, mut prev_node: Node<'n>) -> Result<Node<'n>> {
-        if let Some(c) = iter.next() {
+    fn parse_escape(&mut self, mut prev_node: Node<'n>) -> Result<Node<'n>> {
+        if let Some(c) = self.lexer.lex() {
             let codepoint: Option<u32> = match c {
                 '"' | '\\' => Some(c as u32),
                 'n' => Some('\n' as u32),
                 'r' => Some('\r' as u32),
                 't' => Some('\t' as u32),
                 '0' => Some('\0' as u32),
-                'x' => Some(self.parse_ascii_escape(iter)?),
-                'u' => Some(self.parse_unicode_escape(iter)?),
+                'x' => Some(self.parse_ascii_escape()?),
+                'u' => Some(self.parse_unicode_escape()?),
                 _ => None,
             };
             if let Some(c) = codepoint {
@@ -71,13 +74,13 @@ impl<'n, 's, T: Codec> Parser<'n, T> {
         }
     }
 
-    fn parse_ascii_escape(&mut self, iter: &mut Chars<'s>) -> Result<u32> {
-        let Some(first_hex) = iter.next() else {
+    fn parse_ascii_escape(&mut self) -> Result<u32> {
+        let Some(first_hex) = self.lexer.lex() else {
             return Err(UnexpectedEof {
                 aborted_expr: "ascii escape".into(),
             });
         };
-        let Some(second_hex) = iter.next() else {
+        let Some(second_hex) = self.lexer.lex() else {
             return Err(UnexpectedEof {
                 aborted_expr: "ascii escape".into(),
             });
@@ -108,11 +111,11 @@ impl<'n, 's, T: Codec> Parser<'n, T> {
         Ok(codepoint)
     }
 
-    fn parse_unicode_escape(&mut self, iter: &mut Chars<'s>) -> Result<u32> {
-        self.expect('{', iter)?;
+    fn parse_unicode_escape(&mut self) -> Result<u32> {
+        self.expect('{')?;
         let mut codepoint = 0u32;
         for i in 0..6 {
-            let Some(c) = iter.next() else {
+            let Some(c) = self.lexer.lex() else {
                 return Err(UnexpectedEof {
                     aborted_expr: "unicode escape".into(),
                 });
@@ -135,7 +138,7 @@ impl<'n, 's, T: Codec> Parser<'n, T> {
                 codepoint |= (c as u32).wrapping_sub('0' as u32);
             }
         }
-        self.expect('}', iter)?;
+        self.expect('}')?;
         Ok(codepoint)
     }
 
@@ -150,8 +153,8 @@ impl<'n, 's, T: Codec> Parser<'n, T> {
         Ok(prev_node)
     }
 
-    fn expect(&mut self, symbol: char, iter: &mut Chars<'s>) -> Result<()> {
-        if let Some(c) = iter.next() {
+    fn expect(&mut self, symbol: char) -> Result<()> {
+        if let Some(c) = self.lexer.lex() {
             if c == symbol {
                 Ok(())
             } else {
@@ -165,5 +168,53 @@ impl<'n, 's, T: Codec> Parser<'n, T> {
                 aborted_expr: "regular".into(),
             })
         }
+    }
+}
+
+struct Lexer<'s> {
+    iter: Option<Chars<'s>>,
+    peeked: Option<char>,
+}
+
+impl<'s> Lexer<'s> {
+    fn new(source: &'s str) -> Self {
+        Self {
+            iter: Some(source.chars()),
+            peeked: None,
+        }
+    }
+
+    fn empty() -> Self {
+        Self {
+            iter: None,
+            peeked: None,
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.iter.is_none() && self.peeked.is_none()
+    }
+
+    fn peek(&mut self) -> Option<char> {
+        if let Some(c) = self.peeked {
+            return Some(c);
+        }
+        if let Some(iter) = self.iter.as_mut() {
+            if let Some(c) = iter.next() {
+                self.peeked = Some(c);
+                return Some(c);
+            }
+        }
+        None
+    }
+
+    fn lex(&mut self) -> Option<char> {
+        if let Some(c) = self.peeked.take() {
+            return Some(c);
+        }
+        if let Some(iter) = self.iter.as_mut() {
+            return iter.next();
+        }
+        None
     }
 }
