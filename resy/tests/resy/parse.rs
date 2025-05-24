@@ -17,7 +17,7 @@ fn dsp<T: std::fmt::Display + ?Sized>(obj: &T) -> String {
     result.trim().to_string()
 }
 
-fn gotten(input: &str) -> String {
+fn parse(input: &str) -> String {
     let graph = Graph::nfa();
     let start_node = graph.start_node();
     let mut parser = Parser::new(&graph, CODEC);
@@ -43,44 +43,41 @@ fn expect(chars: &[&str]) -> String {
 
 #[test]
 fn parse_escape() {
-    assert_eq!(gotten("\""), expect(&["'\"'"]));
-    assert_eq!(gotten(r"\n"), expect(&["\\x0A"]));
-    assert_eq!(gotten(r"\r"), expect(&["\\x0D"]));
-    assert_eq!(gotten(r"\t"), expect(&["\\x09"]));
-    assert_eq!(gotten(r"\0"), expect(&["\\x00"]));
-    assert_eq!(gotten(r"\x00"), expect(&["\\x00"]));
-    assert_eq!(gotten(r"\x61"), expect(&["'a'"]));
-    assert_eq!(gotten(r"\x7f"), expect(&["\\x7F"]));
-    assert_eq!(gotten(r"\x7F"), expect(&["\\x7F"]));
-    assert_eq!(gotten(r"\x7F"), expect(&["\\x7F"]));
-    assert_eq!(gotten(r"\u{0}"), expect(&["\\x00"]));
-    assert_eq!(gotten(r"\u{000000}"), expect(&["\\x00"]));
-    assert_eq!(
-        gotten(r"\u{10FFFF}"),
-        expect(&["\\xF4", "\\x8F", "\\xBF", "\\xBF"])
-    );
+    assert_eq!(parse("\""), expect(&["'\"'"]));
+    assert_eq!(parse(r"\n"), expect(&["0Ah"]));
+    assert_eq!(parse(r"\r"), expect(&["0Dh"]));
+    assert_eq!(parse(r"\t"), expect(&["09h"]));
+    assert_eq!(parse(r"\0"), expect(&["00h"]));
+    assert_eq!(parse(r"\x00"), expect(&["00h"]));
+    assert_eq!(parse(r"\x61"), expect(&["'a'"]));
+    assert_eq!(parse(r"\x7f"), expect(&["7Fh"]));
+    assert_eq!(parse(r"\x7F"), expect(&["7Fh"]));
+    assert_eq!(parse(r"\x7F"), expect(&["7Fh"]));
+    assert_eq!(parse(r"\u{0}"), expect(&["00h"]));
+    assert_eq!(parse(r"\u{000000}"), expect(&["00h"]));
+    assert_eq!(parse(r"\u{10FFFF}"), expect(&["F4h", "8Fh", "BFh", "BFh"]));
 }
 
 #[test]
 fn parse_ascii_escape_panic() {
-    assert_panics!({ gotten(r"\x80") });
-    assert_panics!({ gotten(r"\xFF") });
+    assert_panics!({ parse(r"\x80") });
+    assert_panics!({ parse(r"\xFF") });
 }
 
 #[test]
 fn parse_unicode_escape_panic() {
-    assert_panics!({ gotten(r"\u{0000000}") });
-    assert_panics!({ gotten(r"\u{110000}") });
-    assert_panics!({ gotten(r"\u{D800}") });
-    assert_panics!({ gotten(r"\u{DBff}") });
-    assert_panics!({ gotten(r"\u{DC00}") });
-    assert_panics!({ gotten(r"\u{dFFf}") });
+    assert_panics!({ parse(r"\u{0000000}") });
+    assert_panics!({ parse(r"\u{110000}") });
+    assert_panics!({ parse(r"\u{D800}") });
+    assert_panics!({ parse(r"\u{DBff}") });
+    assert_panics!({ parse(r"\u{DC00}") });
+    assert_panics!({ parse(r"\u{dFFf}") });
 }
 
 #[test]
 fn parse_char() {
     assert_eq!(
-        gotten("ab"),
+        parse("ab"),
         dsp("\
         node(0) {
             ['a'] -> node(1)
@@ -93,13 +90,13 @@ fn parse_char() {
     );
 
     assert_eq!(
-        gotten(r"ў"),
+        parse(r"ў"),
         dsp("\
         node(0) {
-            [\\xD1] -> node(1)
+            [D1h] -> node(1)
         }
         node(1) {
-            [\\x9E] -> node(2)
+            [9Eh] -> node(2)
         }
         node(2) {}
         ")

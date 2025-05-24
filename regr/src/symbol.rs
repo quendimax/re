@@ -71,7 +71,7 @@ impl std::fmt::Display for SymbolDisplay {
         if 0x20 <= self.0 && self.0 <= 0x7e {
             write!(f, "'{}'", char::from(self.0))
         } else {
-            write!(f, "\\x{:02X}", self.0)
+            write!(f, "{:02X}h", self.0)
         }
     }
 }

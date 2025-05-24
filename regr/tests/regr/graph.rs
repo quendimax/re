@@ -93,7 +93,7 @@ fn graph_determined_1() {
         dsp(&nfa),
         dsp(&"
             node(0) {
-                [\\x01-\\xFF] -> self
+                [01h-FFh] -> self
                 Epsilon -> node(1)
             }
             node(1) {
@@ -111,16 +111,16 @@ fn graph_determined_1() {
         dsp(&dfa),
         dsp(&"
             node(0) {
-                [\\x01-'`' | 'b'-\\xFF] -> self
+                [01h-'`' | 'b'-FFh] -> self
                 ['a'] -> node(1)
             }
             node(1) {
-                [\\x01-'`' | 'c'-\\xFF] -> node(0)
+                [01h-'`' | 'c'-FFh] -> node(0)
                 ['a'] -> self
                 ['b'] -> node(2)
             }
             node(2) {
-                [\\x01-'`' | 'b'-\\xFF] -> node(0)
+                [01h-'`' | 'b'-FFh] -> node(0)
                 ['a'] -> node(1)
             }
         ")
@@ -148,7 +148,7 @@ fn graph_display_fmt_0() {
         dsp(&graph),
         dsp(&"
             node(0) {
-                ['a'-\\xFF] -> node(1)
+                ['a'-FFh] -> node(1)
                 Epsilon -> node(1)
             }
             node(1) {

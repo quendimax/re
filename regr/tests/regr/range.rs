@@ -139,7 +139,7 @@ fn range_merge_panic() {
 #[test]
 fn symbol_range_display_fmt() {
     assert_eq!(format!("{}", Range::from(b'a'..=b'a')), r"'a'");
-    assert_eq!(format!("{}", Range::from(b'\0'..=b'Z')), r"\x00-'Z'");
+    assert_eq!(format!("{}", Range::from(b'\0'..=b'Z')), r"00h-'Z'");
     assert_eq!(format!("{}", Range::from(b'\x7E'..=b'~')), r"'~'");
 }
 
