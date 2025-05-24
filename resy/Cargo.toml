@@ -15,5 +15,6 @@ smallvec.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+assert_matches.workspace = true
 ntest.workspace = true
 pretty_assertions.workspace = true

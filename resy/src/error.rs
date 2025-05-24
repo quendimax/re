@@ -8,6 +8,9 @@ pub enum Error {
     #[error("escape expression '\\{0}' is not supported")]
     UnsupportedEscape(char),
 
+    #[error("empty escape expression is not supported")]
+    EmptyEscape,
+
     #[error("unexpected end of file within {aborted_expr} expression")]
     UnexpectedEof { aborted_expr: String },
 

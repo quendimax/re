@@ -47,8 +47,8 @@ impl<'n, 's, T: Codec> Parser<'n, T> {
                 'r' => Some('\r' as u32),
                 't' => Some('\t' as u32),
                 '0' => Some('\0' as u32),
-                'x' => Some(self.parse_7bit_codepoint(iter)?),
-                'u' => Some(self.parse_unicode_codepoint(iter)?),
+                'x' => Some(self.parse_ascii_escape(iter)?),
+                'u' => Some(self.parse_unicode_escape(iter)?),
                 _ => None,
             };
             if let Some(c) = codepoint {
@@ -71,7 +71,7 @@ impl<'n, 's, T: Codec> Parser<'n, T> {
         }
     }
 
-    fn parse_7bit_codepoint(&mut self, iter: &mut Chars<'s>) -> Result<u32> {
+    fn parse_ascii_escape(&mut self, iter: &mut Chars<'s>) -> Result<u32> {
         let Some(first_hex) = iter.next() else {
             return Err(UnexpectedEof {
                 aborted_expr: "ascii escape".into(),
@@ -88,8 +88,10 @@ impl<'n, 's, T: Codec> Parser<'n, T> {
             return Err(InvalidHex(hex_str));
         }
         if first_hex > '7' {
+            let mut hex_str = first_hex.to_string();
+            hex_str.push(second_hex);
             return Err(OutOfRange {
-                value: first_hex.into(),
+                value: hex_str,
                 range: "[0x00..=0x7F]".into(),
             });
         }
@@ -106,17 +108,21 @@ impl<'n, 's, T: Codec> Parser<'n, T> {
         Ok(codepoint)
     }
 
-    fn parse_unicode_codepoint(&mut self, iter: &mut Chars<'s>) -> Result<u32> {
+    fn parse_unicode_escape(&mut self, iter: &mut Chars<'s>) -> Result<u32> {
         self.expect('{', iter)?;
         let mut codepoint = 0u32;
-        for _ in 0..6 {
+        for i in 0..6 {
             let Some(c) = iter.next() else {
                 return Err(UnexpectedEof {
                     aborted_expr: "unicode escape".into(),
                 });
             };
             if c == '}' {
-                return Ok(codepoint);
+                if i == 0 {
+                    return Err(EmptyEscape);
+                } else {
+                    return Ok(codepoint);
+                }
             }
             if !c.is_ascii_hexdigit() {
                 return Err(InvalidHex(c.into()));
