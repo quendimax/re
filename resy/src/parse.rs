@@ -236,7 +236,7 @@ impl<'s> Lexer<'s> {
                 Ok(())
             } else {
                 Err(UnexpectedToken {
-                    unexpected: c.into(),
+                    gotten: c.into(),
                     expected: symbol.into(),
                 })
             }

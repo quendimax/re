@@ -97,7 +97,7 @@ fn parse_escape_fails() {
     assert_matches!(try_parse(r"\u{s}"), Err(InvalidHex(..)));
     assert_matches!(
         try_parse(r"\u{0000000}"),
-        Err(Error::UnexpectedToken { unexpected, expected }) if unexpected == "0" && expected == "}"
+        Err(Error::UnexpectedToken { gotten, expected }) if gotten == "0" && expected == "}"
     );
     assert_matches!(
         try_parse(r"\u{110000}"),
@@ -111,29 +111,8 @@ fn parse_escape_fails() {
 
 #[test]
 fn parse_char() {
-    assert_eq!(
-        parse("ab"),
-        fmt("\
-        node(0) {
-            ['a'] -> node(1)
-        }
-        node(1) {
-            ['b'] -> node(2)
-        }
-        node(2) {}
-        ")
-    );
-
-    assert_eq!(
-        parse(r"ў"),
-        fmt("\
-        node(0) {
-            [D1h] -> node(1)
-        }
-        node(1) {
-            [9Eh] -> node(2)
-        }
-        node(2) {}
-        ")
-    );
+    assert_eq!(parse("ab"), expect(&["'a'", "'b'"]));
+    assert_eq!(parse("ў"), expect(&["D1h", "9Eh"]));
+    assert_eq!(parse("Ⲁ"), expect(&["E2h", "B2h", "80h"]));
+    assert_eq!(parse("𐌰"), expect(&["F0h", "90h", "8Ch", "B0h"]));
 }
