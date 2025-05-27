@@ -1,0 +1,46 @@
+re
+    disjunct
+
+disjunct
+    ""
+    concat
+    concat '|' disjunct
+
+concat
+    item
+    item concat
+
+item
+    '.'
+    char
+    '\' escape
+    item '*'
+    item '+'
+    item '?'
+    item '{' num '}'
+    item '{' num ',' num '}'
+    '(' disjunct ')'
+
+char
+    '0000' . '00FF' - '\' - '|' - '.' - '*' - '+' - '?' - '(' - ')' - '[' - ']' - '{' - '}'
+
+escape
+    '"'
+    '.'
+    '\'
+    '|'
+    '('
+    ')'
+    '*'
+    '+'
+    '?'
+    '0'
+    'n'
+    'r'
+    't'
+    'x' hex hex
+
+hex
+    '0' . '9'
+    'a' . 'f'
+    'A' . 'F'
