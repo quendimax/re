@@ -11,15 +11,46 @@ concat
     item concat
 
 item
-    '.'
-    char
-    '\' escape
+    term
+    class
     item '*'
     item '+'
     item '?'
     item '{' num '}'
     item '{' num ',' num '}'
     '(' disjunct ')'
+
+class
+    '.'
+    '[' elements ']'
+    ;unicode_class
+
+elements
+    element
+    element elements
+
+element
+    term
+    term '-' term
+    ;unicode_class
+
+;unicode_class
+;    '\' 'p' '{' unicode_category '}'
+;    '\' 'P' '{' unicode_category '}'
+;    '\' 'p' '{' unicode_script '}'
+;    '\' 'P' '{' unicode_script '}'
+
+;unicode_category
+;    ; TODO: https://www.compart.com/en/unicode/category
+
+;unicode_script
+;    ; TODO: https://www.compart.com/en/unicode/scripts
+
+; terminal nodes that are not implemented recursively,
+; and correspond to one symbol
+term
+    char
+    '\' escape
 
 char
     '0000' . '10FFFF' - '\' - '|' - '.' - '*' - '+' - '?' - '(' - ')' - '[' - ']' - '{' - '}'
