@@ -73,10 +73,9 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         let mut end_node = start_node;
         while self.lexer.peek().is_some() {
             let start_node = end_node;
-            end_node = self.parse_item(start_node)?;
-
-            // if can't parse anymore (e.g. `)` was encountered), stop the loop
-            if end_node == start_node {
+            if let Some(node) = self.parse_item(start_node)? {
+                end_node = node;
+            } else {
                 break;
             }
         }
@@ -89,27 +88,75 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     /// item
     ///     term
     ///     class
-    ///     item '*'
-    ///     item '+'
-    ///     item '?'
-    ///     item '{' num '}'
-    ///     item '{' num ',' num '}'
     ///     '(' disjunct ')'
+    ///     item postfix
     /// ```
-    fn parse_item(&mut self, start_node: Node<'n>) -> Result<Node<'n>> {
+    fn parse_item(&mut self, start_node: Node<'n>) -> Result<Option<Node<'n>>> {
         let next_sym = self.lexer.peek().unwrap();
-        match next_sym {
+        let res = match next_sym {
             '(' => self.parse_parens(start_node),
             ')' => Ok(start_node),
             '[' => self.parse_class(start_node),
             ']' => err::unexpected_close_bracket(next_sym),
-            '{' => todo!(),
-            '}' => todo!(),
-            '*' => todo!(),
-            '+' => todo!(),
-            '?' => todo!(),
             _ => self.parse_term(start_node),
+        };
+        let end_node = res?;
+        if end_node == start_node {
+            return Ok(None);
         }
+        self.parse_postfix(start_node, end_node).map(Some)
+    }
+
+    /// Parse postfix:
+    ///
+    /// ```mkf
+    /// postfix
+    ///     '*'
+    ///     '+'
+    ///     '?'
+    ///     '{' num '}'
+    ///     '{' num ',' num '}'
+    /// ```
+    fn parse_postfix(&mut self, item_start: Node<'n>, item_end: Node<'n>) -> Result<Node<'n>> {
+        let end_node = if let Some(symbol) = self.lexer.peek() {
+            match symbol {
+                '*' => self.parse_star(item_start, item_end)?,
+                '+' => todo!(),
+                '?' => todo!(),
+                '{' => todo!(),
+                _ => item_end,
+            }
+        } else {
+            item_end
+        };
+        Ok(end_node)
+    }
+
+    /// Parse Kleene star operator.
+    ///
+    /// I use here a bit modified Thompson's construction:
+    /// ```
+    ///  ╭────ε────╮
+    ///  ↓         │
+    /// (1)──'a'─→(2)──ε─→(3)
+    ///  │                 ↑
+    ///  ╰────────ε────────╯
+    /// ```
+    /// instead of
+    /// ```
+    ///          ╭────ε────╮
+    ///          ↓         │
+    /// (1)──ε─→(2)──'a'─→(3)──ε─→(4)
+    ///  │                         ↑
+    ///  ╰────────────ε────────────╯
+    /// ```
+    fn parse_star(&mut self, item_start: Node<'n>, item_end: Node<'n>) -> Result<Node<'n>> {
+        self.lexer.expect('*')?;
+        let new_end_node = self.nfa.node();
+        item_end.connect(item_start, Epsilon);
+        item_end.connect(new_end_node, Epsilon);
+        item_start.connect(new_end_node, Epsilon);
+        Ok(new_end_node)
     }
 
     /// Parse parentheses:
@@ -262,8 +309,20 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         Ok(codepoint)
     }
 
+    /// Parse normal unescapable character:
+    ///
+    /// ```mkf
+    /// char
+    ///     '0000' . '10FFFF' - '\' - '|' - '.' - '*' - '+' - '?' - '(' - ')' - '[' - ']' - '{' - '}'
+    /// ```
     fn parse_char(&mut self, start_node: Node<'n>) -> Result<Node<'n>> {
         let symbol = self.lexer.lex().unwrap();
+        if matches!(
+            symbol,
+            '\\' | '|' | '.' | '*' | '+' | '?' | '(' | ')' | '[' | ']' | '{' | '}'
+        ) {
+            return err::escape_it(symbol);
+        }
         let mut buffer = [0u8; 4];
         let len = self.codec.encode_char(symbol, &mut buffer)?;
         let mut end_node = start_node;

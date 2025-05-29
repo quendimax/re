@@ -28,6 +28,9 @@ pub enum Error {
 
     #[error("value `{value}` is out of allowable range {range}")]
     OutOfRange { value: String, range: String },
+
+    #[error("character `{0}` must be escaped with a prior backslash `\\`")]
+    EscapeIt(char),
 }
 
 /// Helper module to facilitate creating new error instances.
@@ -46,5 +49,9 @@ pub(crate) mod err {
 
     pub(crate) fn unexpected_close_bracket<T>(bracket: char) -> Result<T> {
         Err(Error::UnexpcetedCloseBracket(bracket))
+    }
+
+    pub(crate) fn escape_it<T>(symbol: char) -> Result<T> {
+        Err(Error::EscapeIt(symbol))
     }
 }

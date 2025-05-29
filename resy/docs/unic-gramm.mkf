@@ -13,12 +13,15 @@ concat
 item
     term
     class
-    item '*'
-    item '+'
-    item '?'
-    item '{' num '}'
-    item '{' num ',' num '}'
     '(' disjunct ')'
+    item postfix
+
+postfix
+    '*'
+    '+'
+    '?'
+    '{' num '}'
+    '{' num ',' num '}'
 
 class
     '.'
