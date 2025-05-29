@@ -492,7 +492,7 @@ impl<'a> BorrowRef<'a> {
     }
 }
 
-impl<'a> std::ops::Drop for BorrowRef<'a> {
+impl std::ops::Drop for BorrowRef<'_> {
     fn drop(&mut self) {
         let borrow = self.0.get();
         debug_assert!(borrow > UNUSED);
@@ -520,7 +520,7 @@ impl<'a> BorrowMut<'a> {
     }
 }
 
-impl<'a> std::ops::Drop for BorrowMut<'a> {
+impl std::ops::Drop for BorrowMut<'_> {
     fn drop(&mut self) {
         let borrow = self.0.get().wrapping_add(1);
         debug_assert!(borrow == UNUSED);

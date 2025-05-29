@@ -1,5 +1,4 @@
 use assert_matches::assert_matches;
-use ntest::assert_panics;
 use pretty_assertions::assert_eq;
 use regr::Graph;
 use resy::CodecError::*;
@@ -29,7 +28,7 @@ fn try_parse(input: &str) -> Result<String, Error> {
 }
 
 fn parse(input: &str) -> String {
-    try_parse(input).unwrap()
+    try_parse(input).unwrap_or_else(|e| e.to_string())
 }
 
 fn expect(chars: &[&str]) -> String {
@@ -53,9 +52,9 @@ fn parse_parens() {
     assert_eq!(parse("()"), expect(&[]));
     assert_eq!(parse("((((()))))"), expect(&[]));
 
-    assert_eq!(try_parse(")"), Err(UnexpectedCloseParen));
-    assert_eq!(try_parse("))"), Err(UnexpectedCloseParen));
-    assert_eq!(try_parse("((())))"), Err(UnexpectedCloseParen));
+    assert_matches!(try_parse(")"), Err(UnexpcetedCloseBracket(..)));
+    assert_matches!(try_parse("))"), Err(UnexpcetedCloseBracket(..)));
+    assert_matches!(try_parse("((())))"), Err(UnexpcetedCloseBracket(..)));
 }
 
 #[test]
@@ -74,15 +73,6 @@ fn parse_escape() {
     assert_eq!(parse(r"\u{0}"), expect(&["00h"]));
     assert_eq!(parse(r"\u{000000}"), expect(&["00h"]));
     assert_eq!(parse(r"\u{10FFFF}"), expect(&["F4h", "8Fh", "BFh", "BFh"]));
-
-    assert_panics!({ parse(r"\x80") });
-    assert_panics!({ parse(r"\xFF") });
-    assert_panics!({ parse(r"\u{0000000}") });
-    assert_panics!({ parse(r"\u{110000}") });
-    assert_panics!({ parse(r"\u{D800}") });
-    assert_panics!({ parse(r"\u{DBff}") });
-    assert_panics!({ parse(r"\u{DC00}") });
-    assert_panics!({ parse(r"\u{dFFf}") });
 }
 
 #[test]
@@ -105,6 +95,30 @@ fn parse_escape_fails() {
     );
     assert_matches!(
         try_parse(r"\u{D800}"),
+        Err(CodecError(SurrogateUnsupported { .. }))
+    );
+
+    assert_matches!(try_parse(r"\x80"), Err(OutOfRange { .. }));
+    assert_matches!(try_parse(r"\xFF"), Err(OutOfRange { .. }));
+    assert_matches!(try_parse(r"\u{0000000}"), Err(UnexpectedToken { .. }));
+    assert_matches!(
+        try_parse(r"\u{110000}"),
+        Err(CodecError(InvalidCodePoint(..)))
+    );
+    assert_matches!(
+        try_parse(r"\u{D800}"),
+        Err(CodecError(SurrogateUnsupported { .. }))
+    );
+    assert_matches!(
+        try_parse(r"\u{DBff}"),
+        Err(CodecError(SurrogateUnsupported { .. }))
+    );
+    assert_matches!(
+        try_parse(r"\u{DC00}"),
+        Err(CodecError(SurrogateUnsupported { .. }))
+    );
+    assert_matches!(
+        try_parse(r"\u{dFFf}"),
         Err(CodecError(SurrogateUnsupported { .. }))
     );
 }

@@ -17,8 +17,8 @@ pub enum Error {
     #[error("expected token `{expected}`, but got `{gotten}`")]
     UnexpectedToken { gotten: String, expected: String },
 
-    #[error("unexpected close paren `)` encountered without open one")]
-    UnexpectedCloseParen,
+    #[error("unexpected close bracket `{0}` encountered without open one")]
+    UnexpcetedCloseBracket(char),
 
     #[error("codec error: {0}")]
     CodecError(#[from] CodecError),
@@ -28,4 +28,23 @@ pub enum Error {
 
     #[error("value `{value}` is out of allowable range {range}")]
     OutOfRange { value: String, range: String },
+}
+
+/// Helper module to facilitate creating new error instances.
+pub(crate) mod err {
+    use super::{Error, Result};
+
+    pub(crate) fn unexpected_token<T>(
+        gotten: impl Into<String>,
+        expected: impl Into<String>,
+    ) -> Result<T> {
+        Err(Error::UnexpectedToken {
+            gotten: gotten.into(),
+            expected: expected.into(),
+        })
+    }
+
+    pub(crate) fn unexpected_close_bracket<T>(bracket: char) -> Result<T> {
+        Err(Error::UnexpcetedCloseBracket(bracket))
+    }
 }

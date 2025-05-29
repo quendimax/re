@@ -1,6 +1,11 @@
+//! There is an implementation of regular expression parser.
+//!
+//! Grammar used here is described in `resy/docs/unic-gramm.mkf` using McKeeman
+//! form.
+
 use crate::codec::Codec;
-use crate::error::{Error::*, Result};
-use regr::{Graph, Node};
+use crate::error::{Error::*, Result, err};
+use regr::{Epsilon, Graph, Node};
 use std::str::Chars;
 
 pub struct Parser<'n, 's, T: Codec> {
@@ -16,43 +21,126 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         Self { nfa, lexer, codec }
     }
 
-    pub fn parse(&mut self, pattern: &'s str, mut prev_node: Node<'n>) -> Result<Node<'n>> {
-        assert!(prev_node.gid() == self.nfa.gid());
+    /// Parse regular expression specified with `pattern` using `start_node` as
+    /// the first node for the builded graph.
+    ///
+    /// Returns last node of the result graph. This node is not accepable by
+    /// default. Make this acceptable by yourself if needed.
+    pub fn parse(&mut self, pattern: &'s str, start_node: Node<'n>) -> Result<Node<'n>> {
+        assert!(start_node.gid() == self.nfa.gid());
         self.lexer = Lexer::new(pattern);
-        loop {
-            prev_node = self.parse_expr(prev_node)?;
-            if let Some(symbol) = self.lexer.peek() {
-                prev_node = match symbol {
-                    ')' => return Err(UnexpectedCloseParen),
-                    _ => self.parse_expr(prev_node)?,
-                };
+        let finish_node = self.parse_disjunct(start_node)?;
+        if let Some(symbol) = self.lexer.peek() {
+            return match symbol {
+                ')' | ']' | '}' => err::unexpected_close_bracket(symbol),
+                _ => err::unexpected_token(symbol, "`|` or end of pattern"),
+            };
+        }
+        self.lexer = Lexer::empty();
+        Ok(finish_node)
+    }
+
+    /// Parse disjunction:
+    ///
+    /// ```mkf
+    /// disjunct
+    ///     ""
+    ///     concat
+    ///     concat '|' disjunct
+    /// ```
+    fn parse_disjunct(&mut self, start_node: Node<'n>) -> Result<Node<'n>> {
+        let end_node = self.parse_concat(start_node)?;
+        while let Some(symbol) = self.lexer.peek() {
+            if symbol == '|' {
+                self.lexer.lex().unwrap();
+                let last_node = self.parse_concat(start_node)?;
+                last_node.connect(end_node, Epsilon);
             } else {
+                return Ok(end_node);
+            }
+        }
+        Ok(end_node)
+    }
+
+    /// Parse concatenation:
+    ///
+    /// ```mkf
+    /// concat
+    ///     item
+    ///     item concat
+    /// ```
+    fn parse_concat(&mut self, start_node: Node<'n>) -> Result<Node<'n>> {
+        let mut end_node = start_node;
+        while self.lexer.peek().is_some() {
+            let start_node = end_node;
+            end_node = self.parse_item(start_node)?;
+
+            // if can't parse anymore (e.g. `)` was encountered), stop the loop
+            if end_node == start_node {
                 break;
             }
         }
-        self.lexer = Lexer::empty();
-        Ok(prev_node)
+        Ok(end_node)
     }
 
-    fn parse_expr(&mut self, mut prev_node: Node<'n>) -> Result<Node<'n>> {
-        while let Some(c) = self.lexer.peek() {
-            prev_node = match c {
-                '(' => self.parse_parens(prev_node)?,
-                ')' => break,
-
-                '\\' => self.parse_escape(prev_node)?,
-
-                _ => self.parse_char(prev_node)?,
-            };
+    /// Parse item:
+    ///
+    /// ```mkf
+    /// item
+    ///     term
+    ///     class
+    ///     item '*'
+    ///     item '+'
+    ///     item '?'
+    ///     item '{' num '}'
+    ///     item '{' num ',' num '}'
+    ///     '(' disjunct ')'
+    /// ```
+    fn parse_item(&mut self, start_node: Node<'n>) -> Result<Node<'n>> {
+        let next_sym = self.lexer.peek().unwrap();
+        match next_sym {
+            '(' => self.parse_parens(start_node),
+            ')' => Ok(start_node),
+            '[' => self.parse_class(start_node),
+            ']' => err::unexpected_close_bracket(next_sym),
+            '{' => todo!(),
+            '}' => todo!(),
+            '*' => todo!(),
+            '+' => todo!(),
+            '?' => todo!(),
+            _ => self.parse_term(start_node),
         }
-        Ok(prev_node)
     }
 
-    fn parse_parens(&mut self, mut prev_node: Node<'n>) -> Result<Node<'n>> {
+    /// Parse parentheses:
+    ///
+    /// ```mkf
+    ///     '(' disjunct ')'
+    /// ```
+    fn parse_parens(&mut self, start_node: Node<'n>) -> Result<Node<'n>> {
         self.lexer.expect('(')?;
-        prev_node = self.parse_expr(prev_node)?;
+        let end_node = self.parse_disjunct(start_node)?;
         self.lexer.expect(')')?;
-        Ok(prev_node)
+        Ok(end_node)
+    }
+
+    fn parse_class(&mut self, _: Node<'n>) -> Result<Node<'n>> {
+        todo!()
+    }
+
+    /// Parse terminal:
+    ///
+    /// ```mkf
+    /// term
+    ///     char
+    ///     '\' escape
+    /// ```
+    fn parse_term(&mut self, start_node: Node<'n>) -> Result<Node<'n>> {
+        let next_sym = self.lexer.peek().unwrap();
+        match next_sym {
+            '\\' => self.parse_escape(start_node),
+            _ => self.parse_char(start_node),
+        }
     }
 
     /// Parse an escape sequence.
@@ -174,16 +262,17 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         Ok(codepoint)
     }
 
-    fn parse_char(&mut self, mut prev_node: Node<'n>) -> Result<Node<'n>> {
+    fn parse_char(&mut self, start_node: Node<'n>) -> Result<Node<'n>> {
         let symbol = self.lexer.lex().unwrap();
         let mut buffer = [0u8; 4];
         let len = self.codec.encode_char(symbol, &mut buffer)?;
+        let mut end_node = start_node;
         for byte in buffer[..len].iter() {
             let new_node = self.nfa.node();
-            prev_node.connect(new_node, *byte);
-            prev_node = new_node;
+            end_node.connect(new_node, *byte);
+            end_node = new_node;
         }
-        Ok(prev_node)
+        Ok(end_node)
     }
 }
 
@@ -230,15 +319,12 @@ impl<'s> Lexer<'s> {
         None
     }
 
-    fn expect(&mut self, symbol: char) -> Result<()> {
-        if let Some(c) = self.lex() {
-            if c == symbol {
+    fn expect(&mut self, expected: char) -> Result<()> {
+        if let Some(gotten) = self.lex() {
+            if gotten == expected {
                 Ok(())
             } else {
-                Err(UnexpectedToken {
-                    gotten: c.into(),
-                    expected: symbol.into(),
-                })
+                err::unexpected_token(gotten, expected)
             }
         } else {
             Err(UnexpectedEof {
