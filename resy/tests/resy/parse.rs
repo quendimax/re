@@ -35,13 +35,23 @@ fn expect(chars: &[&str]) -> String {
     let mut res = String::new();
     for (i, &c) in chars.iter().enumerate() {
         let j = i + 1;
-        res += &format!(
-            "\
-            node({i}) {{
-                [{c}] -> node({j})
-            }}
-            "
-        );
+        if c == "Epsilon" {
+            res += &format!(
+                "\
+                node({i}) {{
+                    {c} -> node({j})
+                }}
+                "
+            );
+        } else {
+            res += &format!(
+                "\
+                node({i}) {{
+                    [{c}] -> node({j})
+                }}
+                "
+            );
+        }
     }
     res += &format!("node({}) {{}}", chars.len());
     fmt(&res)
@@ -49,8 +59,8 @@ fn expect(chars: &[&str]) -> String {
 
 #[test]
 fn parse_parens() {
-    assert_eq!(parse("()"), expect(&[]));
-    assert_eq!(parse("((((()))))"), expect(&[]));
+    assert_eq!(parse("()"), expect(&["Epsilon"]));
+    assert_eq!(parse("((((()))))"), expect(&["Epsilon"]));
 
     assert_matches!(try_parse(")"), Err(UnexpcetedCloseBracket(..)));
     assert_matches!(try_parse("))"), Err(UnexpcetedCloseBracket(..)));
@@ -59,7 +69,7 @@ fn parse_parens() {
 
 #[test]
 fn parse_escape() {
-    assert_eq!(parse(""), expect(&[]));
+    assert_eq!(parse(""), expect(&["Epsilon"]));
     assert_eq!(parse("\""), expect(&["'\"'"]));
     assert_eq!(parse(r"\n"), expect(&["0Ah"]));
     assert_eq!(parse(r"\r"), expect(&["0Dh"]));

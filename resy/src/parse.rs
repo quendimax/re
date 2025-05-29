@@ -59,6 +59,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
                 return Ok(end_node);
             }
         }
+        assert_ne!(start_node, end_node);
         Ok(end_node)
     }
 
@@ -78,6 +79,10 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
             } else {
                 break;
             }
+        }
+        if start_node == end_node {
+            end_node = self.nfa.node();
+            start_node.connect(end_node, Epsilon);
         }
         Ok(end_node)
     }
