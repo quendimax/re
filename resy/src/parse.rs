@@ -72,14 +72,10 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     /// ```
     fn parse_concat(&mut self, start_node: Node<'n>) -> Result<Node<'n>> {
         let mut end_node = start_node;
-        while self.lexer.peek().is_some() {
-            let start_node = end_node;
-            if let Some(node) = self.parse_item(start_node)? {
-                end_node = node;
-            } else {
-                break;
-            }
+        while let Some(node) = self.try_parse_item(end_node)? {
+            end_node = node;
         }
+        // if there is an empty expression, create an epsilone transition
         if start_node == end_node {
             end_node = self.nfa.node();
             start_node.connect(end_node, Epsilon);
@@ -96,20 +92,23 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     ///     '(' disjunct ')'
     ///     item postfix
     /// ```
-    fn parse_item(&mut self, start_node: Node<'n>) -> Result<Option<Node<'n>>> {
-        let next_sym = self.lexer.peek().unwrap();
-        let res = match next_sym {
-            '(' => self.parse_parens(start_node),
-            ')' => Ok(start_node),
-            '[' => self.parse_class(start_node),
-            ']' => err::unexpected_close_bracket(next_sym),
-            _ => self.parse_term(start_node),
-        };
-        let end_node = res?;
-        if end_node == start_node {
-            return Ok(None);
+    fn try_parse_item(&mut self, start_node: Node<'n>) -> Result<Option<Node<'n>>> {
+        if let Some(next_sym) = self.lexer.peek() {
+            let res = match next_sym {
+                '(' => self.parse_parens(start_node),
+                ')' => Ok(start_node),
+                '[' => self.parse_class(start_node),
+                ']' => err::unexpected_close_bracket(next_sym),
+                _ => self.parse_term(start_node),
+            };
+            let end_node = res?;
+            if end_node == start_node {
+                return Ok(None);
+            }
+            self.parse_postfix(start_node, end_node).map(Some)
+        } else {
+            Ok(None)
         }
-        self.parse_postfix(start_node, end_node).map(Some)
     }
 
     /// Parse postfix:
