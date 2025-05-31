@@ -134,6 +134,111 @@ fn parse_escape_fails() {
 }
 
 #[test]
+fn parse_kleene_star() {
+    assert_eq!(
+        parse("a*"),
+        fmt("\
+        node(0) {
+            ['a'] -> node(1)
+            Epsilon -> node(2)
+        }
+        node(1) {
+            Epsilon -> node(0)
+            Epsilon -> node(2)
+        }
+        node(2) {}
+        ")
+    );
+    assert_eq!(
+        parse("a**"),
+        fmt("\
+        node(0) {
+            ['a'] -> node(1)
+            Epsilon -> node(2)
+            Epsilon -> node(3)
+        }
+        node(1) {
+            Epsilon -> node(0)
+            Epsilon -> node(2)
+        }
+        node(2) {
+            Epsilon -> node(0)
+            Epsilon -> node(3)
+        }
+        node(3) {}
+        ")
+    );
+}
+
+#[test]
+fn parse_plus_operator() {
+    assert_eq!(
+        parse("a+"),
+        fmt("\
+        node(0) {
+            ['a'] -> node(1)
+        }
+        node(1) {
+            Epsilon -> node(0)
+            Epsilon -> node(2)
+        }
+        node(2) {}
+        ")
+    );
+    assert_eq!(
+        parse("a++"),
+        fmt("\
+        node(0) {
+            ['a'] -> node(1)
+        }
+        node(1) {
+            Epsilon -> node(0)
+            Epsilon -> node(2)
+        }
+        node(2) {
+            Epsilon -> node(0)
+            Epsilon -> node(3)
+        }
+        node(3) {}
+        ")
+    );
+}
+
+#[test]
+fn parse_question() {
+    assert_eq!(
+        parse("a?"),
+        fmt("\
+        node(0) {
+            ['a'] -> node(1)
+            Epsilon -> node(2)
+        }
+        node(1) {
+            Epsilon -> node(2)
+        }
+        node(2) {}
+        ")
+    );
+    assert_eq!(
+        parse("a??"),
+        fmt("\
+        node(0) {
+            ['a'] -> node(1)
+            Epsilon -> node(2)
+            Epsilon -> node(3)
+        }
+        node(1) {
+            Epsilon -> node(2)
+        }
+        node(2) {
+            Epsilon -> node(3)
+        }
+        node(3) {}
+        ")
+    );
+}
+
+#[test]
 fn parse_char() {
     assert_eq!(parse("ab"), expect(&["'a'", "'b'"]));
     assert_eq!(parse("ў"), expect(&["D1h", "9Eh"]));

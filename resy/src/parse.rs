@@ -101,11 +101,15 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
                 ']' => err::unexpected_close_bracket(next_sym),
                 _ => self.parse_term(start_node),
             };
-            let end_node = res?;
+            let mut end_node = res?;
             if end_node == start_node {
-                return Ok(None);
+                Ok(None)
+            } else {
+                while let Some(new_end_node) = self.try_parse_postfix(start_node, end_node)? {
+                    end_node = new_end_node;
+                }
+                Ok(Some(end_node))
             }
-            self.parse_postfix(start_node, end_node).map(Some)
         } else {
             Ok(None)
         }
@@ -121,19 +125,29 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     ///     '{' num '}'
     ///     '{' num ',' num '}'
     /// ```
-    fn parse_postfix(&mut self, item_start: Node<'n>, item_end: Node<'n>) -> Result<Node<'n>> {
-        let end_node = if let Some(symbol) = self.lexer.peek() {
-            match symbol {
-                '*' => self.parse_star(item_start, item_end)?,
-                '+' => todo!(),
-                '?' => todo!(),
-                '{' => todo!(),
-                _ => item_end,
+    fn try_parse_postfix(
+        &mut self,
+        item_start: Node<'n>,
+        item_end: Node<'n>,
+    ) -> Result<Option<Node<'n>>> {
+        let end_node = {
+            if let Some(symbol) = self.lexer.peek() {
+                match symbol {
+                    '*' => self.parse_star(item_start, item_end)?,
+                    '+' => self.parse_plus(item_start, item_end)?,
+                    '?' => self.parse_question(item_start, item_end)?,
+                    '{' => todo!(),
+                    _ => item_end,
+                }
+            } else {
+                item_end
             }
-        } else {
-            item_end
         };
-        Ok(end_node)
+        if end_node == item_end {
+            Ok(None)
+        } else {
+            Ok(Some(end_node))
+        }
     }
 
     /// Parse Kleene star operator.
@@ -158,6 +172,50 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         self.lexer.expect('*')?;
         let new_end_node = self.nfa.node();
         item_end.connect(item_start, Epsilon);
+        item_end.connect(new_end_node, Epsilon);
+        item_start.connect(new_end_node, Epsilon);
+        Ok(new_end_node)
+    }
+
+    /// Parse plus operator.
+    ///
+    /// I use here a bit modified Thompson's construction:
+    /// ```
+    ///  ╭────ε────╮
+    ///  ↓         │
+    /// (1)──'a'─→(2)──ε─→(3)
+    /// ```
+    /// instead of
+    /// ```
+    ///          ╭────ε────╮
+    ///          ↓         │
+    /// (1)──ε─→(2)──'a'─→(3)──ε─→(4)
+    /// ```
+    fn parse_plus(&mut self, item_start: Node<'n>, item_end: Node<'n>) -> Result<Node<'n>> {
+        self.lexer.expect('+')?;
+        let new_end_node = self.nfa.node();
+        item_end.connect(item_start, Epsilon);
+        item_end.connect(new_end_node, Epsilon);
+        Ok(new_end_node)
+    }
+
+    /// Parse question operator.
+    ///
+    /// I use here a bit modified Thompson's construction:
+    /// ```
+    /// (1)──'a'─→(2)──ε─→(3)
+    ///  │                 ↑
+    ///  ╰────────ε────────╯
+    /// ```
+    /// instead of
+    /// ```
+    /// (1)──ε─→(2)──'a'─→(3)──ε─→(4)
+    ///  │                         ↑
+    ///  ╰────────────ε────────────╯
+    /// ```
+    fn parse_question(&mut self, item_start: Node<'n>, item_end: Node<'n>) -> Result<Node<'n>> {
+        self.lexer.expect('?')?;
+        let new_end_node = self.nfa.node();
         item_end.connect(new_end_node, Epsilon);
         item_start.connect(new_end_node, Epsilon);
         Ok(new_end_node)
