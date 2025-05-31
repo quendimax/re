@@ -115,7 +115,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         }
     }
 
-    /// Parse postfix:
+    /// Parses postfix:
     ///
     /// ```mkf
     /// postfix
@@ -136,7 +136,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
                     '*' => self.parse_star(item_start, item_end)?,
                     '+' => self.parse_plus(item_start, item_end)?,
                     '?' => self.parse_question(item_start, item_end)?,
-                    '{' => todo!(),
+                    '{' => self.parse_braces(item_start, item_end)?,
                     _ => item_end,
                 }
             } else {
@@ -150,7 +150,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         }
     }
 
-    /// Parse Kleene star operator.
+    /// Parses Kleene star operator.
     ///
     /// I use here a bit modified Thompson's construction:
     /// ```
@@ -177,7 +177,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         Ok(new_end_node)
     }
 
-    /// Parse plus operator.
+    /// Parses plus operator.
     ///
     /// I use here a bit modified Thompson's construction:
     /// ```
@@ -199,7 +199,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         Ok(new_end_node)
     }
 
-    /// Parse question operator.
+    /// Parses question operator.
     ///
     /// I use here a bit modified Thompson's construction:
     /// ```
@@ -219,6 +219,27 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         item_end.connect(new_end_node, Epsilon);
         item_start.connect(new_end_node, Epsilon);
         Ok(new_end_node)
+    }
+
+    fn parse_braces(&mut self, item_start: Node<'n>, item_end: Node<'n>) -> Result<Node<'n>> {
+        self.lexer.expect('{')?;
+        let Some(first_num) = self.parse_decimal() else {
+            return err::unexpected_token("", "decimal");
+        };
+        let sym = self.lexer.lex().ok_or_else(|| UnexpectedEof {
+            aborted_expr: "braces".into(),
+        })?;
+        let second_num = match sym {
+            '}' => Some(first_num),
+            ',' => self.parse_decimal(),
+            unexpected => return err::unexpected_token(unexpected, "'}' or ','"),
+        };
+        if let Some(second_num) = second_num {
+            todo!()
+        } else {
+            todo!()
+        }
+        Ok(item_end)
     }
 
     /// Parse parentheses:
@@ -297,22 +318,16 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
                 Err(UnsupportedEscape(c))
             }
         } else {
-            Err(UnexpectedEof {
-                aborted_expr: "escape".into(),
-            })
+            err::unexpected_eof("escape")
         }
     }
 
     fn parse_ascii_escape(&mut self) -> Result<u32> {
         let Some(first_hex) = self.lexer.lex() else {
-            return Err(UnexpectedEof {
-                aborted_expr: "ascii escape".into(),
-            });
+            return err::unexpected_eof("ascii escape");
         };
         let Some(second_hex) = self.lexer.lex() else {
-            return Err(UnexpectedEof {
-                aborted_expr: "ascii escape".into(),
-            });
+            return err::unexpected_eof("ascii escape");
         };
         if !first_hex.is_ascii_hexdigit() || !second_hex.is_ascii_hexdigit() {
             let mut hex_str = first_hex.to_string();
@@ -345,9 +360,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         let mut codepoint = 0u32;
         for i in 0..6 {
             let Some(c) = self.lexer.lex() else {
-                return Err(UnexpectedEof {
-                    aborted_expr: "unicode escape".into(),
-                });
+                return err::unexpected_eof("unicode escape");
             };
             if c == '}' {
                 if i == 0 {
@@ -394,6 +407,22 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
             end_node = new_node;
         }
         Ok(end_node)
+    }
+
+    /// Parses decimal secquence into `u32` value. If there wasn't found any
+    /// dicamal characters, returns zero.
+    fn parse_decimal(&mut self) -> Option<u32> {
+        let mut num: Option<u32> = None;
+        while let Some(sym) = self.lexer.peek() {
+            if '0' < sym && sym < '9' {
+                self.lexer.take_peeked();
+                let old_num = num.unwrap_or(0);
+                num = Some(old_num + (sym as u32 - '0' as u32));
+            } else {
+                break;
+            }
+        }
+        num
     }
 }
 
@@ -448,9 +477,11 @@ impl<'s> Lexer<'s> {
                 err::unexpected_token(gotten, expected)
             }
         } else {
-            Err(UnexpectedEof {
-                aborted_expr: "regular".into(),
-            })
+            err::unexpected_eof("regular")
         }
+    }
+
+    fn take_peeked(&mut self) {
+        self.peeked = None;
     }
 }

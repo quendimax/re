@@ -37,6 +37,12 @@ pub enum Error {
 pub(crate) mod err {
     use super::{Error, Result};
 
+    pub(crate) fn unexpected_eof<T>(aborted_expr: impl Into<String>) -> Result<T> {
+        Err(Error::UnexpectedEof {
+            aborted_expr: aborted_expr.into(),
+        })
+    }
+
     pub(crate) fn unexpected_token<T>(
         gotten: impl Into<String>,
         expected: impl Into<String>,
