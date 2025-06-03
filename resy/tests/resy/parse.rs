@@ -239,6 +239,66 @@ fn parse_question() {
 }
 
 #[test]
+fn parse_braces_with_one_num() {
+    assert_eq!(parse("a{1}"), expect(&["'a'"]));
+    assert_eq!(parse("a{2}"), expect(&["'a'", "'a'"]));
+    assert_eq!(parse("a{3}"), expect(&["'a'", "'a'", "'a'"]));
+
+    assert_eq!(parse("ў{1}"), expect(&["D1h", "9Eh"]));
+    assert_eq!(parse("ў{2}"), expect(&["D1h", "9Eh", "D1h", "9Eh"]));
+    assert_eq!(
+        parse("ў{3}"),
+        expect(&["D1h", "9Eh", "D1h", "9Eh", "D1h", "9Eh"])
+    );
+
+    assert_eq!(
+        parse("a*{1}"),
+        fmt("\
+            node(0) {
+                ['a'] -> node(1)
+                Epsilon -> node(2)
+            }
+            node(1) {
+                Epsilon -> node(0)
+                Epsilon -> node(2)
+            }
+            node(2) {}
+        ")
+    );
+    // assert_eq!(
+    //     parse("a*{2}"),
+    //     fmt("\
+    //         node(0) {
+    //             ['a'] -> node(1)
+    //             Epsilon -> node(2)
+    //         }
+    //         node(1) {
+    //             Epsilon -> node(0)
+    //             Epsilon -> node(2)
+    //         }
+    //         node(2) {
+    //             ['a'] -> node(3)
+    //             Epsilon -> node(4)
+    //         }
+    //         node(3) {
+    //             Epsilon -> node(2)
+    //             Epsilon -> node(4)
+    //         }
+    //         node(4) {}
+    //     ")
+    // );
+
+    assert_eq!(parse("a{}"), "expected <decimal>, but got nothing");
+    assert_eq!(parse("a{-1}"), "expected <decimal>, but got nothing");
+    assert_eq!(parse("a{0}"), "value 0 doesn't make sense here");
+}
+
+#[test]
+fn parse_braces_with_two_nums() {
+    // assert_eq!(parse("a{1,}"), expect(&["'a'"]));
+}
+
+#[test]
 fn parse_char() {
     assert_eq!(parse("ab"), expect(&["'a'", "'b'"]));
     assert_eq!(parse("ў"), expect(&["D1h", "9Eh"]));

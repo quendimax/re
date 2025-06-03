@@ -6,6 +6,8 @@
 use crate::codec::Codec;
 use crate::error::{Error::*, Result, err};
 use regr::{Epsilon, Graph, Node};
+use std::collections::HashMap;
+use std::ops::Deref;
 use std::str::Chars;
 
 pub struct Parser<'n, 's, T: Codec> {
@@ -224,22 +226,38 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     fn parse_braces(&mut self, item_start: Node<'n>, item_end: Node<'n>) -> Result<Node<'n>> {
         self.lexer.expect('{')?;
         let Some(first_num) = self.parse_decimal() else {
-            return err::unexpected_token("", "decimal");
+            return err::unexpected_token("nothing", "<decimal>");
         };
+        if first_num == 0 {
+            return err::nonsense_value(first_num);
+        }
         let sym = self.lexer.lex().ok_or_else(|| UnexpectedEof {
             aborted_expr: "braces".into(),
         })?;
-        let second_num = match sym {
+        let _second_num = match sym {
             '}' => Some(first_num),
-            ',' => self.parse_decimal(),
-            unexpected => return err::unexpected_token(unexpected, "'}' or ','"),
+            ',' => {
+                if let Some(second_num) = self.parse_decimal() {
+                    if second_num < first_num {
+                        todo!()
+                    }
+                    Some(second_num)
+                } else {
+                    None
+                }
+            }
+            got => return err::unexpected_token(got, "'}' or ','"),
         };
-        if let Some(second_num) = second_num {
-            todo!()
-        } else {
-            todo!()
+        let (mut start_node, mut end_node) = (item_start, item_end);
+        for _ in 1..first_num {
+            (start_node, end_node) = self.clone_tail(start_node, end_node);
         }
-        Ok(item_end)
+        // if let Some(second_num) = second_num {
+        //     todo!()
+        // } else {
+        //     todo!()
+        // }
+        Ok(end_node)
     }
 
     /// Parse parentheses:
@@ -414,7 +432,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     fn parse_decimal(&mut self) -> Option<u32> {
         let mut num: Option<u32> = None;
         while let Some(sym) = self.lexer.peek() {
-            if '0' < sym && sym < '9' {
+            if '0' <= sym && sym <= '9' {
                 self.lexer.take_peeked();
                 let old_num = num.unwrap_or(0);
                 num = Some(old_num + (sym as u32 - '0' as u32));
@@ -423,6 +441,38 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
             }
         }
         num
+    }
+
+    /// Returns clone of sub subgraph where all nodes are clones of all nodes
+    /// accecible from this node (including a clone of the node itself), and
+    /// connected with the same transitions.
+    fn clone_tail(&self, start_node: Node<'n>, end_node: Node<'n>) -> (Node<'n>, Node<'n>) {
+        #[allow(clippy::mutable_key_type)]
+        let mut map = HashMap::new();
+
+        #[allow(clippy::mutable_key_type)]
+        fn rec<'n>(node: Node<'n>, clone: Node<'n>, map: &mut HashMap<Node<'n>, Node<'n>>) {
+            map.insert(node, clone);
+            for (target, tr) in node.symbol_targets() {
+                if map.contains_key(&target) {
+                    continue;
+                }
+                let clone_target = node.owner().node();
+                rec(target, clone_target, map);
+                clone.connect(clone_target, tr.deref());
+            }
+            for target in node.epsilon_targets() {
+                if map.contains_key(&target) {
+                    continue;
+                }
+                let clone_target = node.owner().node();
+                rec(target, clone_target, map);
+                clone.connect(clone_target, Epsilon);
+            }
+        }
+
+        rec(start_node, end_node, &mut map);
+        (end_node, map[&end_node])
     }
 }
 

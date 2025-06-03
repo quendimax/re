@@ -391,7 +391,7 @@ impl<'a> std::iter::Iterator for TargetIter<'a> {
 }
 
 pub struct SymbolTargetIter<'a> {
-    _borrow_ref: BorrowRef<'a>,
+    borrow_ref: BorrowRef<'a>,
     iter: MapIter<'a, NonNull<NodeInner>, Transition>,
 }
 
@@ -400,10 +400,7 @@ impl<'a> SymbolTargetIter<'a> {
         let borrow_ref = BorrowRef::new(&node.0.borrow);
         let targets = unsafe { node.0.targets.get().as_ref() }.unwrap();
         let iter = targets.iter();
-        Self {
-            _borrow_ref: borrow_ref,
-            iter,
-        }
+        Self { borrow_ref, iter }
     }
 }
 
@@ -413,8 +410,7 @@ impl<'a> std::iter::Iterator for SymbolTargetIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next().map(|(node_ptr, transition)| {
             let node = unsafe { Node::from_ptr(*node_ptr) };
-            let transition_ref =
-                unsafe { TransitionRef::new(self._borrow_ref.clone(), transition) };
+            let transition_ref = unsafe { TransitionRef::new(self.borrow_ref.clone(), transition) };
             (node, transition_ref)
         })
     }
