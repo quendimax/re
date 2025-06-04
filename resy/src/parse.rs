@@ -432,7 +432,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     fn parse_decimal(&mut self) -> Option<u32> {
         let mut num: Option<u32> = None;
         while let Some(sym) = self.lexer.peek() {
-            if '0' <= sym && sym <= '9' {
+            if sym.is_ascii_digit() {
                 self.lexer.take_peeked();
                 let old_num = num.unwrap_or(0);
                 num = Some(old_num + (sym as u32 - '0' as u32));
