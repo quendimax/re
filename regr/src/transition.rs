@@ -1,27 +1,50 @@
 use crate::ops::{ContainOp, IntersectOp, MergeOp};
 use crate::range::Range;
+use crate::symbol::Epsilon;
 use crate::symbol::Symbol;
 use std::fmt::Write;
 
-/// Quantity of `u64` values in the `bitmap` member.
+/// Quantity of `u64` values in the `chunks` member for symbols' bits.
 const SYM_BITMAP_LEN: usize = 4;
 
+/// Entire quantity of `u64` values in the `chunks` member.
+const BITMAP_LEN: usize = SYM_BITMAP_LEN + 1; // + 1 for Epsilon bit
+
+/// Index of `u64`-item that contains Epsilon bit.
+const EPSILON_CHUNK: usize = 4;
+
+/// Transition is a struct that contains symbols that connect two nodes. The
+/// symbols can be bytes and Epsilon.
+///
+/// # Implementation
+///
+/// Symbols are the corresponding bits in `chunks` bitmap from 4x`u64` values.
+/// The 256-th bit is for Epsilon.
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct Transition {
-    chunks: [u64; SYM_BITMAP_LEN],
+    chunks: [u64; BITMAP_LEN],
 }
 
 impl Transition {
     pub const BITS: u32 = 256;
 
-    /// Creates a new transition initialized with the given bitmap.
+    /// Creates a new transition initialized with the given symbol bitmap.
     pub fn new(chunks: &[u64; SYM_BITMAP_LEN]) -> Self {
-        Self { chunks: *chunks }
+        Self {
+            chunks: [chunks[0], chunks[1], chunks[2], chunks[3], 0],
+        }
+    }
+
+    /// Creates a new transition initialized with Epsilon.
+    pub fn epsilon() -> Self {
+        Self {
+            chunks: [0, 0, 0, 0, 1],
+        }
     }
 
     /// Creates a new transition parsing the given byte array, and setting a bit
     /// corresponding to each byte value in the array.
-    pub fn from_bytes(bytes: &[u8]) -> Self {
+    pub fn from_symbols(bytes: &[u8]) -> Self {
         let mut tr = Transition::default();
         for byte in bytes {
             tr.merge(*byte);
@@ -94,6 +117,13 @@ impl ContainOp<&Transition> for Transition {
             && self.chunks[1] & other.chunks[1] == other.chunks[1]
             && self.chunks[2] & other.chunks[2] == other.chunks[2]
             && self.chunks[3] & other.chunks[3] == other.chunks[3]
+            && self.chunks[4] & other.chunks[4] == other.chunks[4]
+    }
+}
+
+impl ContainOp<Epsilon> for Transition {
+    fn contains(&self, _: Epsilon) -> bool {
+        self.chunks[EPSILON_CHUNK] & 1 == 1
     }
 }
 
@@ -125,6 +155,7 @@ impl IntersectOp<&Transition> for Transition {
             || self.chunks[1] & other.chunks[1] != 0
             || self.chunks[2] & other.chunks[2] != 0
             || self.chunks[3] & other.chunks[3] != 0
+            || self.chunks[4] & other.chunks[4] != 0
     }
 }
 
@@ -188,6 +219,14 @@ impl MergeOp<&Transition> for Transition {
         self.chunks[1] |= other.chunks[1];
         self.chunks[2] |= other.chunks[2];
         self.chunks[3] |= other.chunks[3];
+        self.chunks[4] |= other.chunks[4];
+    }
+}
+
+impl MergeOp<Epsilon> for Transition {
+    #[inline]
+    fn merge(&mut self, _: Epsilon) {
+        self.chunks[EPSILON_CHUNK] |= 1;
     }
 }
 
@@ -199,6 +238,13 @@ impl std::convert::From<u8> for Transition {
     }
 }
 
+impl std::convert::From<Epsilon> for Transition {
+    #[inline]
+    fn from(_: Epsilon) -> Self {
+        Self::epsilon()
+    }
+}
+
 macro_rules! impl_fmt {
     (std::fmt::$trait:ident) => {
         impl std::fmt::$trait for Transition {
@@ -206,7 +252,9 @@ macro_rules! impl_fmt {
                 f.write_char('[')?;
                 let mut iter = self.ranges();
                 let mut range = iter.next();
+                let mut has_symbols = false;
                 while let Some(cur_range) = range {
+                    has_symbols = true;
                     if let Some(next_range) = iter.next() {
                         if cur_range.end().steps_between(next_range.start()) == 1 {
                             range = Some(Range::new(cur_range.start(), next_range.end()));
@@ -220,6 +268,12 @@ macro_rules! impl_fmt {
                         std::fmt::$trait::fmt(&cur_range, f)?;
                         break;
                     }
+                }
+                if self.contains(crate::symbol::Epsilon) {
+                    if has_symbols {
+                        f.write_str(" | ")?;
+                    }
+                    f.write_str("Epsilon")?;
                 }
                 f.write_char(']')
             }
@@ -235,13 +289,13 @@ impl_fmt!(std::fmt::LowerHex);
 impl_fmt!(std::fmt::UpperHex);
 
 pub struct SymbolIter<'a> {
-    chunks: &'a [u64; SYM_BITMAP_LEN],
+    chunks: &'a [u64; BITMAP_LEN],
     chunk: u64,
     shift: u32,
 }
 
 impl<'a> SymbolIter<'a> {
-    fn new(chunks: &'a [u64; SYM_BITMAP_LEN]) -> Self {
+    fn new(chunks: &'a [u64; BITMAP_LEN]) -> Self {
         Self {
             chunks,
             chunk: chunks[0],
@@ -275,13 +329,13 @@ impl std::iter::Iterator for SymbolIter<'_> {
 }
 
 pub struct RangeIter<'a> {
-    chunks: &'a [u64; SYM_BITMAP_LEN],
+    chunks: &'a [u64; BITMAP_LEN],
     chunk: u64,
     shift: u32,
 }
 
 impl<'a> RangeIter<'a> {
-    fn new(bitmap: &'a [u64; SYM_BITMAP_LEN]) -> Self {
+    fn new(bitmap: &'a [u64; BITMAP_LEN]) -> Self {
         Self {
             chunks: bitmap,
             chunk: bitmap[0],

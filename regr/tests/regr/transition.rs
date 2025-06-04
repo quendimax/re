@@ -1,5 +1,5 @@
 use pretty_assertions::assert_eq;
-use regr::{Range, Transition, range};
+use regr::{Epsilon, Range, Transition, range};
 
 #[test]
 fn transition_new() {
@@ -11,8 +11,8 @@ fn transition_new() {
 }
 
 #[test]
-fn transition_from_bytes() {
-    let transition = Transition::from_bytes(b"\0abc\xFF");
+fn transition_from_symbols() {
+    let transition = Transition::from_symbols(b"\0abc\xFF");
     assert_eq!(
         transition.symbols().collect::<Vec<_>>(),
         vec![0, 97, 98, 99, 255]
@@ -40,6 +40,9 @@ fn transition_symbols() {
         symbols(u64::MAX, u64::MAX, u64::MAX, u64::MAX),
         (0..=255).collect::<Vec>()
     );
+
+    let tr = Transition::epsilon();
+    assert_eq!(tr.symbols().next(), None);
 }
 
 #[test]
@@ -97,11 +100,14 @@ fn transition_ranges() {
         ranges(0xC000000000000007, 0x1F000001, 0, 0),
         vec([range(0..=2), range(62..=63), range(64), range(88..=92)])
     );
+
+    let tr = Transition::epsilon();
+    assert_eq!(tr.ranges().next(), None);
 }
 
 #[test]
 fn transition_contains_symbol() {
-    let tr = Transition::from_bytes(b"\x00bcde\xFF");
+    let tr = Transition::from_symbols(b"\x00bcde\xFF");
     assert_eq!(tr.contains(0), true);
     assert_eq!(tr.contains(255), true);
     assert_eq!(tr.contains(b'b'), true);
@@ -112,7 +118,7 @@ fn transition_contains_symbol() {
 
 #[test]
 fn transition_contains_range() {
-    let tr = Transition::from_bytes(&[0, 1, 5, 6, 7, 255]);
+    let tr = Transition::from_symbols(&[0, 1, 5, 6, 7, 255]);
     assert!(tr.contains(range(0)));
     assert!(tr.contains(range(0..=1)));
     assert!(tr.contains(range(5..=7)));
@@ -124,9 +130,9 @@ fn transition_contains_range() {
 
 #[test]
 fn transition_contains_transition() {
-    let tr_a = Transition::from_bytes(b"ace");
-    let tr_b = Transition::from_bytes(b"bdf");
-    let tr_c = Transition::from_bytes(b"abcdefg");
+    let tr_a = Transition::from_symbols(b"ace");
+    let tr_b = Transition::from_symbols(b"bdf");
+    let tr_c = Transition::from_symbols(b"abcdefg");
     assert!(tr_a.contains(&tr_a));
     assert!(tr_b.contains(&tr_b));
     assert!(tr_c.contains(&tr_c));
@@ -139,8 +145,16 @@ fn transition_contains_transition() {
 }
 
 #[test]
+fn transition_contains_epsilon() {
+    let mut tr = Transition::from_symbols(b"ace");
+    assert!(!tr.contains(Epsilon));
+    tr.merge(Epsilon);
+    assert!(tr.contains(Epsilon));
+}
+
+#[test]
 fn transition_intersects_symbol() {
-    let tr = Transition::from_bytes(b"\x00bcde\xFF");
+    let tr = Transition::from_symbols(b"\x00bcde\xFF");
     assert_eq!(tr.intersects(0), true);
     assert_eq!(tr.intersects(255), true);
     assert_eq!(tr.intersects(b'b'), true);
@@ -151,7 +165,7 @@ fn transition_intersects_symbol() {
 
 #[test]
 fn transition_intersects_range() {
-    let tr = Transition::from_bytes(b"\x00bcde\xFF");
+    let tr = Transition::from_symbols(b"\x00bcde\xFF");
     assert_eq!(tr.intersects(range(0..=255)), true);
     assert_eq!(tr.intersects(range(0)), true);
     assert_eq!(tr.intersects(range(b'a'..=b'b')), true);
@@ -162,9 +176,9 @@ fn transition_intersects_range() {
 
 #[test]
 fn transition_intersects_transition() {
-    let tr_a = Transition::from_bytes(b"ace");
-    let tr_b = Transition::from_bytes(b"bdf");
-    let tr_c = Transition::from_bytes(b"abcde");
+    let tr_a = Transition::from_symbols(b"ace");
+    let tr_b = Transition::from_symbols(b"bdf");
+    let tr_c = Transition::from_symbols(b"abcde");
     assert_eq!(tr_a.intersects(&tr_b), false);
     assert_eq!(tr_a.intersects(&tr_c), true);
     assert_eq!(tr_b.intersects(&tr_c), true);
@@ -172,9 +186,9 @@ fn transition_intersects_transition() {
 
 #[test]
 fn transition_merge_transition() {
-    let mut tr_a = Transition::from_bytes(b"abc");
-    let tr_b = Transition::from_bytes(b"bcde");
-    let tr_c = Transition::from_bytes(b"abcde");
+    let mut tr_a = Transition::from_symbols(b"abc");
+    let tr_b = Transition::from_symbols(b"bcde");
+    let tr_c = Transition::from_symbols(b"abcde");
     tr_a.merge(&tr_b);
     assert_eq!(tr_a, tr_c);
 }
@@ -221,10 +235,20 @@ fn transition_merge_range() {
 #[test]
 fn transition_display_fmt() {
     fn tr(bytes: &[u8]) -> String {
-        format!("{}", Transition::from_bytes(bytes))
+        format!("{}", Transition::from_symbols(bytes))
     }
     assert_eq!(tr(b""), "[]");
     assert_eq!(tr(b"abc"), "['a'-'c']");
     assert_eq!(tr(b"abc"), "['a'-'c']");
     assert_eq!(tr(b"abcE"), "['E' | 'a'-'c']");
+}
+
+#[test]
+fn transition_display_fmt_with_epsilon() {
+    assert_eq!(format!("{}", Transition::epsilon()), "[Epsilon]");
+    let mut tr = Transition::from_symbols(b"abc");
+    tr.merge(Epsilon);
+    assert_eq!(format!("{tr}"), "['a'-'c' | Epsilon]");
+    tr.merge(u8::MAX);
+    assert_eq!(format!("{tr}"), "['a'-'c' | FFh | Epsilon]");
 }
