@@ -1,4 +1,4 @@
-use crate::adt::{Map, MapIter, MapKeyIter, Set, SetIter};
+use crate::adt::{Map, MapIter};
 use crate::graph::{AutomatonKind, Graph};
 use crate::range::Range;
 use crate::symbol::Epsilon;
@@ -6,6 +6,7 @@ use crate::transition::Transition;
 use std::cell::{Cell, UnsafeCell};
 use std::collections::BTreeSet;
 use std::fmt::Write;
+use std::iter::FilterMap;
 use std::ptr::NonNull;
 
 /// Integer type that represents node identifier. It is expected that it is
@@ -36,9 +37,7 @@ enum NodeVariant {
     DfaNode {
         occupied_symbols: UnsafeCell<Transition>,
     },
-    NfaNode {
-        epsilon_targets: UnsafeCell<Set<NonNull<NodeInner>>>,
-    },
+    NfaNode,
 }
 
 use NodeVariant::{DfaNode, NfaNode};
@@ -72,7 +71,7 @@ impl<'a> Node<'a> {
 
     /// Checks if the node is an NFA node.
     pub fn is_nfa(self) -> bool {
-        matches!(self.0.variant, NfaNode { .. })
+        matches!(self.0.variant, NfaNode)
     }
 
     /// Checks if the node is an acceptable N/DFA state.
@@ -128,16 +127,11 @@ impl<'a> Node<'a> {
 
     /// Returns an iterator over target nodes, i.e. nodes that this node is
     /// connected to.
+    ///
+    /// This iterator walks over pairs (`Node`, `TransitionRef`).
     #[inline]
     pub fn targets(self) -> TargetIter<'a> {
         TargetIter::new(self)
-    }
-
-    /// Returns an iterator over target nodes, i.e. nodes that this node is
-    /// connected to.
-    #[inline]
-    pub fn symbol_targets(self) -> SymbolTargetIter<'a> {
-        SymbolTargetIter::new(self)
     }
 
     /// Returns an iterator over epsilon target nodes, i.e. nodes that this node is
@@ -159,9 +153,7 @@ impl<'a> Node<'a> {
                 borrow: Cell::new(0),
                 accept: Cell::new(false),
                 targets: Default::default(),
-                variant: NfaNode {
-                    epsilon_targets: Default::default(),
-                },
+                variant: NfaNode,
             },
             AutomatonKind::DFA => NodeInner {
                 graph_id: graph.gid(),
@@ -216,7 +208,7 @@ impl<'a> ClosureOp<'a, u8> for BTreeSet<Node<'a>> {
     fn closure(&self, symbol: u8) -> BTreeSet<Node<'a>> {
         let mut closure = BTreeSet::new();
         for node in self.iter() {
-            for (target_node, transition) in node.symbol_targets() {
+            for (target_node, transition) in node.targets() {
                 if transition.contains(symbol) {
                     let e_closure = target_node.closure(Epsilon);
                     closure.extend(e_closure);
@@ -288,15 +280,22 @@ impl<'a> ConnectOp<'a, std::ops::RangeInclusive<u8>> for Node<'a> {
 }
 
 impl<'a> ConnectOp<'a, Epsilon> for Node<'a> {
-    fn connect(self, to: Node<'a>, _with: Epsilon) {
+    fn connect(self, to: Node<'a>, with: Epsilon) {
         match &self.0.variant {
             DfaNode { .. } => {
                 panic!("NFA nodes can't be connected with Epsilon");
             }
-            NfaNode { epsilon_targets } => {
+            NfaNode => {
                 _ = BorrowMut::new(&self.0.borrow);
-                let epsilon_targets = unsafe { epsilon_targets.get().as_mut() }.unwrap();
-                epsilon_targets.insert(to.as_ptr());
+                let to = to.as_ptr();
+                let targets = unsafe { self.0.targets.get().as_mut() }.unwrap();
+                if let Some(tr) = targets.get_mut(&to) {
+                    tr.merge(with);
+                } else {
+                    let mut tr = Transition::default();
+                    tr.merge(with);
+                    targets.insert(to, tr);
+                }
             }
         }
     }
@@ -364,38 +363,11 @@ impl_fmt!(std::fmt::UpperHex);
 impl_fmt!(std::fmt::LowerHex);
 
 pub struct TargetIter<'a> {
-    _borrow_ref: BorrowRef<'a>,
-    iter: MapKeyIter<'a, NonNull<NodeInner>, Transition>,
-}
-
-impl<'a> TargetIter<'a> {
-    pub fn new(node: Node<'a>) -> Self {
-        let borrow_ref = BorrowRef::new(&node.0.borrow);
-        let targets = unsafe { node.0.targets.get().as_ref() }.unwrap();
-        let iter = targets.keys();
-        Self {
-            _borrow_ref: borrow_ref,
-            iter,
-        }
-    }
-}
-
-impl<'a> std::iter::Iterator for TargetIter<'a> {
-    type Item = Node<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter
-            .next()
-            .map(|node_ptr| unsafe { Node::from_ptr(*node_ptr) })
-    }
-}
-
-pub struct SymbolTargetIter<'a> {
     borrow_ref: BorrowRef<'a>,
     iter: MapIter<'a, NonNull<NodeInner>, Transition>,
 }
 
-impl<'a> SymbolTargetIter<'a> {
+impl<'a> TargetIter<'a> {
     pub fn new(node: Node<'a>) -> Self {
         let borrow_ref = BorrowRef::new(&node.0.borrow);
         let targets = unsafe { node.0.targets.get().as_ref() }.unwrap();
@@ -404,7 +376,7 @@ impl<'a> SymbolTargetIter<'a> {
     }
 }
 
-impl<'a> std::iter::Iterator for SymbolTargetIter<'a> {
+impl<'a> std::iter::Iterator for TargetIter<'a> {
     type Item = (Node<'a>, TransitionRef<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -441,20 +413,19 @@ impl std::ops::Deref for TransitionRef<'_> {
     }
 }
 
+type EpsilonTargetIterFn<'a> = fn((Node<'a>, TransitionRef<'a>)) -> Option<Node<'a>>;
+
 pub struct EpsilonTargetIter<'a> {
-    _borrow_ref: BorrowRef<'a>,
-    iter: SetIter<'a, NonNull<NodeInner>>,
+    iter: FilterMap<TargetIter<'a>, EpsilonTargetIterFn<'a>>,
 }
 
 impl<'a> EpsilonTargetIter<'a> {
     pub fn new(node: Node<'a>) -> Self {
-        if let NfaNode { epsilon_targets } = &node.0.variant {
-            let borrow_ref = BorrowRef::new(&node.0.borrow);
-            let epsilon_targets = unsafe { epsilon_targets.get().as_ref() }.unwrap();
-            let iter = epsilon_targets.iter();
+        if matches!(node.0.variant, NfaNode) {
             return Self {
-                _borrow_ref: borrow_ref,
-                iter,
+                iter: node
+                    .targets()
+                    .filter_map(|(n, tr)| if tr.contains(Epsilon) { Some(n) } else { None }),
             };
         }
         panic!("iteration over Epsilon targets is possible for NFA nodes only");
@@ -465,9 +436,7 @@ impl<'a> std::iter::Iterator for EpsilonTargetIter<'a> {
     type Item = Node<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter
-            .next()
-            .map(|node_ptr| unsafe { Node::from_ptr(*node_ptr) })
+        self.iter.next()
     }
 }
 

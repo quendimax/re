@@ -110,8 +110,8 @@ fn node_symbol_targets() {
     d.connect(b, Epsilon);
     d.connect(c, Epsilon);
 
-    assert_eq!(a.symbol_targets().map(|x| x.0).collect::<Vec<_>>(), vec![b]);
-    assert_eq!(c.symbol_targets().map(|x| x.0).collect::<Vec<_>>(), vec![d]);
+    assert_eq!(a.targets().map(|x| x.0).collect::<Vec<_>>(), vec![b]);
+    assert_eq!(c.targets().map(|x| x.0).collect::<Vec<_>>(), vec![d]);
 }
 
 #[test]
@@ -123,7 +123,7 @@ fn node_symbol_targets_panic() {
     a.connect(b, b'c');
 
     // expected that _node_tr is (Node, TransitionRef), and it locks writing to node a
-    let _node_tr = a.symbol_targets().next();
+    let _node_tr = a.targets().next();
     a.connect(b, b'a');
 }
 

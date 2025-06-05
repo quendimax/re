@@ -35,23 +35,13 @@ fn expect(chars: &[&str]) -> String {
     let mut res = String::new();
     for (i, &c) in chars.iter().enumerate() {
         let j = i + 1;
-        if c == "Epsilon" {
-            res += &format!(
-                "\
-                node({i}) {{
-                    {c} -> node({j})
-                }}
-                "
-            );
-        } else {
-            res += &format!(
-                "\
-                node({i}) {{
-                    [{c}] -> node({j})
-                }}
-                "
-            );
-        }
+        res += &format!(
+            "\
+            node({i}) {{
+                [{c}] -> node({j})
+            }}
+            "
+        );
     }
     res += &format!("node({}) {{}}", chars.len());
     fmt(&res)
@@ -140,11 +130,11 @@ fn parse_kleene_star() {
         fmt("\
         node(0) {
             ['a'] -> node(1)
-            Epsilon -> node(2)
+            [Epsilon] -> node(2)
         }
         node(1) {
-            Epsilon -> node(0)
-            Epsilon -> node(2)
+            [Epsilon] -> node(0)
+            [Epsilon] -> node(2)
         }
         node(2) {}
         ")
@@ -154,16 +144,16 @@ fn parse_kleene_star() {
         fmt("\
         node(0) {
             ['a'] -> node(1)
-            Epsilon -> node(2)
-            Epsilon -> node(3)
+            [Epsilon] -> node(2)
+            [Epsilon] -> node(3)
         }
         node(1) {
-            Epsilon -> node(0)
-            Epsilon -> node(2)
+            [Epsilon] -> node(0)
+            [Epsilon] -> node(2)
         }
         node(2) {
-            Epsilon -> node(0)
-            Epsilon -> node(3)
+            [Epsilon] -> node(0)
+            [Epsilon] -> node(3)
         }
         node(3) {}
         ")
@@ -179,8 +169,8 @@ fn parse_plus_operator() {
             ['a'] -> node(1)
         }
         node(1) {
-            Epsilon -> node(0)
-            Epsilon -> node(2)
+            [Epsilon] -> node(0)
+            [Epsilon] -> node(2)
         }
         node(2) {}
         ")
@@ -192,12 +182,12 @@ fn parse_plus_operator() {
             ['a'] -> node(1)
         }
         node(1) {
-            Epsilon -> node(0)
-            Epsilon -> node(2)
+            [Epsilon] -> node(0)
+            [Epsilon] -> node(2)
         }
         node(2) {
-            Epsilon -> node(0)
-            Epsilon -> node(3)
+            [Epsilon] -> node(0)
+            [Epsilon] -> node(3)
         }
         node(3) {}
         ")
@@ -211,10 +201,10 @@ fn parse_question() {
         fmt("\
         node(0) {
             ['a'] -> node(1)
-            Epsilon -> node(2)
+            [Epsilon] -> node(2)
         }
         node(1) {
-            Epsilon -> node(2)
+            [Epsilon] -> node(2)
         }
         node(2) {}
         ")
@@ -224,14 +214,14 @@ fn parse_question() {
         fmt("\
         node(0) {
             ['a'] -> node(1)
-            Epsilon -> node(2)
-            Epsilon -> node(3)
+            [Epsilon] -> node(2)
+            [Epsilon] -> node(3)
         }
         node(1) {
-            Epsilon -> node(2)
+            [Epsilon] -> node(2)
         }
         node(2) {
-            Epsilon -> node(3)
+            [Epsilon] -> node(3)
         }
         node(3) {}
         ")
@@ -256,11 +246,11 @@ fn parse_braces_with_one_num() {
         fmt("\
             node(0) {
                 ['a'] -> node(1)
-                Epsilon -> node(2)
+                [Epsilon] -> node(2)
             }
             node(1) {
-                Epsilon -> node(0)
-                Epsilon -> node(2)
+                [Epsilon] -> node(0)
+                [Epsilon] -> node(2)
             }
             node(2) {}
         ")

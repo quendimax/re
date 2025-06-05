@@ -68,7 +68,7 @@ fn graph_determined_0() {
         dsp(&nfa),
         dsp(&"
             node(0) {
-                Epsilon -> self
+                [Epsilon] -> self
             }
         ")
     );
@@ -94,7 +94,7 @@ fn graph_determined_1() {
         dsp(&"
             node(0) {
                 [01h-FFh] -> self
-                Epsilon -> node(1)
+                [Epsilon] -> node(1)
             }
             node(1) {
                 ['a'] -> node(2)
@@ -148,20 +148,19 @@ fn graph_display_fmt_0() {
         dsp(&graph),
         dsp(&"
             node(0) {
-                ['a'-FFh] -> node(1)
-                Epsilon -> node(1)
+                ['a'-FFh | Epsilon] -> node(1)
             }
             node(1) {
-                Epsilon -> node(2)
-                Epsilon -> node(0)
+                [Epsilon] -> node(2)
+                [Epsilon] -> node(0)
             }
             node(2) {
                 ['c'] -> node(3)
             }
             node(3) {
-                Epsilon -> node(0)
-                Epsilon -> node(1)
-                Epsilon -> node(2)
+                [Epsilon] -> node(0)
+                [Epsilon] -> node(1)
+                [Epsilon] -> node(2)
             }
         ")
     );
@@ -190,15 +189,15 @@ fn graph_display_fmt_1() {
             ['a'-'b' | 'd'-'z'] -> node(1)
         }
         node(1) {
-            Epsilon -> node(2)
-            Epsilon -> node(4)
+            [Epsilon] -> node(2)
+            [Epsilon] -> node(4)
         }
         node(2) {
             ['a'] -> node(3)
         }
         node(3) {
-            Epsilon -> node(4)
-            Epsilon -> node(2)
+            [Epsilon] -> node(4)
+            [Epsilon] -> node(2)
         }
         node(4) {}
         ")
@@ -229,8 +228,8 @@ fn graph_display_fmt_2() {
         dsp(&graph),
         dsp(&"
             node(0) {
-                Epsilon -> node(2)
-                Epsilon -> node(5)
+                [Epsilon] -> node(2)
+                [Epsilon] -> node(5)
             }
             node(1) {}
             node(2) {
@@ -240,7 +239,7 @@ fn graph_display_fmt_2() {
                 ['b'] -> node(4)
             }
             node(4) {
-                Epsilon -> node(1)
+                [Epsilon] -> node(1)
             }
             node(5) {
                 ['c'] -> node(6)
@@ -249,7 +248,7 @@ fn graph_display_fmt_2() {
                 ['d'] -> node(7)
             }
             node(7) {
-                Epsilon -> node(1)
+                [Epsilon] -> node(1)
             }
         ")
     );

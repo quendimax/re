@@ -453,7 +453,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         #[allow(clippy::mutable_key_type)]
         fn rec<'n>(node: Node<'n>, clone: Node<'n>, map: &mut HashMap<Node<'n>, Node<'n>>) {
             map.insert(node, clone);
-            for (target, tr) in node.symbol_targets() {
+            for (target, tr) in node.targets() {
                 if map.contains_key(&target) {
                     continue;
                 }

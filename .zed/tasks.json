@@ -2,7 +2,7 @@
   {
     "label": "qm::cargo_test",
     "command": "cargo",
-    "args": ["test", "--features=regr/ordered-hash"]
+    "args": ["test", "--features=ordered-hash"]
   },
   {
     "label": "qm::cargo_nextest_run",

@@ -166,7 +166,7 @@ macro_rules! impl_fmt {
                     let mut is_empty = true;
                     std::fmt::$trait::fmt(&node, f)?;
                     f.write_str(" {")?;
-                    for (target, transition) in node.symbol_targets() {
+                    for (target, transition) in node.targets() {
                         f.write_str("\n    ")?;
                         std::fmt::$trait::fmt(transition.deref(), f)?;
                         f.write_str(" -> ")?;
@@ -176,19 +176,6 @@ macro_rules! impl_fmt {
                             std::fmt::$trait::fmt(&target, f)?;
                         }
                         is_empty = false;
-                    }
-                    if node.is_nfa() {
-                        for target in node.epsilon_targets() {
-                            f.write_str("\n    ")?;
-                            std::fmt::$trait::fmt(&Epsilon, f)?;
-                            f.write_str(" -> ")?;
-                            if node == target {
-                                f.write_str("self")?;
-                            } else {
-                                std::fmt::$trait::fmt(&target, f)?;
-                            }
-                            is_empty = false;
-                        }
                     }
                     if !is_empty {
                         f.write_char('\n')?;
