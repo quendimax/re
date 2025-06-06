@@ -156,7 +156,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     /// Parses Kleene star operator.
     ///
     /// I use here a bit modified Thompson's construction:
-    /// ```
+    /// ```c
     ///  ╭────ε────╮
     ///  ↓         │
     /// (1)──'a'─→(2)──ε─→(3)
@@ -164,7 +164,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     ///  ╰────────ε────────╯
     /// ```
     /// instead of
-    /// ```
+    /// ```c
     ///          ╭────ε────╮
     ///          ↓         │
     /// (1)──ε─→(2)──'a'─→(3)──ε─→(4)
@@ -183,13 +183,13 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     /// Parses plus operator.
     ///
     /// I use here a bit modified Thompson's construction:
-    /// ```
+    /// ```c
     ///  ╭────ε────╮
     ///  ↓         │
     /// (1)──'a'─→(2)──ε─→(3)
     /// ```
     /// instead of
-    /// ```
+    /// ```c
     ///          ╭────ε────╮
     ///          ↓         │
     /// (1)──ε─→(2)──'a'─→(3)──ε─→(4)
@@ -205,13 +205,13 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     /// Parses question operator.
     ///
     /// I use here a bit modified Thompson's construction:
-    /// ```
+    /// ```c
     /// (1)──'a'─→(2)──ε─→(3)
     ///  │                 ↑
     ///  ╰────────ε────────╯
     /// ```
     /// instead of
-    /// ```
+    /// ```c
     /// (1)──ε─→(2)──'a'─→(3)──ε─→(4)
     ///  │                         ↑
     ///  ╰────────────ε────────────╯
