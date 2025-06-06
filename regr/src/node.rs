@@ -413,6 +413,13 @@ impl std::ops::Deref for TransitionRef<'_> {
     }
 }
 
+impl std::fmt::Debug for TransitionRef<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::ops::Deref;
+        std::fmt::Debug::fmt(self.deref(), f)
+    }
+}
+
 type EpsilonTargetIterFn<'a> = fn((Node<'a>, TransitionRef<'a>)) -> Option<Node<'a>>;
 
 pub struct EpsilonTargetIter<'a> {

@@ -255,28 +255,55 @@ fn parse_braces_with_one_num() {
             node(2) {}
         ")
     );
-    // assert_eq!(
-    //     parse("a*{2}"),
-    //     fmt("\
-    //         node(0) {
-    //             ['a'] -> node(1)
-    //             Epsilon -> node(2)
-    //         }
-    //         node(1) {
-    //             Epsilon -> node(0)
-    //             Epsilon -> node(2)
-    //         }
-    //         node(2) {
-    //             ['a'] -> node(3)
-    //             Epsilon -> node(4)
-    //         }
-    //         node(3) {
-    //             Epsilon -> node(2)
-    //             Epsilon -> node(4)
-    //         }
-    //         node(4) {}
-    //     ")
-    // );
+    assert_eq!(
+        parse("a*{2}"),
+        fmt("\
+            node(0) {
+                ['a'] -> node(1)
+                [Epsilon] -> node(2)
+            }
+            node(1) {
+                [Epsilon] -> node(0)
+                [Epsilon] -> node(2)
+            }
+            node(2) {
+                ['a'] -> node(3)
+                [Epsilon] -> node(4)
+            }
+            node(3) {
+                [Epsilon] -> node(2)
+                [Epsilon] -> node(4)
+            }
+            node(4) {}
+        ")
+    );
+    assert_eq!(
+        parse("a+{3}"),
+        fmt("\
+            node(0) {
+                ['a'] -> node(1)
+            }
+            node(1) {
+                [Epsilon] -> node(0)
+                [Epsilon] -> node(2)
+            }
+            node(2) {
+                ['a'] -> node(3)
+            }
+            node(3) {
+                [Epsilon] -> node(2)
+                [Epsilon] -> node(4)
+            }
+            node(4) {
+                ['a'] -> node(5)
+            }
+            node(5) {
+                [Epsilon] -> node(4)
+                [Epsilon] -> node(6)
+            }
+            node(6) {}
+        ")
+    );
 
     assert_eq!(parse("a{}"), "expected <decimal>, but got nothing");
     assert_eq!(parse("a{-1}"), "expected <decimal>, but got nothing");

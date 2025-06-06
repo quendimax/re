@@ -6,6 +6,7 @@
 use crate::codec::Codec;
 use crate::error::{Error::*, Result, err};
 use regr::{Epsilon, Graph, Node};
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::str::Chars;
@@ -453,21 +454,18 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         #[allow(clippy::mutable_key_type)]
         fn rec<'n>(node: Node<'n>, clone: Node<'n>, map: &mut HashMap<Node<'n>, Node<'n>>) {
             map.insert(node, clone);
+            let mut collect = SmallVec::<[_; 3]>::new();
             for (target, tr) in node.targets() {
-                if map.contains_key(&target) {
-                    continue;
+                if let Some(clone_target) = map.get(&target) {
+                    collect.push((*clone_target, tr));
+                } else {
+                    let clone_target = node.owner().node();
+                    rec(target, clone_target, map);
+                    collect.push((clone_target, tr));
                 }
-                let clone_target = node.owner().node();
-                rec(target, clone_target, map);
-                clone.connect(clone_target, tr.deref());
             }
-            for target in node.epsilon_targets() {
-                if map.contains_key(&target) {
-                    continue;
-                }
-                let clone_target = node.owner().node();
-                rec(target, clone_target, map);
-                clone.connect(clone_target, Epsilon);
+            for (clone_target, tr) in collect {
+                clone.connect(clone_target, tr.deref());
             }
         }
 
