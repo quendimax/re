@@ -20,8 +20,9 @@ postfix
     '*'
     '+'
     '?'
-    '{' num '}'
-    '{' num ',' num '}'
+    '{' decimal '}'
+    '{' decimal ',' '}'
+    '{' decimal ',' decimal '}'
 
 class
     '.'
@@ -80,8 +81,15 @@ escape
     'u' '{' hex hex hex hex hex '}'
     'u' '{' hex hex hex hex hex hex '}'
 
+decimal
+    dec
+    dec decimal
+
 oct
     '0' . '7'
+
+dec
+    '0' . '9'
 
 hex
     '0' . '9'
