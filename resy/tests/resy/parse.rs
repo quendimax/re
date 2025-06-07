@@ -58,69 +58,30 @@ fn parse_parens() {
 }
 
 #[test]
-fn parse_escape() {
-    assert_eq!(parse(""), expect(&["Epsilon"]));
-    assert_eq!(parse("\""), expect(&["'\"'"]));
-    assert_eq!(parse(r"\n"), expect(&["0Ah"]));
-    assert_eq!(parse(r"\r"), expect(&["0Dh"]));
-    assert_eq!(parse(r"\t"), expect(&["09h"]));
-    assert_eq!(parse(r"\0"), expect(&["00h"]));
-    assert_eq!(parse(r"\x00"), expect(&["00h"]));
-    assert_eq!(parse(r"\x61"), expect(&["'a'"]));
-    assert_eq!(parse(r"\x7f"), expect(&["7Fh"]));
-    assert_eq!(parse(r"\x7F"), expect(&["7Fh"]));
-    assert_eq!(parse(r"\x7F"), expect(&["7Fh"]));
-    assert_eq!(parse(r"\u{0}"), expect(&["00h"]));
-    assert_eq!(parse(r"\u{000000}"), expect(&["00h"]));
-    assert_eq!(parse(r"\u{10FFFF}"), expect(&["F4h", "8Fh", "BFh", "BFh"]));
+fn parse_disjunction() {
+    assert_eq!(
+        parse("a|b|c"),
+        fmt("\
+            node(0) {
+                ['a'] -> node(1)
+                ['b'] -> node(2)
+                ['c'] -> node(3)
+            }
+            node(1) {}
+            node(2) {
+                [Epsilon] -> node(1)
+            }
+            node(3) {
+                [Epsilon] -> node(1)
+            }
+        ")
+    );
 }
 
 #[test]
-fn parse_escape_fails() {
-    assert_matches!(try_parse(r"\x80"), Err(OutOfRange { .. }));
-    assert_matches!(try_parse(r"\x"), Err(UnexpectedEof { .. }));
-    assert_matches!(try_parse(r"\x0"), Err(UnexpectedEof { .. }));
-    assert_matches!(try_parse(r"\x7h"), Err(InvalidHex(..)));
-    assert_matches!(try_parse(r"\xqf"), Err(InvalidHex(..)));
-
-    assert_matches!(try_parse(r"\u{}"), Err(EmptyEscape));
-    assert_matches!(try_parse(r"\u{s}"), Err(InvalidHex(..)));
-    assert_matches!(
-        try_parse(r"\u{0000000}"),
-        Err(Error::UnexpectedToken { gotten, expected }) if gotten == "0" && expected == "}"
-    );
-    assert_matches!(
-        try_parse(r"\u{110000}"),
-        Err(CodecError(InvalidCodePoint(..)))
-    );
-    assert_matches!(
-        try_parse(r"\u{D800}"),
-        Err(CodecError(SurrogateUnsupported { .. }))
-    );
-
-    assert_matches!(try_parse(r"\x80"), Err(OutOfRange { .. }));
-    assert_matches!(try_parse(r"\xFF"), Err(OutOfRange { .. }));
-    assert_matches!(try_parse(r"\u{0000000}"), Err(UnexpectedToken { .. }));
-    assert_matches!(
-        try_parse(r"\u{110000}"),
-        Err(CodecError(InvalidCodePoint(..)))
-    );
-    assert_matches!(
-        try_parse(r"\u{D800}"),
-        Err(CodecError(SurrogateUnsupported { .. }))
-    );
-    assert_matches!(
-        try_parse(r"\u{DBff}"),
-        Err(CodecError(SurrogateUnsupported { .. }))
-    );
-    assert_matches!(
-        try_parse(r"\u{DC00}"),
-        Err(CodecError(SurrogateUnsupported { .. }))
-    );
-    assert_matches!(
-        try_parse(r"\u{dFFf}"),
-        Err(CodecError(SurrogateUnsupported { .. }))
-    );
+fn parse_concatenation() {
+    assert_eq!(parse(""), expect(&["Epsilon"]));
+    assert_eq!(parse("ab"), expect(&["'a'", "'b'"]));
 }
 
 #[test]
@@ -317,8 +278,73 @@ fn parse_braces_with_two_nums() {
 }
 
 #[test]
+fn parse_escape() {
+    assert_eq!(parse(r"\n"), expect(&["0Ah"]));
+    assert_eq!(parse(r"\r"), expect(&["0Dh"]));
+    assert_eq!(parse(r"\t"), expect(&["09h"]));
+    assert_eq!(parse(r"\0"), expect(&["00h"]));
+    assert_eq!(parse(r"\x00"), expect(&["00h"]));
+    assert_eq!(parse(r"\x61"), expect(&["'a'"]));
+    assert_eq!(parse(r"\x7f"), expect(&["7Fh"]));
+    assert_eq!(parse(r"\x7F"), expect(&["7Fh"]));
+    assert_eq!(parse(r"\x7F"), expect(&["7Fh"]));
+    assert_eq!(parse(r"\u{0}"), expect(&["00h"]));
+    assert_eq!(parse(r"\u{000000}"), expect(&["00h"]));
+    assert_eq!(parse(r"\u{10FFFF}"), expect(&["F4h", "8Fh", "BFh", "BFh"]));
+}
+
+#[test]
+fn parse_escape_fails() {
+    assert_matches!(try_parse(r"\x80"), Err(OutOfRange { .. }));
+    assert_matches!(try_parse(r"\x"), Err(UnexpectedEof { .. }));
+    assert_matches!(try_parse(r"\x0"), Err(UnexpectedEof { .. }));
+    assert_matches!(try_parse(r"\x7h"), Err(InvalidHex(..)));
+    assert_matches!(try_parse(r"\xqf"), Err(InvalidHex(..)));
+
+    assert_matches!(try_parse(r"\u{}"), Err(EmptyEscape));
+    assert_matches!(try_parse(r"\u{s}"), Err(InvalidHex(..)));
+    assert_matches!(
+        try_parse(r"\u{0000000}"),
+        Err(Error::UnexpectedToken { gotten, expected }) if gotten == "0" && expected == "}"
+    );
+    assert_matches!(
+        try_parse(r"\u{110000}"),
+        Err(CodecError(InvalidCodePoint(..)))
+    );
+    assert_matches!(
+        try_parse(r"\u{D800}"),
+        Err(CodecError(SurrogateUnsupported { .. }))
+    );
+
+    assert_matches!(try_parse(r"\x80"), Err(OutOfRange { .. }));
+    assert_matches!(try_parse(r"\xFF"), Err(OutOfRange { .. }));
+    assert_matches!(try_parse(r"\u{0000000}"), Err(UnexpectedToken { .. }));
+    assert_matches!(
+        try_parse(r"\u{110000}"),
+        Err(CodecError(InvalidCodePoint(..)))
+    );
+    assert_matches!(
+        try_parse(r"\u{D800}"),
+        Err(CodecError(SurrogateUnsupported { .. }))
+    );
+    assert_matches!(
+        try_parse(r"\u{DBff}"),
+        Err(CodecError(SurrogateUnsupported { .. }))
+    );
+    assert_matches!(
+        try_parse(r"\u{DC00}"),
+        Err(CodecError(SurrogateUnsupported { .. }))
+    );
+    assert_matches!(
+        try_parse(r"\u{dFFf}"),
+        Err(CodecError(SurrogateUnsupported { .. }))
+    );
+}
+
+#[test]
 fn parse_char() {
-    assert_eq!(parse("ab"), expect(&["'a'", "'b'"]));
+    assert_eq!(parse("\""), expect(&["'\"'"]));
+    assert_eq!(parse("a"), expect(&["'a'"]));
     assert_eq!(parse("ў"), expect(&["D1h", "9Eh"]));
     assert_eq!(parse("Ⲁ"), expect(&["E2h", "B2h", "80h"]));
     assert_eq!(parse("𐌰"), expect(&["F0h", "90h", "8Ch", "B0h"]));

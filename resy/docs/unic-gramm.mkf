@@ -2,11 +2,11 @@ re
     disjunct
 
 disjunct
-    ""
     concat
     concat '|' disjunct
 
 concat
+    ""
     item
     item concat
 

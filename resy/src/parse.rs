@@ -24,11 +24,11 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         Self { nfa, lexer, codec }
     }
 
-    /// Parse regular expression specified with `pattern` using `start_node` as
-    /// the first node for the builded graph.
+    /// Parses a regular expression specified with `pattern` using `start_node`
+    /// as the first node for the builded graph.
     ///
     /// Returns last node of the result graph. This node is not accepable by
-    /// default. Make this acceptable by yourself if needed.
+    /// default. Make this acceptable by yourself if it is needed.
     pub fn parse(&mut self, pattern: &'s str, start_node: Node<'n>) -> Result<Node<'n>> {
         assert!(start_node.gid() == self.nfa.gid());
         self.lexer = Lexer::new(pattern);
@@ -43,13 +43,29 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         Ok(finish_node)
     }
 
-    /// Parse disjunction:
+    /// Parses a disjunction expression. If nothing was parsed, returns
+    /// `start_node`, else the last node of new graph's tail.
     ///
     /// ```mkf
     /// disjunct
-    ///     ""
     ///     concat
     ///     concat '|' disjunct
+    /// ```
+    ///
+    /// # Implementation
+    ///
+    /// This method uses the last node of the first concatination expression as
+    /// the last node of the entire disjunction expression. All the other concat
+    /// expressions are connected to this node with Epsilone joint.
+    ///
+    /// So it will build from pattern `a|b|c` the following graph:
+    ///
+    /// ```c
+    ///  ╭────────'a'────────╮
+    ///  │                   ↓
+    /// (0)──'b'─→(2)───ε──→(1)
+    ///  │                   ↑
+    ///  ╰───'c'─→(3)───ε────╯
     /// ```
     fn parse_disjunct(&mut self, start_node: Node<'n>) -> Result<Node<'n>> {
         let end_node = self.parse_concat(start_node)?;
@@ -62,14 +78,15 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
                 return Ok(end_node);
             }
         }
-        assert_ne!(start_node, end_node);
+        debug_assert_ne!(start_node, end_node);
         Ok(end_node)
     }
 
-    /// Parse concatenation:
+    /// Parses a concatenation expression.
     ///
     /// ```mkf
     /// concat
+    ///     ""
     ///     item
     ///     item concat
     /// ```
@@ -78,15 +95,15 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         while let Some(node) = self.try_parse_item(end_node)? {
             end_node = node;
         }
-        // if there is an empty expression, create an epsilone transition
         if start_node == end_node {
+            // if nothing parsed, it is an Epsilon transition
             end_node = self.nfa.node();
             start_node.connect(end_node, Epsilon);
         }
         Ok(end_node)
     }
 
-    /// Parse item:
+    /// Parses an item:
     ///
     /// ```mkf
     /// item
@@ -99,6 +116,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         if let Some(next_sym) = self.lexer.peek() {
             let res = match next_sym {
                 '(' => self.parse_parens(start_node),
+                '|' => Ok(start_node),
                 ')' => Ok(start_node),
                 '[' => self.parse_class(start_node),
                 ']' => err::unexpected_close_bracket(next_sym),
@@ -118,7 +136,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         }
     }
 
-    /// Parses postfix:
+    /// Parses a postfix:
     ///
     /// ```mkf
     /// postfix
@@ -153,7 +171,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         }
     }
 
-    /// Parses Kleene star operator.
+    /// Parses a Kleene star operator.
     ///
     /// I use here a bit modified Thompson's construction:
     /// ```c
@@ -180,7 +198,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         Ok(new_end_node)
     }
 
-    /// Parses plus operator.
+    /// Parses a plus operator.
     ///
     /// I use here a bit modified Thompson's construction:
     /// ```c
@@ -202,7 +220,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         Ok(new_end_node)
     }
 
-    /// Parses question operator.
+    /// Parses a question operator.
     ///
     /// I use here a bit modified Thompson's construction:
     /// ```c
