@@ -227,16 +227,22 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     fn parse_braces(&mut self, item_start: Node<'n>, item_end: Node<'n>) -> Result<Node<'n>> {
         self.lexer.expect('{')?;
         let Some(first_num) = self.parse_decimal() else {
-            return err::unexpected_token("nothing", "<decimal>");
+            let gotten = format!("'{}'", self.lexer.peek().unwrap());
+            return err::unexpected_token(gotten, "decimal");
         };
-        if first_num == 0 {
-            return err::nonsense_value(first_num);
-        }
         let sym = self.lexer.lex().ok_or_else(|| UnexpectedEof {
             aborted_expr: "braces".into(),
         })?;
         let _second_num = match sym {
-            '}' => Some(first_num),
+            '}' => {
+                if first_num == 0 {
+                    // `x{0}` is an empty transition. Because of it is difficult
+                    // to implement it `perfectly` in current implementation, I
+                    // just forbid it.
+                    return err::nonsense_value(first_num);
+                }
+                Some(first_num)
+            }
             ',' => {
                 if let Some(second_num) = self.parse_decimal() {
                     if second_num < first_num {
@@ -429,7 +435,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     }
 
     /// Parses decimal secquence into `u32` value. If there wasn't found any
-    /// dicamal characters, returns zero.
+    /// dicamal characters, returns `None`.
     fn parse_decimal(&mut self) -> Option<u32> {
         let mut num: Option<u32> = None;
         while let Some(sym) = self.lexer.peek() {
@@ -529,7 +535,7 @@ impl<'s> Lexer<'s> {
         }
     }
 
-    fn take_peeked(&mut self) {
-        self.peeked = None;
+    fn take_peeked(&mut self) -> Option<char> {
+        self.peeked.take()
     }
 }

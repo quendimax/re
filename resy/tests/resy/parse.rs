@@ -305,8 +305,9 @@ fn parse_braces_with_one_num() {
         ")
     );
 
-    assert_eq!(parse("a{}"), "expected <decimal>, but got nothing");
-    assert_eq!(parse("a{-1}"), "expected <decimal>, but got nothing");
+    assert_eq!(parse("a{}"), "expected decimal, but got '}'");
+    assert_eq!(parse("a{,}"), "expected decimal, but got ','");
+    assert_eq!(parse("a{-1}"), "expected decimal, but got '-'");
     assert_eq!(parse("a{0}"), "value 0 doesn't make sense here");
 }
 
