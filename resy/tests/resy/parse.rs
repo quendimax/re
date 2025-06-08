@@ -76,6 +76,23 @@ fn parse_disjunction() {
             }
         ")
     );
+    assert_eq!(
+        parse("||"),
+        fmt("\
+            node(0) {
+                [Epsilon] -> node(1)
+                [Epsilon] -> node(2)
+                [Epsilon] -> node(3)
+            }
+            node(1) {}
+            node(2) {
+                [Epsilon] -> node(1)
+            }
+            node(3) {
+                [Epsilon] -> node(1)
+            }
+        ")
+    );
 }
 
 #[test]
