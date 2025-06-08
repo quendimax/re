@@ -244,29 +244,33 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         Ok(new_end_node)
     }
 
+    /// Parses a braces postfix.
+    ///
+    /// # Syntax
+    ///
+    /// ```mkf
+    /// postfix
+    ///     ; ...
+    ///     '{' decimal '}'
+    ///     '{' decimal ',' '}'
+    ///     '{' decimal ',' decimal '}'
+    /// ```
     fn parse_braces(&mut self, item_start: Node<'n>, item_end: Node<'n>) -> Result<Node<'n>> {
         self.lexer.expect('{')?;
         let Some(first_num) = self.parse_decimal() else {
             let gotten = format!("'{}'", self.lexer.peek().unwrap());
             return err::unexpected_token(gotten, "decimal");
         };
-        let sym = self.lexer.lex().ok_or_else(|| UnexpectedEof {
+        let sym = self.lexer.peek().ok_or_else(|| UnexpectedEof {
             aborted_expr: "braces".into(),
         })?;
-        let _second_num = match sym {
-            '}' => {
-                if first_num == 0 {
-                    // `x{0}` is an empty transition. Because of it is difficult
-                    // to implement it `perfectly` in current implementation, I
-                    // just forbid it.
-                    return err::nonsense_value(first_num);
-                }
-                Some(first_num)
-            }
+        let second_num = match sym {
+            '}' => Some(first_num),
             ',' => {
+                self.lexer.take_peeked();
                 if let Some(second_num) = self.parse_decimal() {
                     if second_num < first_num {
-                        todo!()
+                        return err::unexpected_cond("expression `{n,m}` has `n` <= `m`");
                     }
                     Some(second_num)
                 } else {
@@ -275,15 +279,44 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
             }
             got => return err::unexpected_token(got, "'}' or ','"),
         };
+        if let Some(second_num) = second_num {
+            if first_num == 0 && second_num == 0 {
+                // `x{0}` and `x{0,0}` are an empty transition. Because of it is
+                // difficult to implement it `perfectly` in current implementation,
+                // I just forbid it.
+                return err::nonsense_value(first_num);
+            }
+        }
+        self.lexer.expect('}')?;
         let (mut start_node, mut end_node) = (item_start, item_end);
         for _ in 1..first_num {
             (start_node, end_node) = self.clone_tail(start_node, end_node);
         }
-        // if let Some(second_num) = second_num {
-        //     todo!()
-        // } else {
-        //     todo!()
-        // }
+        if let Some(second_num) = second_num {
+            // as N `?`-operators
+            if first_num < second_num {
+                if first_num > 0 {
+                    (start_node, end_node) = self.clone_tail(start_node, end_node);
+                }
+                let node = self.nfa.node();
+                start_node.connect(node, Epsilon);
+                end_node.connect(node, Epsilon);
+                end_node = node;
+                for _ in first_num..second_num - 1 {
+                    (start_node, end_node) = self.clone_tail(start_node, end_node);
+                }
+            }
+        } else {
+            // as `*`-operator
+            if first_num > 0 {
+                (start_node, end_node) = self.clone_tail(start_node, end_node);
+            }
+            let node = self.nfa.node();
+            start_node.connect(node, Epsilon);
+            end_node.connect(start_node, Epsilon);
+            end_node.connect(node, Epsilon);
+            end_node = node;
+        }
         Ok(end_node)
     }
 

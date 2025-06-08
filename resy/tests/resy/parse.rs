@@ -291,7 +291,119 @@ fn parse_braces_with_one_num() {
 
 #[test]
 fn parse_braces_with_two_nums() {
-    // assert_eq!(parse("a{1,}"), expect(&["'a'"]));
+    assert_eq!(parse("a{1,1}"), expect(&["'a'"]));
+    assert_eq!(parse("a{2,2}"), expect(&["'a'", "'a'"]));
+
+    assert_eq!(
+        parse("a{0,}"),
+        fmt("\
+                node(0) {
+                    ['a'] -> node(1)
+                    [Epsilon] -> node(2)
+                }
+                node(1) {
+                    [Epsilon] -> node(0)
+                    [Epsilon] -> node(2)
+                }
+                node(2) {}
+            ")
+    );
+    assert_eq!(
+        parse("a{1,}"),
+        fmt("\
+            node(0) {
+                ['a'] -> node(1)
+            }
+            node(1) {
+                ['a'] -> node(2)
+                [Epsilon] -> node(3)
+            }
+            node(2) {
+                [Epsilon] -> node(1)
+                [Epsilon] -> node(3)
+            }
+            node(3) {}
+        ")
+    );
+    assert_eq!(
+        parse("a{2,}"),
+        fmt("\
+            node(0) {
+                ['a'] -> node(1)
+            }
+            node(1) {
+                ['a'] -> node(2)
+            }
+            node(2) {
+                ['a'] -> node(3)
+                [Epsilon] -> node(4)
+            }
+            node(3) {
+                [Epsilon] -> node(2)
+                [Epsilon] -> node(4)
+            }
+            node(4) {}
+        ")
+    );
+
+    assert_eq!(
+        parse("a{0,1}"),
+        fmt("\
+            node(0) {
+                ['a'] -> node(1)
+                [Epsilon] -> node(2)
+            }
+            node(1) {
+                [Epsilon] -> node(2)
+            }
+            node(2) {}
+        ")
+    );
+    assert_eq!(
+        parse("a{1,2}"),
+        fmt("\
+            node(0) {
+                ['a'] -> node(1)
+            }
+            node(1) {
+                ['a'] -> node(2)
+                [Epsilon] -> node(3)
+            }
+            node(2) {
+                [Epsilon] -> node(3)
+            }
+            node(3) {}
+        ")
+    );
+    assert_eq!(
+        parse("a{1,3}"),
+        fmt("\
+            node(0) {
+                ['a'] -> node(1)
+            }
+            node(1) {
+                ['a'] -> node(2)
+                [Epsilon] -> node(3)
+            }
+            node(2) {
+                [Epsilon] -> node(3)
+            }
+            node(3) {
+                ['a'] -> node(4)
+                [Epsilon] -> node(5)
+            }
+            node(4) {
+                [Epsilon] -> node(5)
+            }
+            node(5) {}
+        ")
+    );
+
+    assert_eq!(parse("a{0,0}"), "value 0 doesn't make sense here");
+    assert_eq!(
+        parse("a{3,1}"),
+        "expected that expression `{n,m}` has `n` <= `m`"
+    );
 }
 
 #[test]

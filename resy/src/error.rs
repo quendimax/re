@@ -29,6 +29,9 @@ pub enum Error {
     #[error("unexpected close bracket `{0}` encountered without open one")]
     UnexpcetedCloseBracket(char),
 
+    #[error("expected that {expected}")]
+    UnexpectedCond { expected: String },
+
     #[error("unexpected end of file within {aborted_expr} expression")]
     UnexpectedEof { aborted_expr: String },
 
@@ -50,6 +53,12 @@ pub(crate) mod err {
 
     pub(crate) fn unexpected_close_bracket<T>(bracket: char) -> Result<T> {
         Err(Error::UnexpcetedCloseBracket(bracket))
+    }
+
+    pub(crate) fn unexpected_cond<T>(expected: impl Into<String>) -> Result<T> {
+        Err(Error::UnexpectedCond {
+            expected: expected.into(),
+        })
     }
 
     pub(crate) fn unexpected_eof<T>(aborted_expr: impl Into<String>) -> Result<T> {
