@@ -3,8 +3,8 @@
 //! Grammar used here is described in `resy/docs/unic-gramm.mkf` using McKeeman
 //! form.
 
-use crate::codec::Codec;
 use crate::error::{Error::*, Result, err};
+use recdc::Codec;
 use regr::{Epsilon, Graph, Node};
 use smallvec::SmallVec;
 use std::collections::HashMap;

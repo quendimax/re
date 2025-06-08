@@ -1,5 +1,5 @@
-use super::Codec;
-use super::error::CodecError::{self, *};
+use crate::codec::Codec;
+use crate::error::CodecError::{self, *};
 
 pub struct Utf8Codec;
 

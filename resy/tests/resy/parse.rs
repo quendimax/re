@@ -1,9 +1,9 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
+use recdc::{CodecError::*, Utf8Codec};
 use regr::Graph;
-use resy::CodecError::*;
 use resy::Error::*;
-use resy::{Error, Parser, Utf8Codec};
+use resy::{Error, Parser};
 
 const CODEC: Utf8Codec = Utf8Codec;
 

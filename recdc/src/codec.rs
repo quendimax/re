@@ -1,7 +1,4 @@
-pub(crate) mod error;
-pub(crate) mod utf8;
-
-pub use error::CodecError;
+use crate::error::CodecError;
 
 /// This trait helps convert unicode code points into byte sequeces
 /// corresponding encoding way chosen by user.

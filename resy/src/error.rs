@@ -1,4 +1,4 @@
-use crate::codec::CodecError;
+use recdc::CodecError;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
