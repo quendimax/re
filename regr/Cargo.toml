@@ -7,12 +7,10 @@ edition.workspace = true
 repository.workspace = true
 
 [dependencies]
-bumpalo = "~3.17"
-cfg-if = "1"
-linked-hash-map = { version = "0.5.6", optional = true }
-linked_hash_set = { version = "0.1.5", optional = true }
-
-# from workspace
+bumpalo.workspace = true
+cfg-if.workspace = true
+linked-hash-map = { workspace = true, optional = true }
+linked_hash_set = { workspace = true, optional = true }
 smallvec.workspace = true
 thiserror.workspace = true
 

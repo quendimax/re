@@ -9,6 +9,10 @@ repository = "https://github.com/quendimax/re.git"
 
 [workspace.dependencies]
 assert_matches = "1"
+bumpalo = "~3.17"
+cfg-if = "1"
+linked-hash-map = "0.5.6"
+linked_hash_set = "0.1.5"
 ntest = "*"
 pretty_assertions = "1"
 smallvec = "1"
