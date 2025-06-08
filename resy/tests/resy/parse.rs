@@ -279,22 +279,40 @@ fn parse_braces_with_two_nums() {
 
 #[test]
 fn parse_escape() {
+    assert_eq!(parse("\\\""), expect(&["'\"'"]));
+    assert_eq!(parse(r"\."), expect(&["'.'"]));
+    assert_eq!(parse(r"\*"), expect(&["'*'"]));
+    assert_eq!(parse(r"\+"), expect(&["'+'"]));
+    assert_eq!(parse(r"\?"), expect(&["'?'"]));
+    assert_eq!(parse(r"\\"), expect(&["'\\'"]));
+    assert_eq!(parse(r"\|"), expect(&["'|'"]));
+    assert_eq!(parse(r"\("), expect(&["'('"]));
+    assert_eq!(parse(r"\)"), expect(&["')'"]));
+    assert_eq!(parse(r"\["), expect(&["'['"]));
+    assert_eq!(parse(r"\]"), expect(&["']'"]));
+    assert_eq!(parse(r"\{"), expect(&["'{'"]));
+    assert_eq!(parse(r"\}"), expect(&["'}'"]));
+    assert_eq!(parse(r"\0"), expect(&["00h"]));
     assert_eq!(parse(r"\n"), expect(&["0Ah"]));
     assert_eq!(parse(r"\r"), expect(&["0Dh"]));
     assert_eq!(parse(r"\t"), expect(&["09h"]));
-    assert_eq!(parse(r"\0"), expect(&["00h"]));
     assert_eq!(parse(r"\x00"), expect(&["00h"]));
     assert_eq!(parse(r"\x61"), expect(&["'a'"]));
     assert_eq!(parse(r"\x7f"), expect(&["7Fh"]));
     assert_eq!(parse(r"\x7F"), expect(&["7Fh"]));
     assert_eq!(parse(r"\x7F"), expect(&["7Fh"]));
     assert_eq!(parse(r"\u{0}"), expect(&["00h"]));
+    assert_eq!(parse(r"\u{00}"), expect(&["00h"]));
+    assert_eq!(parse(r"\u{000}"), expect(&["00h"]));
+    assert_eq!(parse(r"\u{00000}"), expect(&["00h"]));
     assert_eq!(parse(r"\u{000000}"), expect(&["00h"]));
     assert_eq!(parse(r"\u{10FFFF}"), expect(&["F4h", "8Fh", "BFh", "BFh"]));
 }
 
 #[test]
 fn parse_escape_fails() {
+    assert_eq!(parse(r"\m"), r"escape expression '\m' is not supported");
+
     assert_matches!(try_parse(r"\x80"), Err(OutOfRange { .. }));
     assert_matches!(try_parse(r"\x"), Err(UnexpectedEof { .. }));
     assert_matches!(try_parse(r"\x0"), Err(UnexpectedEof { .. }));

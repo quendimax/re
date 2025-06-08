@@ -138,6 +138,8 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
 
     /// Parses a postfix:
     ///
+    /// # Syntax
+    ///
     /// ```mkf
     /// postfix
     ///     '*'
@@ -303,6 +305,8 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
 
     /// Parse terminal:
     ///
+    /// # Syntax
+    ///
     /// ```mkf
     /// term
     ///     char
@@ -321,7 +325,37 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     /// It is intended to be compatible with the Rust string literal escape
     /// sequences.
     ///
-    /// Escape sequences compatible with Rust string literals:
+    /// # Syntax
+    ///
+    /// ```mkf
+    /// escape
+    ///     '"'
+    ///     '.'
+    ///     '*'
+    ///     '+'
+    ///     '?'
+    ///     '\'
+    ///     '|'
+    ///     '('
+    ///     ')'
+    ///     '['
+    ///     ']'
+    ///     '{'
+    ///     '}'
+    ///     '0'
+    ///     'n'
+    ///     'r'
+    ///     't'
+    ///     'x' oct hex
+    ///     'u' '{' hex '}'
+    ///     'u' '{' hex hex '}'
+    ///     'u' '{' hex hex hex '}'
+    ///     'u' '{' hex hex hex hex '}'
+    ///     'u' '{' hex hex hex hex hex '}'
+    ///     'u' '{' hex hex hex hex hex hex '}'
+    /// ```
+    ///
+    /// There are escape sequences compatible with Rust string literals:
     /// - `\"` - double quote,
     /// - `\x<two hexes between 00 and 7F>` - 7-bit code point escape,
     /// - `\u{<up to six hexes>}` - 24-bit code point escape,
@@ -330,15 +364,13 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
     /// - `\t` - horizontal tab escape,
     /// - `\0` - null escape,
     /// - `\\` - backslash.
-    ///
-    /// Escape sequences extending Rust string literals:
-    /// - `\(` - left parenthesis,
-    /// - `\)` - right parenthesis,
     fn parse_escape(&mut self, mut prev_node: Node<'n>) -> Result<Node<'n>> {
         self.lexer.expect('\\')?;
         if let Some(c) = self.lexer.lex() {
             let codepoint: Option<u32> = match c {
-                '"' | '\\' | '(' | ')' => Some(c as u32),
+                '"' | '.' | '*' | '+' | '?' | '\\' | '|' | '(' | ')' | '[' | ']' | '{' | '}' => {
+                    Some(c as u32)
+                }
                 'n' => Some('\n' as u32),
                 'r' => Some('\r' as u32),
                 't' => Some('\t' as u32),
@@ -365,6 +397,15 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         }
     }
 
+    /// Parses an ascii escape sequence.
+    ///
+    /// # Syntax
+    ///
+    /// ```mkf
+    /// escape
+    ///     ; ...
+    ///     'x' oct hex
+    ///     ; ...
     fn parse_ascii_escape(&mut self) -> Result<u32> {
         let Some(first_hex) = self.lexer.lex() else {
             return err::unexpected_eof("ascii escape");
@@ -398,6 +439,19 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
         Ok(codepoint)
     }
 
+    /// Parses a unicode escape sequence.
+    ///
+    /// # Syntax
+    /// ```mkf
+    /// escape
+    ///     ; ...
+    ///     'u' '{' hex '}'
+    ///     'u' '{' hex hex '}'
+    ///     'u' '{' hex hex hex '}'
+    ///     'u' '{' hex hex hex hex '}'
+    ///     'u' '{' hex hex hex hex hex '}'
+    ///     'u' '{' hex hex hex hex hex hex '}'
+    /// ```
     fn parse_unicode_escape(&mut self) -> Result<u32> {
         self.lexer.expect('{')?;
         let mut codepoint = 0u32;
@@ -429,6 +483,7 @@ impl<'n, 's, T: Codec> Parser<'n, 's, T> {
 
     /// Parse normal unescapable character:
     ///
+    /// # Syntax
     /// ```mkf
     /// char
     ///     '0000' . '10FFFF' - '\' - '|' - '.' - '*' - '+' - '?' - '(' - ')' - '[' - ']' - '{' - '}'
