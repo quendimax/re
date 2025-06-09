@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
-pub enum CodecError {
+pub enum CoderError {
     /// Error returned when a surrogate code point is encountered in an encoding
     /// operation.
     ///
@@ -12,8 +12,8 @@ pub enum CodecError {
     /// # Parameters
     ///
     /// - `codec_name`: The encoding that encountered the surrogate code point.
-    #[error("surrogate code points are not supported by {codec_name}")]
-    SurrogateUnsupported { codec_name: &'static str },
+    #[error("surrogate code points are not supported by {coder_name}")]
+    SurrogateUnsupported { coder_name: &'static str },
 
     /// Error returned when the provided output buffer is too small to hold the
     /// encoded byte sequence.

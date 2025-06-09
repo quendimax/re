@@ -4,20 +4,20 @@
 //! form.
 
 use crate::error::{Error::*, Result, err};
-use recdc::Codec;
 use regr::{Epsilon, Graph, Node};
+use renc::Coder;
 use smallvec::SmallVec;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::str::Chars;
 
-pub struct Parser<'n, 's, T: Codec> {
+pub struct Parser<'n, 's, T: Coder> {
     nfa: &'n Graph,
     lexer: Lexer<'s>,
     codec: T,
 }
 
-impl<'n, 's, T: Codec> Parser<'n, 's, T> {
+impl<'n, 's, T: Coder> Parser<'n, 's, T> {
     pub fn new(nfa: &'n Graph, codec: T) -> Self {
         assert!(nfa.is_nfa(), "`repy::Parser` can build only an NFA graph");
         let lexer = Lexer::empty();

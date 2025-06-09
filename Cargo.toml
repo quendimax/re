@@ -1,11 +1,11 @@
 [workspace]
-members = ["regr", "resy", "rexel"]
+members = ["regr", "renc", "resy", "rexel"]
 resolver = "2"
 
 [workspace.package]
 authors = ["Maksim Tomkavich <quendimax@gmail.com>"]
 edition = "2024"
-repository = "https://github.com/quendimax/re.git"
+repository = "https://github.com/quendimax/re"
 
 [workspace.dependencies]
 assert_matches = "1"

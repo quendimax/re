@@ -1,5 +1,5 @@
 [package]
-name = "recdc"
+name = "renc"
 version = "0.1.0"
 
 # workspace inheritance

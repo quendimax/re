@@ -1,12 +1,12 @@
-use recdc::CodecError;
+use renc::CoderError;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum Error {
-    #[error("codec error: {0}")]
-    CodecError(#[from] CodecError),
+    #[error("coder error: {0}")]
+    CoderError(#[from] CoderError),
 
     #[error("empty escape expression is not supported")]
     EmptyEscape,

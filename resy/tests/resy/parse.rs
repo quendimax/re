@@ -1,11 +1,11 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
-use recdc::{CodecError::*, Utf8Codec};
 use regr::Graph;
+use renc::{CoderError::*, Utf8Coder};
 use resy::Error::*;
 use resy::{Error, Parser};
 
-const CODEC: Utf8Codec = Utf8Codec;
+const CODER: Utf8Coder = Utf8Coder;
 
 fn fmt<T: std::fmt::Display + ?Sized>(obj: &T) -> String {
     let mut result = String::new();
@@ -22,7 +22,7 @@ fn fmt<T: std::fmt::Display + ?Sized>(obj: &T) -> String {
 fn try_parse(input: &str) -> Result<String, Error> {
     let graph = Graph::nfa();
     let start_node = graph.start_node();
-    let mut parser = Parser::new(&graph, CODEC);
+    let mut parser = Parser::new(&graph, CODER);
     parser.parse(input, start_node)?;
     Ok(format!("{graph}"))
 }
@@ -456,11 +456,11 @@ fn parse_escape_fails() {
     );
     assert_matches!(
         try_parse(r"\u{110000}"),
-        Err(CodecError(InvalidCodePoint(..)))
+        Err(CoderError(InvalidCodePoint(..)))
     );
     assert_matches!(
         try_parse(r"\u{D800}"),
-        Err(CodecError(SurrogateUnsupported { .. }))
+        Err(CoderError(SurrogateUnsupported { .. }))
     );
 
     assert_matches!(try_parse(r"\x80"), Err(OutOfRange { .. }));
@@ -468,23 +468,23 @@ fn parse_escape_fails() {
     assert_matches!(try_parse(r"\u{0000000}"), Err(UnexpectedToken { .. }));
     assert_matches!(
         try_parse(r"\u{110000}"),
-        Err(CodecError(InvalidCodePoint(..)))
+        Err(CoderError(InvalidCodePoint(..)))
     );
     assert_matches!(
         try_parse(r"\u{D800}"),
-        Err(CodecError(SurrogateUnsupported { .. }))
+        Err(CoderError(SurrogateUnsupported { .. }))
     );
     assert_matches!(
         try_parse(r"\u{DBff}"),
-        Err(CodecError(SurrogateUnsupported { .. }))
+        Err(CoderError(SurrogateUnsupported { .. }))
     );
     assert_matches!(
         try_parse(r"\u{DC00}"),
-        Err(CodecError(SurrogateUnsupported { .. }))
+        Err(CoderError(SurrogateUnsupported { .. }))
     );
     assert_matches!(
         try_parse(r"\u{dFFf}"),
-        Err(CodecError(SurrogateUnsupported { .. }))
+        Err(CoderError(SurrogateUnsupported { .. }))
     );
 }
 

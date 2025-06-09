@@ -1,12 +1,12 @@
-use crate::codec::Codec;
-use crate::error::CodecError::{self, *};
+use crate::coder::Coder;
+use crate::error::CoderError::{self, *};
 
-pub struct Utf8Codec;
+pub struct Utf8Coder;
 
-impl Codec for Utf8Codec {
-    const CODEC_NAME: &'static str = "Utf8Codec";
+impl Coder for Utf8Coder {
+    const CODER_NAME: &'static str = "Utf8Coder";
 
-    fn encode_char(&self, c: char, buffer: &mut [u8]) -> Result<usize, CodecError> {
+    fn encode_char(&self, c: char, buffer: &mut [u8]) -> Result<usize, CoderError> {
         let expected_len = c.len_utf8();
         if buffer.len() < expected_len {
             Err(SmallBuffer)
@@ -16,19 +16,19 @@ impl Codec for Utf8Codec {
         }
     }
 
-    fn encode_ucp(&self, code_point: u32, buffer: &mut [u8]) -> Result<usize, CodecError> {
+    fn encode_ucp(&self, code_point: u32, buffer: &mut [u8]) -> Result<usize, CoderError> {
         if let Ok(c) = char::try_from(code_point) {
             self.encode_char(c, buffer)
         } else if code_point <= 0x10FFFF {
             Err(SurrogateUnsupported {
-                codec_name: Self::CODEC_NAME,
+                coder_name: Self::CODER_NAME,
             })
         } else {
             Err(InvalidCodePoint(code_point))
         }
     }
 
-    fn encode_str(&self, s: &str, buffer: &mut [u8]) -> Result<usize, CodecError> {
+    fn encode_str(&self, s: &str, buffer: &mut [u8]) -> Result<usize, CoderError> {
         let expected_len = s.len();
         if buffer.len() < expected_len {
             Err(SmallBuffer)
