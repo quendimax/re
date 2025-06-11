@@ -58,6 +58,7 @@ fn parse_parens() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn parse_disjunction() {
     assert_eq!(
         parse("a|b|c"),
@@ -102,6 +103,7 @@ fn parse_concatenation() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn parse_kleene_star() {
     assert_eq!(
         parse("a*"),
@@ -139,6 +141,7 @@ fn parse_kleene_star() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn parse_plus_operator() {
     assert_eq!(
         parse("a+"),
@@ -173,6 +176,7 @@ fn parse_plus_operator() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn parse_question() {
     assert_eq!(
         parse("a?"),
@@ -207,6 +211,7 @@ fn parse_question() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn parse_braces_with_one_num() {
     assert_eq!(parse("a{1}"), expect(&["'a'"]));
     assert_eq!(parse("a{2}"), expect(&["'a'", "'a'"]));
@@ -290,6 +295,7 @@ fn parse_braces_with_one_num() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn parse_braces_with_two_nums() {
     assert_eq!(parse("a{1,1}"), expect(&["'a'"]));
     assert_eq!(parse("a{2,2}"), expect(&["'a'", "'a'"]));
