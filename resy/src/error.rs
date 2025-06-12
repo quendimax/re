@@ -1,4 +1,3 @@
-use renc::CoderError;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -6,7 +5,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Error, Debug, PartialEq)]
 pub enum Error {
     #[error("coder error: {0}")]
-    CoderError(#[from] CoderError),
+    CoderError(#[from] renc::Error),
 
     #[error("empty escape expression is not supported")]
     EmptyEscape,

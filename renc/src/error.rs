@@ -1,7 +1,9 @@
 use thiserror::Error;
 
+pub type Result<T> = std::result::Result<T, Error>;
+
 #[derive(Error, Debug, PartialEq)]
-pub enum CoderError {
+pub enum Error {
     /// Error returned when a surrogate code point is encountered in an encoding
     /// operation.
     ///

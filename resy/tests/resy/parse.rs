@@ -1,7 +1,7 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use regr::Graph;
-use renc::{CoderError::*, Utf8Coder};
+use renc::{Error::*, Utf8Coder};
 use resy::Error::*;
 use resy::{Error, Parser};
 

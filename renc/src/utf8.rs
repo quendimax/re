@@ -1,12 +1,12 @@
 use crate::coder::Coder;
-use crate::error::CoderError::{self, *};
+use crate::error::{Error::*, Result};
 
 pub struct Utf8Coder;
 
 impl Coder for Utf8Coder {
     const CODER_NAME: &'static str = "Utf8Coder";
 
-    fn encode_char(&self, c: char, buffer: &mut [u8]) -> Result<usize, CoderError> {
+    fn encode_char(&self, c: char, buffer: &mut [u8]) -> Result<usize> {
         let expected_len = c.len_utf8();
         if buffer.len() < expected_len {
             Err(SmallBuffer)
@@ -16,7 +16,7 @@ impl Coder for Utf8Coder {
         }
     }
 
-    fn encode_ucp(&self, code_point: u32, buffer: &mut [u8]) -> Result<usize, CoderError> {
+    fn encode_ucp(&self, code_point: u32, buffer: &mut [u8]) -> Result<usize> {
         if let Ok(c) = char::try_from(code_point) {
             self.encode_char(c, buffer)
         } else if code_point <= 0x10FFFF {
@@ -28,7 +28,7 @@ impl Coder for Utf8Coder {
         }
     }
 
-    fn encode_str(&self, s: &str, buffer: &mut [u8]) -> Result<usize, CoderError> {
+    fn encode_str(&self, s: &str, buffer: &mut [u8]) -> Result<usize> {
         let expected_len = s.len();
         if buffer.len() < expected_len {
             Err(SmallBuffer)
