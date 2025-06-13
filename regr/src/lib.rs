@@ -2,9 +2,6 @@ mod arena;
 
 pub mod adt;
 
-mod error;
-pub use error::{Error, Result};
-
 mod graph;
 pub use graph::{AutomatonKind, Graph};
 
@@ -17,8 +14,8 @@ mod private {
     pub trait Sealed {}
 }
 
-mod range;
-pub use range::{Range, range};
+mod span;
+pub use span::{Span, span};
 
 mod symbol;
 pub use symbol::{Epsilon, Symbol};

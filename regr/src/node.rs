@@ -1,6 +1,6 @@
 use crate::adt::{Map, MapIter};
 use crate::graph::{AutomatonKind, Graph};
-use crate::range::Range;
+use crate::span::Span;
 use crate::symbol::Epsilon;
 use crate::transition::Transition;
 use std::cell::{Cell, UnsafeCell};
@@ -269,13 +269,13 @@ macro_rules! impl_connect {
 }
 
 impl_connect!(u8);
-impl_connect!(Range);
+impl_connect!(Span);
 impl_connect!(&Transition);
 
 impl<'a> ConnectOp<'a, std::ops::RangeInclusive<u8>> for Node<'a> {
     #[inline]
     fn connect(self, to: Node<'a>, with: std::ops::RangeInclusive<u8>) {
-        ConnectOp::connect(self, to, Range::from(with))
+        ConnectOp::connect(self, to, Span::from(with))
     }
 }
 

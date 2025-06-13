@@ -1,5 +1,5 @@
 mod graph;
 mod node;
-mod range;
+mod span;
 mod symbol;
 mod transition;

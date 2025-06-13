@@ -1,27 +1,26 @@
-use crate::error::{Error, err};
 use crate::symbol::Symbol;
 use std::fmt::Write;
 
-/// Inclusive range of symbls with invariant `start` is always less or equal to `end`.
+/// Inclusive range of symbols with invariant `start` is always less or equal to `end`.
 ///
 /// I use this custom structure instead of [`std::ops::RangeInclusive`] because
 /// the standrad range implements [`std::iter::Iterator`], and it requires
 /// implementing [`std::iter::Step`] that is unstable. Also the standard range
 /// uses additional data [`std::iter::Iterator`], but my custom range doesn't.
 #[derive(Copy, Clone, PartialEq)]
-pub struct Range {
+pub struct Span {
     start: u8,
     end: u8,
 }
 
-/// Just a short [`Range`] constructor.
+/// Just a short [`Span`] constructor.
 #[inline]
-pub fn range(range: impl Into<Range>) -> Range {
-    range.into()
+pub fn span(span: impl Into<Span>) -> Span {
+    span.into()
 }
 
-impl Range {
-    /// Creates a new range with inclusive bounds from `start` to `end`. If
+impl Span {
+    /// Creates a new span with inclusive bounds from `start` to `end`. If
     /// `start` is greater than `end`, ther are swapped.
     pub fn new(start: u8, end: u8) -> Self {
         if start <= end {
@@ -34,7 +33,7 @@ impl Range {
         }
     }
 
-    /// Creates a new range with inclusive bounds from `start` to `end`.
+    /// Creates a new span with inclusive bounds from `start` to `end`.
     ///
     /// It expects that `start <= end`.
     #[inline]
@@ -42,13 +41,13 @@ impl Range {
         Self { start, end }
     }
 
-    /// Returns the start position of the range.
+    /// Returns the start position of the span.
     #[inline]
     pub fn start(self) -> u8 {
         self.start
     }
 
-    /// Returns the end position of the range.
+    /// Returns the end position of the span.
     #[inline]
     pub fn end(self) -> u8 {
         self.end
@@ -90,7 +89,7 @@ impl Range {
         self.end() < other.start()
     }
 
-    /// Checks if `self` range is at right of `other`, and they don't have
+    /// Checks if `self` span is at right of `other`, and they don't have
     /// intersections (but can be joint).
     #[inline]
     pub fn is_at_right(self, other: Self) -> bool {
@@ -102,33 +101,34 @@ impl Range {
         !(self.end() < other.start() || other.end() < self.start())
     }
 
-    /// Checks if the two range have a joint, but not common elements.
+    /// Checks if the two spans have a joint, but not common elements.
     pub fn adjoins(self, other: Self) -> bool {
         (self.end() < other.start() && self.end.adjoins(other.start()))
             || (other.end() < self.start() && other.end().adjoins(self.start()))
     }
 
-    /// Merges two ranges if they are either intersected or adjoint. Otherwise
+    /// Merges two spans if they are either intersected or adjoint. Otherwise
     /// returns an error.
-    pub fn try_merge(self, other: Self) -> Result<Self, Error> {
+    pub fn try_merge(self, other: Self) -> Option<Self> {
         if self.intersects(other) || self.adjoins(other) {
-            Ok(Self {
+            Some(Self {
                 start: self.start().min(other.start()),
                 end: self.end().max(other.end()),
             })
         } else {
-            err::merge_delimited_ranges()
+            None
         }
     }
 
-    /// Merges two ranges if they are either intersected or adjoint. Otherwise
-    /// it panics.
+    /// Merges two spans if they are either intersected or adjoint. Otherwise it
+    /// panics.
     pub fn merge(self, other: Self) -> Self {
-        self.try_merge(other).unwrap_or_else(|e| panic!("{}", e))
+        self.try_merge(other)
+            .unwrap_or_else(|| panic!("can't merge spans {} and {}", self, other))
     }
 }
 
-impl std::convert::From<u8> for Range {
+impl std::convert::From<u8> for Span {
     #[inline]
     fn from(value: u8) -> Self {
         Self {
@@ -138,14 +138,14 @@ impl std::convert::From<u8> for Range {
     }
 }
 
-impl std::convert::From<std::ops::RangeInclusive<u8>> for Range {
+impl std::convert::From<std::ops::RangeInclusive<u8>> for Span {
     #[inline]
     fn from(value: std::ops::RangeInclusive<u8>) -> Self {
         Self::new(*value.start(), *value.end())
     }
 }
 
-impl std::fmt::Display for Range {
+impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.start().display())?;
         if self.start() != self.end() {
@@ -171,8 +171,8 @@ macro_rules! reimpl {
     };
 }
 
-reimpl!(std::fmt::Debug for Range);
-reimpl!(std::fmt::Binary for Range);
-reimpl!(std::fmt::Octal for Range);
-reimpl!(std::fmt::LowerHex for Range);
-reimpl!(std::fmt::UpperHex for Range);
+reimpl!(std::fmt::Debug for Span);
+reimpl!(std::fmt::Binary for Span);
+reimpl!(std::fmt::Octal for Span);
+reimpl!(std::fmt::LowerHex for Span);
+reimpl!(std::fmt::UpperHex for Span);
