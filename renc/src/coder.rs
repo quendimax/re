@@ -1,10 +1,9 @@
 use crate::error::Result;
+use crate::range::Range;
 
 /// This trait helps convert unicode code points into byte sequeces
 /// corresponding encoding way chosen by user.
 pub trait Coder {
-    const CODER_NAME: &'static str;
-
     /// Encode unicode code point into a byte sequence
     fn encode_ucp(&self, codepoint: u32, buffer: &mut [u8]) -> Result<usize>;
 
@@ -15,4 +14,6 @@ pub trait Coder {
 
     /// Encode string into a byte sequence.
     fn encode_str(&self, s: &str, buffer: &mut [u8]) -> Result<usize>;
+
+    fn encode_range(&self, range: Range<u32>, handler: fn(byte_seq: &[Range<u8>])) -> Result<()>;
 }
