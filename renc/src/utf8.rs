@@ -1,6 +1,9 @@
 use crate::coder::Coder;
 use crate::error::{Error::*, Result};
-use crate::range::Range;
+use regr::{Span, span};
+
+/// Unicode code point inclusive range.
+type UcpRange = std::ops::RangeInclusive<u32>;
 
 pub struct Utf8Coder;
 
@@ -32,15 +35,20 @@ impl Coder for Utf8Coder {
         }
     }
 
-    fn encode_range(&self, range: Range<u32>, handler: fn(byte_seq: &[Range<u8>])) -> Result<()> {
-        assert!(range.start <= range.end);
-        _ = char_try_from(range.start)?;
-        _ = char_try_from(range.end)?;
-        encode_range(range, handler)
+    fn encode_range(
+        &self,
+        start_ucp: u32,
+        end_ucp: u32,
+        handler: fn(byte_seq: &[Span]),
+    ) -> Result<()> {
+        assert!(start_ucp <= end_ucp);
+        _ = char_try_from(start_ucp)?;
+        _ = char_try_from(end_ucp)?;
+        encode_range(start_ucp..=end_ucp, handler)
     }
 }
 
-fn encode_range(range: Range<u32>, handler: fn(byte_seq: &[Range<u8>])) -> Result<()> {
+fn encode_range(range: UcpRange, handler: fn(&[Span])) -> Result<()> {
     let mut range = range;
     while let Some((range, bytes_len)) = take_n_bytes_range(&mut range) {
         match bytes_len {
@@ -54,13 +62,13 @@ fn encode_range(range: Range<u32>, handler: fn(byte_seq: &[Range<u8>])) -> Resul
     Ok(())
 }
 
-fn encode_known_range<const N: usize>(range: Range<u32>, handler: fn(byte_seq: &[Range<u8>])) {
+fn encode_known_range<const N: usize>(range: UcpRange, handler: fn(byte_seq: &[Span])) {
     let mut start_buffer = [0u8; N];
     let mut end_buffer = [0u8; N];
-    let start_str = char::from_u32(range.start)
+    let start_str = char::from_u32(*range.start())
         .unwrap()
         .encode_utf8(&mut start_buffer);
-    let end_str = char::from_u32(range.end)
+    let end_str = char::from_u32(*range.end())
         .unwrap()
         .encode_utf8(&mut end_buffer);
     assert_eq!(start_str.len(), N);
@@ -74,7 +82,7 @@ fn handle_sequence<const N: usize>(
     end_bytes: &mut [u8; N],
     all_previous_are_equal: bool,
     index: usize,
-    handler: fn(byte_seq: &[Range<u8>]),
+    handler: fn(byte_seq: &[Span]),
 ) {
     if index >= N {
         run_handler(start_bytes, end_bytes, handler);
@@ -143,77 +151,73 @@ fn decrement_from_index<const N: usize>(utf8_seq: &mut [u8; N], index: usize) {
     }
 }
 
-fn take_n_bytes_range(range: &mut Range<u32>) -> Option<(Range<u32>, usize)> {
-    if range.start > range.end {
+fn take_n_bytes_range(range: &mut UcpRange) -> Option<(UcpRange, usize)> {
+    if range.start() > range.end() {
         return None;
     }
-    match range.start {
+    match *range.start() {
         0..=0x7F => {
-            let start = range.start;
-            let end = range.end.min(0x7F);
-            range.start = end + 1;
-            Some((rng(start, end), 1))
+            let start = *range.start();
+            let end = *range.end().min(&0x7F);
+            *range = end + 1..=*range.end();
+            Some((start..=end, 1))
         }
         0x80..=0x7FF => {
-            let start = range.start;
-            let end = range.end.min(0x7FF);
-            range.start = end + 1;
-            Some((rng(start, end), 2))
+            let start = *range.start();
+            let end = *range.end().min(&0x7FF);
+            *range = end + 1..=*range.end();
+            Some((start..=end, 2))
         }
         0x800..=0xD7FF => {
-            let start = range.start;
-            let end = range.end.min(0xD7FF);
-            range.start = end + 1;
-            Some((rng(start, end), 3))
+            let start = *range.start();
+            let end = *range.end().min(&0xD7FF);
+            *range = end + 1..=*range.end();
+            Some((start..=end, 3))
         }
         0xD800..=0xFFFF => {
-            let start = range.start.max(0xE000);
-            let end = range.end.min(0xFFFF);
-            range.start = end + 1;
-            Some((rng(start, end), 3))
+            let start = *range.start().max(&0xE000);
+            let end = *range.end().min(&0xFFFF);
+            *range = end + 1..=*range.end();
+            Some((start..=end, 3))
         }
         0x10000..=0x10FFFF => {
-            let start = range.start;
-            let end = range.end.min(0x7F);
-            range.start = end + 1;
-            Some((rng(start, end), 4))
+            let start = *range.start();
+            let end = *range.end().min(&0x7F);
+            *range = end + 1..=*range.end();
+            Some((start..=end, 4))
         }
         _ => None,
     }
 }
 
-fn run_handler(start_bytes: &[u8], end_bytes: &[u8], handler: fn(byte_seq: &[Range<u8>])) {
+fn run_handler(start_bytes: &[u8], end_bytes: &[u8], handler: fn(byte_seq: &[Span])) {
     match start_bytes.len() {
         1 => {
-            handler(&[rng(start_bytes[0], end_bytes[0])]);
+            handler(&[span(start_bytes[0]..=end_bytes[0])]);
         }
         2 => {
             handler(&[
-                rng(start_bytes[0], end_bytes[0]),
-                rng(start_bytes[1], end_bytes[1]),
+                span(start_bytes[0]..=end_bytes[0]),
+                span(start_bytes[1]..=end_bytes[1]),
             ]);
         }
         3 => {
             handler(&[
-                rng(start_bytes[0], end_bytes[0]),
-                rng(start_bytes[1], end_bytes[1]),
-                rng(start_bytes[2], end_bytes[2]),
+                span(start_bytes[0]..=end_bytes[0]),
+                span(start_bytes[1]..=end_bytes[1]),
+                span(start_bytes[2]..=end_bytes[2]),
             ]);
         }
         4 => {
             handler(&[
-                rng(start_bytes[0], end_bytes[0]),
-                rng(start_bytes[1], end_bytes[1]),
-                rng(start_bytes[2], end_bytes[2]),
-                rng(start_bytes[3], end_bytes[3]),
+                span(start_bytes[0]..=end_bytes[0]),
+                span(start_bytes[1]..=end_bytes[1]),
+                span(start_bytes[2]..=end_bytes[2]),
+                span(start_bytes[3]..=end_bytes[3]),
             ]);
         }
         _ => unreachable!(),
     }
-}
-
-fn rng<T>(start: T, end: T) -> Range<T> {
-    Range { start, end }
 }
 
 fn char_try_from(codepoint: u32) -> Result<char> {
