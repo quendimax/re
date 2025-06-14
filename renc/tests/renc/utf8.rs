@@ -2,16 +2,21 @@ use pretty_assertions::assert_eq;
 use regex_syntax::utf8::Utf8Sequences;
 use regr::{Span, span};
 use renc::{Coder, Result, Utf8Coder};
-use smallvec::smallvec;
 use std::ops::RangeInclusive;
 
-type Sequence = smallvec::SmallVec<[Span; 4]>;
+type Sequence = arrayvec::ArrayVec<Span, 4>;
+
+fn arr(spans: &[Span]) -> Sequence {
+    Sequence::try_from(spans).unwrap()
+}
 
 fn encode_range(range: RangeInclusive<u32>) -> Result<Vec<Sequence>> {
     let mut seq = Vec::<Sequence>::new();
     let start = *range.start();
     let end = *range.end();
-    Utf8Coder.encode_range(start, end, |spans| seq.push(Sequence::from(spans)))?;
+    Utf8Coder.encode_range(start, end, |spans| {
+        seq.push(Sequence::try_from(spans).unwrap())
+    })?;
     seq.sort();
     Ok(seq)
 }
@@ -43,56 +48,56 @@ fn _expect<const N: usize>(start: &[u8; N], end: &[u8; N]) -> Result<Vec<Sequenc
 
 #[test]
 fn encode_one_byte_ranges() {
-    assert_eq!(encode_range(0..=0), Ok(vec![smallvec![span(0..=0)]]));
-    assert_eq!(encode_range(0..=23), Ok(vec![smallvec![span(0..=23)]]));
-    assert_eq!(encode_range(0..=0x7F), Ok(vec![smallvec![span(0..=0x7F)]]));
+    assert_eq!(encode_range(0..=0), Ok(vec![arr(&[span(0..=0)])]));
+    assert_eq!(encode_range(0..=23), Ok(vec![arr(&[span(0..=23)])]));
+    assert_eq!(encode_range(0..=0x7F), Ok(vec![arr(&[span(0..=0x7F)])]));
 }
 
 #[test]
 fn encode_two_byte_ranges() {
     assert_eq!(
         encode_range(0x80..=0x81),
-        Ok(vec![smallvec![
+        Ok(vec![arr(&[
             span(0b110_00010..=0b110_00010),
             span(0b10_000000..=0b10_000001)
-        ]])
+        ])])
     );
     assert_eq!(
         encode_range(0x83..=0x734),
         Ok(vec![
-            smallvec![
+            arr(&[
                 span(0b110_00010..=0b110_00010),
                 span(0b10_000011..=0b10_111111)
-            ],
-            smallvec![
+            ]),
+            arr(&[
                 span(0b110_00011..=0b110_11011),
                 span(0b10_000000..=0b10_111111)
-            ],
-            smallvec![
+            ]),
+            arr(&[
                 span(0b110_11100..=0b110_11100),
                 span(0b10_000000..=0b10_110100)
-            ],
+            ]),
         ])
     );
     assert_eq!(
         encode_range(0x83..=0xD6),
         Ok(vec![
-            smallvec![
+            arr(&[
                 span(0b110_00010..=0b110_00010),
                 span(0b10_000011..=0b10_111111)
-            ],
-            smallvec![
+            ]),
+            arr(&[
                 span(0b110_00011..=0b110_00011),
                 span(0b10_000000..=0b10_010110)
-            ],
+            ]),
         ])
     );
     assert_eq!(
         encode_range(0x80..=0x7FF),
-        Ok(vec![smallvec![
+        Ok(vec![arr(&[
             span(0b110_00010..=0b110_11111),
             span(0b10_000000..=0b10_111111)
-        ]])
+        ])])
     );
 }
 
@@ -127,14 +132,14 @@ fn encode_ranges() {
 #[ignore]
 fn bruteforce_entire_unicode_range() {
     let mut iteration = 0;
-    let first_char = 0x100000;
-    let last_char = 0x10FFFF;
+    let first_char = '\0';
+    let last_char = '\u{FFFF}';
     for start in first_char..=last_char {
         for end in start..=last_char {
             iteration += 1;
             assert_eq!(
-                encode_range(start..=end),
-                expect_range(start..=end),
+                encode_range(start as u32..=end as u32),
+                expect_range(start as u32..=end as u32),
                 "range: [{start:X?}-{end:X?}], iteration: {iteration}",
             );
         }
