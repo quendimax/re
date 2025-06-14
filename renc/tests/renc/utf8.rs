@@ -2,72 +2,73 @@ use pretty_assertions::assert_eq;
 use regex_syntax::utf8::Utf8Sequences;
 use regr::{Span, span};
 use renc::{Coder, Result, Utf8Coder};
+use smallvec::smallvec;
 use std::ops::RangeInclusive;
 
-fn encode_range(range: RangeInclusive<u32>) -> Result<String> {
-    let mut spans_seq = Vec::<Vec<Span>>::new();
-    Utf8Coder.encode_range(range, |spans| spans_seq.push(Vec::from(spans)))?;
-    spans_seq.sort();
-    // spans_seq.sort_by(|a, b| format!("{:X?}", a).cmp(&format!("{:X?}", b)));
-    Ok(format!("{:X?}", spans_seq))
+type Sequence = smallvec::SmallVec<[Span; 4]>;
+
+fn encode_range(range: RangeInclusive<u32>) -> Result<Vec<Sequence>> {
+    let mut seq = Vec::<Sequence>::new();
+    let start = *range.start();
+    let end = *range.end();
+    Utf8Coder.encode_range(start, end, |spans| seq.push(Sequence::from(spans)))?;
+    seq.sort();
+    Ok(seq)
 }
 
-fn _encode<const N: usize>(start: &[u8; N], end: &[u8; N]) -> Result<String> {
+fn _encode<const N: usize>(start: &[u8; N], end: &[u8; N]) -> Result<Vec<Sequence>> {
     let start = str::from_utf8(start).unwrap().chars().next().unwrap() as u32;
     let end = str::from_utf8(end).unwrap().chars().next().unwrap() as u32;
     encode_range(start..=end)
 }
 
-fn expect_range(range: RangeInclusive<u32>) -> Result<String> {
+fn expect_range(range: RangeInclusive<u32>) -> Result<Vec<Sequence>> {
     let start = char::from_u32(*range.start()).unwrap();
     let end = char::from_u32(*range.end()).unwrap();
-    let mut seq = Utf8Sequences::new(start, end).collect::<Vec<_>>();
-    seq.sort();
-    let output = format!("{:?}", seq);
-    Ok(output.replace("][", ", "))
+    let seq = Utf8Sequences::new(start, end)
+        .map(|s| {
+            s.into_iter()
+                .map(|r| Span::new(r.start, r.end))
+                .collect::<Sequence>()
+        })
+        .collect::<Vec<_>>();
+    Ok(seq)
 }
 
-fn _expect<const N: usize>(start: &[u8; N], end: &[u8; N]) -> Result<String> {
+fn _expect<const N: usize>(start: &[u8; N], end: &[u8; N]) -> Result<Vec<Sequence>> {
     let start = str::from_utf8(start).unwrap().chars().next().unwrap() as u32;
     let end = str::from_utf8(end).unwrap().chars().next().unwrap() as u32;
     expect_range(start..=end)
 }
 
-fn expect_spans(sequences: &[Vec<Span>]) -> Result<String> {
-    Ok(format!("{:X?}", sequences))
-}
-
 #[test]
 fn encode_one_byte_ranges() {
-    assert_eq!(encode_range(0..=0), expect_spans(&[vec![span(0..=0)]]));
-    assert_eq!(encode_range(0..=23), expect_spans(&[vec![span(0..=23)]]));
-    assert_eq!(
-        encode_range(0..=0x7F),
-        expect_spans(&[vec![span(0..=0x7F)]])
-    );
+    assert_eq!(encode_range(0..=0), Ok(vec![smallvec![span(0..=0)]]));
+    assert_eq!(encode_range(0..=23), Ok(vec![smallvec![span(0..=23)]]));
+    assert_eq!(encode_range(0..=0x7F), Ok(vec![smallvec![span(0..=0x7F)]]));
 }
 
 #[test]
 fn encode_two_byte_ranges() {
     assert_eq!(
         encode_range(0x80..=0x81),
-        expect_spans(&[vec![
+        Ok(vec![smallvec![
             span(0b110_00010..=0b110_00010),
             span(0b10_000000..=0b10_000001)
         ]])
     );
     assert_eq!(
         encode_range(0x83..=0x734),
-        expect_spans(&[
-            vec![
+        Ok(vec![
+            smallvec![
                 span(0b110_00010..=0b110_00010),
                 span(0b10_000011..=0b10_111111)
             ],
-            vec![
+            smallvec![
                 span(0b110_00011..=0b110_11011),
                 span(0b10_000000..=0b10_111111)
             ],
-            vec![
+            smallvec![
                 span(0b110_11100..=0b110_11100),
                 span(0b10_000000..=0b10_110100)
             ],
@@ -75,12 +76,12 @@ fn encode_two_byte_ranges() {
     );
     assert_eq!(
         encode_range(0x83..=0xD6),
-        expect_spans(&[
-            vec![
+        Ok(vec![
+            smallvec![
                 span(0b110_00010..=0b110_00010),
                 span(0b10_000011..=0b10_111111)
             ],
-            vec![
+            smallvec![
                 span(0b110_00011..=0b110_00011),
                 span(0b10_000000..=0b10_010110)
             ],
@@ -88,7 +89,7 @@ fn encode_two_byte_ranges() {
     );
     assert_eq!(
         encode_range(0x80..=0x7FF),
-        expect_spans(&[vec![
+        Ok(vec![smallvec![
             span(0b110_00010..=0b110_11111),
             span(0b10_000000..=0b10_111111)
         ]])
@@ -104,8 +105,16 @@ fn encode_three_byte_ranges() {
 #[test]
 fn encode_four_byte_ranges() {
     assert_eq!(
+        encode_range(0x10000..=0x10000),
+        expect_range(0x10000..=0x10000)
+    );
+    assert_eq!(
         encode_range(0x10000..=0x10FFFF),
         expect_range(0x10000..=0x10FFFF)
+    );
+    assert_eq!(
+        encode_range(0x10FFFF..=0x10FFFF),
+        expect_range(0x10FFFF..=0x10FFFF)
     );
 }
 
@@ -115,40 +124,18 @@ fn encode_ranges() {
 }
 
 #[test]
-fn brutforce_encode_one_byte_ranges() {
+#[ignore]
+fn bruteforce_entire_unicode_range() {
     let mut iteration = 0;
-    for start in '\u{0}'..='\u{7F}' {
-        for end in start..='\u{7F}' {
+    let first_char = 0x100000;
+    let last_char = 0x10FFFF;
+    for start in first_char..=last_char {
+        for end in start..=last_char {
             iteration += 1;
-            let start = start as u32;
-            let end = end as u32;
             assert_eq!(
                 encode_range(start..=end),
                 expect_range(start..=end),
-                "range: {:X?}..={:X?}, iteration: {}",
-                start,
-                end,
-                iteration
-            );
-        }
-    }
-}
-
-#[test]
-fn brutforce_encode_two_byte_ranges() {
-    let mut iteration = 0;
-    for start in '\u{80}'..='\u{7FF}' {
-        for end in start..='\u{7FF}' {
-            iteration += 1;
-            let start = start as u32;
-            let end = end as u32;
-            assert_eq!(
-                encode_range(start..=end),
-                expect_range(start..=end),
-                "range: {:X?}..={:X?}, iteration: {}",
-                start,
-                end,
-                iteration
+                "range: [{start:X?}-{end:X?}], iteration: {iteration}",
             );
         }
     }

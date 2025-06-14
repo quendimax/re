@@ -1,7 +1,6 @@
 use crate::coder::Coder;
 use crate::error::{Error::*, Result};
 use regr::{Span, span};
-use std::ops::RangeInclusive;
 
 /// Unicode code point inclusive range.
 type UcpRange = std::ops::RangeInclusive<u32>;
@@ -36,12 +35,10 @@ impl Coder for Utf8Coder {
         }
     }
 
-    fn encode_range<F>(&self, ucp_range: RangeInclusive<u32>, handler: F) -> Result<()>
+    fn encode_range<F>(&self, start_ucp: u32, end_ucp: u32, handler: F) -> Result<()>
     where
         F: FnMut(&[Span]),
     {
-        let start_ucp = *ucp_range.start();
-        let end_ucp = *ucp_range.end();
         assert!(start_ucp <= end_ucp);
         _ = char_try_from(start_ucp)?;
         _ = char_try_from(end_ucp)?;
@@ -91,7 +88,7 @@ fn take_n_bytes_range(range: &mut UcpRange) -> Option<(UcpRange, usize)> {
             Some((start..=end, 3))
         }
         0xD800..=0xFFFF => {
-            let start = *range.start().max(&0xE000);
+            let start = *range.start().max(&0xE000); // skip surrogates
             let end = *range.end().min(&0xFFFF);
             *range = end + 1..=*range.end();
             Some((start..=end, 3))
@@ -112,9 +109,9 @@ fn handle_range<const N: usize>(start: u32, end: u32, handler: &mut impl FnMut(&
 
     let mut start = start;
     let mut mask = 0;
-    for i in 0..N - 1 {
-        let shift = MASK_LEN * i;
-        mask |= MASK << shift;
+    for _ in 0..N - 1 {
+        mask <<= MASK_LEN;
+        mask |= MASK;
         let part = start & mask;
         if part == 0 {
             continue;
@@ -129,9 +126,9 @@ fn handle_range<const N: usize>(start: u32, end: u32, handler: &mut impl FnMut(&
 
     let mut end = end;
     let mut mask = 0;
-    for i in 0..N - 1 {
-        let shift = MASK_LEN * i;
-        mask |= MASK << shift;
+    for _ in 0..N - 1 {
+        mask <<= MASK_LEN;
+        mask |= MASK;
         let part = end & mask;
         if part == mask {
             continue;
