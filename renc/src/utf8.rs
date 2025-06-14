@@ -57,141 +57,14 @@ where
     let mut range = range;
     while let Some((range, bytes_len)) = take_n_bytes_range(&mut range) {
         match bytes_len {
-            1 => encode_known_range::<1>(range, handler),
-            2 => encode_known_range::<2>(range, handler),
-            3 => encode_known_range::<3>(range, handler),
-            4 => encode_known_range::<4>(range, handler),
+            1 => handle_range::<1>(*range.start(), *range.end(), handler),
+            2 => handle_range::<2>(*range.start(), *range.end(), handler),
+            3 => handle_range::<3>(*range.start(), *range.end(), handler),
+            4 => handle_range::<4>(*range.start(), *range.end(), handler),
             _ => unreachable!(),
         }
     }
     Ok(())
-}
-
-fn encode_known_range<const N: usize>(range: UcpRange, handler: &mut impl FnMut(&[Span])) {
-    dbg!("encode_kown_range", &range);
-    let mut start_buffer = [0u8; N];
-    let mut end_buffer = [0u8; N];
-    let start_str = char::from_u32(*range.start())
-        .unwrap()
-        .encode_utf8(&mut start_buffer);
-    let end_str = char::from_u32(*range.end())
-        .unwrap()
-        .encode_utf8(&mut end_buffer);
-    assert_eq!(start_str.len(), N);
-    assert_eq!(end_str.len(), N);
-
-    handle_sequence(&start_buffer, &end_buffer, true, 0, handler);
-}
-
-fn handle_sequence<const N: usize>(
-    start_bytes: &[u8; N],
-    end_bytes: &[u8; N],
-    all_previous_are_equal: bool,
-    index: usize,
-    handler: &mut impl FnMut(&[Span]),
-) {
-    let start = format!("{:X?}", start_bytes);
-    let end = format!("{:X?}", end_bytes);
-    dbg!("--------enter-handle_sequence", index, start, end);
-    if index >= N {
-        dbg!("---print");
-        run_handler(start_bytes, end_bytes, handler);
-        dbg!("--------exit-handle_sequence");
-        return;
-    }
-    if all_previous_are_equal {
-        if start_bytes[index] == end_bytes[index] {
-            dbg!("-1");
-            handle_sequence(start_bytes, end_bytes, true, index + 1, handler);
-        } else {
-            dbg!("0");
-            handle_sequence(start_bytes, end_bytes, false, index + 1, handler);
-        }
-    } else {
-        debug_assert!(index > 0);
-
-        if start_bytes[index] == 0x80 && end_bytes[index] == 0xBF {
-            dbg!("1");
-            handle_sequence(start_bytes, end_bytes, false, index + 1, handler);
-        } else if start_bytes[index - 1] + 1 == end_bytes[index - 1] {
-            dbg!("2");
-            let mut start_mid_bytes = *start_bytes;
-            set_tail(&mut start_mid_bytes, 0xBF, index);
-            let equal = start_bytes[index] == start_mid_bytes[index];
-            handle_sequence(start_bytes, &start_mid_bytes, equal, index + 1, handler);
-
-            let mut end_mid_bytes = *end_bytes;
-            set_tail(&mut end_mid_bytes, 0x80, index);
-            let equal = end_mid_bytes[index] == end_bytes[index];
-            handle_sequence(&end_mid_bytes, end_bytes, equal, index + 1, handler);
-        } else if start_bytes[index] == 0x80 {
-            dbg!("3");
-            let mut start_mid_bytes = *end_bytes;
-            decrement_from_index(&mut start_mid_bytes, index - 1);
-            set_tail(&mut start_mid_bytes, 0xBF, index);
-            handle_sequence(start_bytes, &start_mid_bytes, false, index + 1, handler);
-
-            let mut end_mid_bytes = *end_bytes;
-            set_tail(&mut end_mid_bytes, 0x80, index);
-            let equal = end_mid_bytes[index] == end_bytes[index];
-            handle_sequence(&end_mid_bytes, end_bytes, equal, index + 1, handler);
-        } else if end_bytes[index] == 0xBF {
-            dbg!("4");
-            let mut start_mid_bytes = *start_bytes;
-            set_tail(&mut start_mid_bytes, 0xBF, index);
-            let equal = start_bytes[index] == start_mid_bytes[index];
-            handle_sequence(start_bytes, &start_mid_bytes, equal, index + 1, handler);
-
-            let mut end_mid_bytes = *start_bytes;
-            increment_from_index(&mut end_mid_bytes, index - 1);
-            set_tail(&mut end_mid_bytes, 0x80, index);
-            handle_sequence(&end_mid_bytes, end_bytes, false, index + 1, handler);
-        } else {
-            dbg!("5");
-            let mut start_mid_bytes = *start_bytes;
-            set_tail(&mut start_mid_bytes, 0xBF, index);
-            let equal = start_bytes[index] == start_mid_bytes[index];
-            handle_sequence(start_bytes, &start_mid_bytes, equal, index + 1, handler);
-
-            let mut mid_start_bytes = *start_bytes;
-            increment_from_index(&mut mid_start_bytes, index - 1);
-            set_tail(&mut mid_start_bytes, 0x80, index);
-            let mut mid_end_bytes = *end_bytes;
-            decrement_from_index(&mut mid_end_bytes, index - 1);
-            set_tail(&mut mid_end_bytes, 0xBF, index);
-            handle_sequence(&mid_start_bytes, &mid_end_bytes, false, index + 1, handler);
-
-            let mut end_mid_bytes = *end_bytes;
-            set_tail(&mut end_mid_bytes, 0x80, index);
-            let equal = end_mid_bytes[index] == end_bytes[index];
-            handle_sequence(&end_mid_bytes, end_bytes, equal, index + 1, handler);
-        }
-    }
-    dbg!("--------exit-handle_sequence");
-}
-
-fn set_tail<const N: usize>(bytes: &mut [u8; N], value: u8, from_index: usize) {
-    for byte in &mut bytes[from_index..] {
-        *byte = value;
-    }
-}
-
-fn increment_from_index<const N: usize>(utf8_seq: &mut [u8; N], index: usize) {
-    if utf8_seq[index] == 0xBF {
-        utf8_seq[index] = 0x80;
-        increment_from_index(utf8_seq, index - 1);
-    } else {
-        utf8_seq[index] += 1;
-    }
-}
-
-fn decrement_from_index<const N: usize>(utf8_seq: &mut [u8; N], index: usize) {
-    if utf8_seq[index] == 0x80 {
-        utf8_seq[index] = 0xBF;
-        decrement_from_index(utf8_seq, index - 1);
-    } else {
-        utf8_seq[index] -= 1;
-    }
 }
 
 fn take_n_bytes_range(range: &mut UcpRange) -> Option<(UcpRange, usize)> {
@@ -225,7 +98,7 @@ fn take_n_bytes_range(range: &mut UcpRange) -> Option<(UcpRange, usize)> {
         }
         0x10000..=0x10FFFF => {
             let start = *range.start();
-            let end = *range.end().min(&0x7F);
+            let end = *range.end().min(&0x10FFFF);
             *range = end + 1..=*range.end();
             Some((start..=end, 4))
         }
@@ -233,30 +106,82 @@ fn take_n_bytes_range(range: &mut UcpRange) -> Option<(UcpRange, usize)> {
     }
 }
 
-fn run_handler(start_bytes: &[u8], end_bytes: &[u8], handler: &mut impl FnMut(&[Span])) {
-    match start_bytes.len() {
+fn handle_range<const N: usize>(start: u32, end: u32, handler: &mut impl FnMut(&[Span])) {
+    const MASK: u32 = 0x3F;
+    const MASK_LEN: usize = 6;
+
+    let mut start = start;
+    let mut mask = 0;
+    for i in 0..N - 1 {
+        let shift = MASK_LEN * i;
+        mask |= MASK << shift;
+        let part = start & mask;
+        if part == 0 {
+            continue;
+        }
+        let tmp_end = start | mask;
+        if tmp_end > end {
+            break;
+        }
+        run_handler::<N>(start, tmp_end, handler);
+        start = tmp_end + 1;
+    }
+
+    let mut end = end;
+    let mut mask = 0;
+    for i in 0..N - 1 {
+        let shift = MASK_LEN * i;
+        mask |= MASK << shift;
+        let part = end & mask;
+        if part == mask {
+            continue;
+        }
+        let tmp_start = end & !mask;
+        if tmp_start < start {
+            break;
+        }
+        run_handler::<N>(tmp_start, end, handler);
+        end = tmp_start - 1;
+    }
+
+    if start <= end {
+        run_handler::<N>(start, end, handler);
+    }
+}
+
+fn run_handler<const N: usize>(start: u32, end: u32, handler: &mut impl FnMut(&[Span])) {
+    let mut start_buffer = [0u8; N];
+    let mut end_buffer = [0u8; N];
+    let start_str = char::from_u32(start)
+        .unwrap()
+        .encode_utf8(&mut start_buffer);
+    let end_str = char::from_u32(end).unwrap().encode_utf8(&mut end_buffer);
+    assert_eq!(start_str.len(), N);
+    assert_eq!(end_str.len(), N);
+
+    match N {
         1 => {
-            handler(&[span(start_bytes[0]..=end_bytes[0])]);
+            handler(&[span(start_buffer[0]..=end_buffer[0])]);
         }
         2 => {
             handler(&[
-                span(start_bytes[0]..=end_bytes[0]),
-                span(start_bytes[1]..=end_bytes[1]),
+                span(start_buffer[0]..=end_buffer[0]),
+                span(start_buffer[1]..=end_buffer[1]),
             ]);
         }
         3 => {
             handler(&[
-                span(start_bytes[0]..=end_bytes[0]),
-                span(start_bytes[1]..=end_bytes[1]),
-                span(start_bytes[2]..=end_bytes[2]),
+                span(start_buffer[0]..=end_buffer[0]),
+                span(start_buffer[1]..=end_buffer[1]),
+                span(start_buffer[2]..=end_buffer[2]),
             ]);
         }
         4 => {
             handler(&[
-                span(start_bytes[0]..=end_bytes[0]),
-                span(start_bytes[1]..=end_bytes[1]),
-                span(start_bytes[2]..=end_bytes[2]),
-                span(start_bytes[3]..=end_bytes[3]),
+                span(start_buffer[0]..=end_buffer[0]),
+                span(start_buffer[1]..=end_buffer[1]),
+                span(start_buffer[2]..=end_buffer[2]),
+                span(start_buffer[3]..=end_buffer[3]),
             ]);
         }
         _ => unreachable!(),
