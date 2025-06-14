@@ -145,3 +145,36 @@ fn bruteforce_entire_unicode_range() {
         }
     }
 }
+
+mod prop {
+    use super::*;
+    use pretty_assertions::assert_eq;
+    use proptest::prelude::*;
+
+    prop_compose! {
+        fn gen_range()(mut start in 0..=0x10FFFFu32, mut end in 0..=0x10FFFFu32) -> (u32, u32) {
+            if char::try_from(start).is_err() {
+                start = 0xD7FF
+            }
+            if char::try_from(end).is_err() {
+                end = 0xE000;
+            }
+            if start > end {
+                std::mem::swap(&mut start, &mut end);
+            }
+            (start, end)
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+
+        #[test]
+        fn encode_ranges((start, end) in gen_range()) {
+            assert_eq!(
+                encode_range(start..=end),
+                expect_range(start..=end),
+            );
+        }
+    }
+}

@@ -15,4 +15,5 @@ arrayvec.workspace = true
 assert_matches.workspace = true
 ntest.workspace = true
 pretty_assertions.workspace = true
-regex-syntax = "0.8.5"
+proptest.workspace = true
+regex-syntax.workspace = true
