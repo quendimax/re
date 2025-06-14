@@ -68,6 +68,7 @@ where
 }
 
 fn encode_known_range<const N: usize>(range: UcpRange, handler: &mut impl FnMut(&[Span])) {
+    dbg!("encode_kown_range", &range);
     let mut start_buffer = [0u8; N];
     let mut end_buffer = [0u8; N];
     let start_str = char::from_u32(*range.start())
@@ -79,62 +80,99 @@ fn encode_known_range<const N: usize>(range: UcpRange, handler: &mut impl FnMut(
     assert_eq!(start_str.len(), N);
     assert_eq!(end_str.len(), N);
 
-    handle_sequence(&mut start_buffer, &mut end_buffer, true, 0, handler);
+    handle_sequence(&start_buffer, &end_buffer, true, 0, handler);
 }
 
 fn handle_sequence<const N: usize>(
-    start_bytes: &mut [u8; N],
-    end_bytes: &mut [u8; N],
+    start_bytes: &[u8; N],
+    end_bytes: &[u8; N],
     all_previous_are_equal: bool,
     index: usize,
     handler: &mut impl FnMut(&[Span]),
 ) {
+    let start = format!("{:X?}", start_bytes);
+    let end = format!("{:X?}", end_bytes);
+    dbg!("--------enter-handle_sequence", index, start, end);
     if index >= N {
+        dbg!("---print");
         run_handler(start_bytes, end_bytes, handler);
+        dbg!("--------exit-handle_sequence");
         return;
     }
     if all_previous_are_equal {
         if start_bytes[index] == end_bytes[index] {
+            dbg!("-1");
             handle_sequence(start_bytes, end_bytes, true, index + 1, handler);
         } else {
+            dbg!("0");
             handle_sequence(start_bytes, end_bytes, false, index + 1, handler);
         }
     } else {
         debug_assert!(index > 0);
 
-        let mut old_start_bytes = *start_bytes;
-        start_bytes[index] = 0xBF;
-        let all_previous_are_equal =
-            all_previous_are_equal && (start_bytes[index] == old_start_bytes[index]);
-        handle_sequence(
-            &mut old_start_bytes,
-            start_bytes,
-            all_previous_are_equal,
-            index + 1,
-            handler,
-        );
-        increment_from_index(start_bytes, index);
+        if start_bytes[index] == 0x80 && end_bytes[index] == 0xBF {
+            dbg!("1");
+            handle_sequence(start_bytes, end_bytes, false, index + 1, handler);
+        } else if start_bytes[index - 1] + 1 == end_bytes[index - 1] {
+            dbg!("2");
+            let mut start_mid_bytes = *start_bytes;
+            set_tail(&mut start_mid_bytes, 0xBF, index);
+            let equal = start_bytes[index] == start_mid_bytes[index];
+            handle_sequence(start_bytes, &start_mid_bytes, equal, index + 1, handler);
 
-        let mut old_end_bytes = *end_bytes;
-        end_bytes[index] = 0x80;
-        let all_previous_are_equal =
-            all_previous_are_equal && (end_bytes[index] == old_end_bytes[index]);
-        handle_sequence(
-            end_bytes,
-            &mut old_end_bytes,
-            all_previous_are_equal,
-            index + 1,
-            handler,
-        );
-        decrement_from_index(end_bytes, index);
+            let mut end_mid_bytes = *end_bytes;
+            set_tail(&mut end_mid_bytes, 0x80, index);
+            let equal = end_mid_bytes[index] == end_bytes[index];
+            handle_sequence(&end_mid_bytes, end_bytes, equal, index + 1, handler);
+        } else if start_bytes[index] == 0x80 {
+            dbg!("3");
+            let mut start_mid_bytes = *end_bytes;
+            decrement_from_index(&mut start_mid_bytes, index - 1);
+            set_tail(&mut start_mid_bytes, 0xBF, index);
+            handle_sequence(start_bytes, &start_mid_bytes, false, index + 1, handler);
 
-        handle_sequence(
-            start_bytes,
-            end_bytes,
-            all_previous_are_equal && (start_bytes[index] == end_bytes[index]),
-            index + 1,
-            handler,
-        );
+            let mut end_mid_bytes = *end_bytes;
+            set_tail(&mut end_mid_bytes, 0x80, index);
+            let equal = end_mid_bytes[index] == end_bytes[index];
+            handle_sequence(&end_mid_bytes, end_bytes, equal, index + 1, handler);
+        } else if end_bytes[index] == 0xBF {
+            dbg!("4");
+            let mut start_mid_bytes = *start_bytes;
+            set_tail(&mut start_mid_bytes, 0xBF, index);
+            let equal = start_bytes[index] == start_mid_bytes[index];
+            handle_sequence(start_bytes, &start_mid_bytes, equal, index + 1, handler);
+
+            let mut end_mid_bytes = *start_bytes;
+            increment_from_index(&mut end_mid_bytes, index - 1);
+            set_tail(&mut end_mid_bytes, 0x80, index);
+            handle_sequence(&end_mid_bytes, end_bytes, false, index + 1, handler);
+        } else {
+            dbg!("5");
+            let mut start_mid_bytes = *start_bytes;
+            set_tail(&mut start_mid_bytes, 0xBF, index);
+            let equal = start_bytes[index] == start_mid_bytes[index];
+            handle_sequence(start_bytes, &start_mid_bytes, equal, index + 1, handler);
+
+            let mut mid_start_bytes = *start_bytes;
+            increment_from_index(&mut mid_start_bytes, index - 1);
+            set_tail(&mut mid_start_bytes, 0x80, index);
+            let mut mid_end_bytes = *end_bytes;
+            decrement_from_index(&mut mid_end_bytes, index - 1);
+            set_tail(&mut mid_end_bytes, 0xBF, index);
+            handle_sequence(&mid_start_bytes, &mid_end_bytes, false, index + 1, handler);
+
+            let mut end_mid_bytes = *end_bytes;
+            set_tail(&mut end_mid_bytes, 0x80, index);
+            let equal = end_mid_bytes[index] == end_bytes[index];
+            handle_sequence(&end_mid_bytes, end_bytes, equal, index + 1, handler);
+        }
+    }
+    dbg!("--------exit-handle_sequence");
+}
+
+fn set_tail<const N: usize>(bytes: &mut [u8; N], value: u8, from_index: usize) {
+    for byte in &mut bytes[from_index..] {
+        *byte = value;
     }
 }
 
