@@ -7,7 +7,7 @@ use std::fmt::Write;
 /// the standrad range implements [`std::iter::Iterator`], and it requires
 /// implementing [`std::iter::Step`] that is unstable. Also the standard range
 /// uses additional data [`std::iter::Iterator`], but my custom range doesn't.
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Span {
     start: u8,
     end: u8,
