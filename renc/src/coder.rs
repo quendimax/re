@@ -1,5 +1,6 @@
 use crate::error::Result;
 use regr::Span;
+use std::ops::RangeInclusive;
 
 /// This trait helps convert unicode code points into byte sequeces
 /// corresponding encoding way chosen by user.
@@ -16,5 +17,7 @@ pub trait Coder {
     fn encode_str(&self, s: &str, buffer: &mut [u8]) -> Result<usize>;
 
     /// Encode range of unicode code points into array of byte sequences.
-    fn encode_range(&self, start_ucp: u32, end_ucp: u32, handler: fn(&[Span])) -> Result<()>;
+    fn encode_range<F>(&self, ucp_range: RangeInclusive<u32>, handler: F) -> Result<()>
+    where
+        F: FnMut(&[Span]);
 }

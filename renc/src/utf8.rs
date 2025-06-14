@@ -1,13 +1,14 @@
 use crate::coder::Coder;
 use crate::error::{Error::*, Result};
 use regr::{Span, span};
+use std::ops::RangeInclusive;
 
 /// Unicode code point inclusive range.
 type UcpRange = std::ops::RangeInclusive<u32>;
 
-pub struct Utf8Coder;
-
 const CODER_NAME: &str = "Utf8Coder";
+
+pub struct Utf8Coder;
 
 impl Coder for Utf8Coder {
     fn encode_char(&self, c: char, buffer: &mut [u8]) -> Result<usize> {
@@ -35,20 +36,24 @@ impl Coder for Utf8Coder {
         }
     }
 
-    fn encode_range(
-        &self,
-        start_ucp: u32,
-        end_ucp: u32,
-        handler: fn(byte_seq: &[Span]),
-    ) -> Result<()> {
+    fn encode_range<F>(&self, ucp_range: RangeInclusive<u32>, handler: F) -> Result<()>
+    where
+        F: FnMut(&[Span]),
+    {
+        let start_ucp = *ucp_range.start();
+        let end_ucp = *ucp_range.end();
         assert!(start_ucp <= end_ucp);
         _ = char_try_from(start_ucp)?;
         _ = char_try_from(end_ucp)?;
-        encode_range(start_ucp..=end_ucp, handler)
+        let mut handler = handler;
+        encode_range(start_ucp..=end_ucp, &mut handler)
     }
 }
 
-fn encode_range(range: UcpRange, handler: fn(&[Span])) -> Result<()> {
+fn encode_range<F>(range: UcpRange, handler: &mut F) -> Result<()>
+where
+    F: FnMut(&[Span]),
+{
     let mut range = range;
     while let Some((range, bytes_len)) = take_n_bytes_range(&mut range) {
         match bytes_len {
@@ -62,7 +67,7 @@ fn encode_range(range: UcpRange, handler: fn(&[Span])) -> Result<()> {
     Ok(())
 }
 
-fn encode_known_range<const N: usize>(range: UcpRange, handler: fn(byte_seq: &[Span])) {
+fn encode_known_range<const N: usize>(range: UcpRange, handler: &mut impl FnMut(&[Span])) {
     let mut start_buffer = [0u8; N];
     let mut end_buffer = [0u8; N];
     let start_str = char::from_u32(*range.start())
@@ -82,7 +87,7 @@ fn handle_sequence<const N: usize>(
     end_bytes: &mut [u8; N],
     all_previous_are_equal: bool,
     index: usize,
-    handler: fn(byte_seq: &[Span]),
+    handler: &mut impl FnMut(&[Span]),
 ) {
     if index >= N {
         run_handler(start_bytes, end_bytes, handler);
@@ -190,7 +195,7 @@ fn take_n_bytes_range(range: &mut UcpRange) -> Option<(UcpRange, usize)> {
     }
 }
 
-fn run_handler(start_bytes: &[u8], end_bytes: &[u8], handler: fn(byte_seq: &[Span])) {
+fn run_handler(start_bytes: &[u8], end_bytes: &[u8], handler: &mut impl FnMut(&[Span])) {
     match start_bytes.len() {
         1 => {
             handler(&[span(start_bytes[0]..=end_bytes[0])]);
