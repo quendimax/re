@@ -120,6 +120,7 @@ impl<'n, 's, T: Coder> Parser<'n, 's, T> {
                 ')' => Ok(start_node),
                 '[' => self.parse_class(start_node),
                 ']' => err::unexpected_close_bracket(next_sym),
+                '.' => self.parse_dot_class(start_node),
                 _ => self.parse_term(start_node),
             };
             let mut end_node = res?;
@@ -320,7 +321,7 @@ impl<'n, 's, T: Coder> Parser<'n, 's, T> {
         Ok(end_node)
     }
 
-    /// Parse parentheses:
+    /// Parses parentheses:
     ///
     /// ```mkf
     ///     '(' disjunct ')'
@@ -332,11 +333,39 @@ impl<'n, 's, T: Coder> Parser<'n, 's, T> {
         Ok(end_node)
     }
 
+    /// Parses dot class:
+    ///
+    /// ```mkf
+    /// class
+    ///     '.'
+    /// ```
+    fn parse_dot_class(&mut self, start_node: Node<'n>) -> Result<Node<'n>> {
+        let mut end_node = start_node;
+        self.lexer.expect('.')?;
+        self.codec.encode_entire_range(|seq| {
+            let mut prev_node = start_node;
+            let len = seq.len();
+            for (i, span) in seq.iter().enumerate() {
+                if i < len - 1 {
+                    let node = self.nfa.node();
+                    prev_node.connect(node, span);
+                    prev_node = node;
+                } else {
+                    if end_node == start_node {
+                        end_node = self.nfa.node();
+                    }
+                    prev_node.connect(end_node, span);
+                }
+            }
+        })?;
+        Ok(end_node)
+    }
+
     fn parse_class(&mut self, _: Node<'n>) -> Result<Node<'n>> {
         todo!()
     }
 
-    /// Parse terminal:
+    /// Parses terminal:
     ///
     /// # Syntax
     ///
@@ -353,7 +382,7 @@ impl<'n, 's, T: Coder> Parser<'n, 's, T> {
         }
     }
 
-    /// Parse an escape sequence.
+    /// Parses an escape sequence.
     ///
     /// It is intended to be compatible with the Rust string literal escape
     /// sequences.

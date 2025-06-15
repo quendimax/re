@@ -124,8 +124,16 @@ fn encode_four_byte_ranges() {
 }
 
 #[test]
-fn encode_ranges() {
-    assert_eq!(encode_range(0x0..=0x10FFFF), expect_range(0x0..=0x10FFFF));
+fn encode_entire_range() {
+    let mut seq = Vec::<Sequence>::new();
+    assert!(
+        Utf8Coder
+            .encode_entire_range(|spans| seq.push(Sequence::try_from(spans).unwrap()))
+            .is_ok()
+    );
+    seq.sort();
+    assert_eq!(Ok(seq.clone()), expect_range(0x0..=0x10FFFF));
+    assert_eq!(Ok(seq), encode_range(0x0..=0x10FFFF));
 }
 
 #[test]
@@ -133,7 +141,7 @@ fn encode_ranges() {
 fn bruteforce_entire_unicode_range() {
     let mut iteration = 0;
     let first_char = '\0';
-    let last_char = '\u{FFFF}';
+    let last_char = '\u{10FFFF}';
     for start in first_char..=last_char {
         for end in start..=last_char {
             iteration += 1;
