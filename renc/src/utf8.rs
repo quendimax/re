@@ -10,6 +10,10 @@ const CODER_NAME: &str = "Utf8Coder";
 pub struct Utf8Coder;
 
 impl Coder for Utf8Coder {
+    const MIN_CODEPOINT: u32 = char::MIN as u32;
+
+    const MAX_CODEPOINT: u32 = char::MAX as u32;
+
     fn encode_char(&self, c: char, buffer: &mut [u8]) -> Result<usize> {
         let expected_len = c.len_utf8();
         if buffer.len() < expected_len {
@@ -44,6 +48,13 @@ impl Coder for Utf8Coder {
         _ = char_try_from(end_ucp)?;
         let mut handler = handler;
         encode_range(start_ucp..=end_ucp, &mut handler)
+    }
+
+    fn encode_entire_range<F>(&self, handler: F) -> Result<()>
+    where
+        F: FnMut(&[Span]),
+    {
+        self.encode_range(Self::MIN_CODEPOINT, Self::MAX_CODEPOINT, handler)
     }
 }
 
