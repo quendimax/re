@@ -366,6 +366,7 @@ impl<'n, 's, T: Coder> Parser<'n, 's, T> {
     ///     '.'
     ///     '*'
     ///     '+'
+    ///     '-'
     ///     '?'
     ///     '\'
     ///     '|'
@@ -401,9 +402,8 @@ impl<'n, 's, T: Coder> Parser<'n, 's, T> {
         self.lexer.expect('\\')?;
         if let Some(c) = self.lexer.lex() {
             let codepoint: Option<u32> = match c {
-                '"' | '.' | '*' | '+' | '?' | '\\' | '|' | '(' | ')' | '[' | ']' | '{' | '}' => {
-                    Some(c as u32)
-                }
+                '"' | '.' | '*' | '+' | '-' | '?' | '\\' | '|' | '(' | ')' | '[' | ']' | '{'
+                | '}' => Some(c as u32),
                 'n' => Some('\n' as u32),
                 'r' => Some('\r' as u32),
                 't' => Some('\t' as u32),
@@ -525,7 +525,7 @@ impl<'n, 's, T: Coder> Parser<'n, 's, T> {
         let symbol = self.lexer.lex().unwrap();
         if matches!(
             symbol,
-            '\\' | '|' | '.' | '*' | '+' | '?' | '(' | ')' | '[' | ']' | '{' | '}'
+            '\\' | '|' | '.' | '*' | '+' | '-' | '?' | '(' | ')' | '[' | ']' | '{' | '}'
         ) {
             return err::escape_it(symbol);
         }
