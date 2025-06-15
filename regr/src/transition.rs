@@ -94,6 +94,13 @@ impl ContainOp<u8> for Transition {
     }
 }
 
+impl ContainOp<&u8> for Transition {
+    #[inline]
+    fn contains(&self, symbol: &u8) -> bool {
+        Self::contains(self, *symbol)
+    }
+}
+
 impl ContainOp<Span> for Transition {
     #[inline]
     fn contains(&self, span: Span) -> bool {
@@ -103,9 +110,24 @@ impl ContainOp<Span> for Transition {
     }
 }
 
+impl ContainOp<&Span> for Transition {
+    #[inline]
+    fn contains(&self, span: &Span) -> bool {
+        Self::contains(self, *span)
+    }
+}
+
 impl ContainOp<std::ops::RangeInclusive<u8>> for Transition {
     #[inline]
     fn contains(&self, range: std::ops::RangeInclusive<u8>) -> bool {
+        let span = Span::from(range);
+        ContainOp::contains(self, span)
+    }
+}
+
+impl ContainOp<&std::ops::RangeInclusive<u8>> for Transition {
+    #[inline]
+    fn contains(&self, range: &std::ops::RangeInclusive<u8>) -> bool {
         let span = Span::from(range);
         ContainOp::contains(self, span)
     }
@@ -167,6 +189,13 @@ impl MergeOp<u8> for Transition {
     }
 }
 
+impl MergeOp<&u8> for Transition {
+    #[inline]
+    fn merge(&mut self, symbol: &u8) {
+        Self::merge(self, *symbol)
+    }
+}
+
 impl MergeOp<Span> for Transition {
     fn merge(&mut self, span: Span) {
         let mut ls_mask = 1 << (span.start() & (u8::MAX >> 2));
@@ -204,9 +233,24 @@ impl MergeOp<Span> for Transition {
     }
 }
 
+impl MergeOp<&Span> for Transition {
+    #[inline]
+    fn merge(&mut self, span: &Span) {
+        Self::merge(self, *span)
+    }
+}
+
 impl MergeOp<std::ops::RangeInclusive<u8>> for Transition {
     #[inline]
     fn merge(&mut self, range: std::ops::RangeInclusive<u8>) {
+        let span = Span::from(range);
+        MergeOp::merge(self, span)
+    }
+}
+
+impl MergeOp<&std::ops::RangeInclusive<u8>> for Transition {
+    #[inline]
+    fn merge(&mut self, range: &std::ops::RangeInclusive<u8>) {
         let span = Span::from(range);
         MergeOp::merge(self, span)
     }

@@ -269,7 +269,9 @@ macro_rules! impl_connect {
 }
 
 impl_connect!(u8);
+impl_connect!(&u8);
 impl_connect!(Span);
+impl_connect!(&Span);
 impl_connect!(&Transition);
 
 impl<'a> ConnectOp<'a, std::ops::RangeInclusive<u8>> for Node<'a> {

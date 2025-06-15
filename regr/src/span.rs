@@ -145,6 +145,13 @@ impl std::convert::From<std::ops::RangeInclusive<u8>> for Span {
     }
 }
 
+impl std::convert::From<&std::ops::RangeInclusive<u8>> for Span {
+    #[inline]
+    fn from(value: &std::ops::RangeInclusive<u8>) -> Self {
+        Self::new(*value.start(), *value.end())
+    }
+}
+
 impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.start().display())?;
@@ -155,7 +162,7 @@ impl std::fmt::Display for Span {
     }
 }
 
-macro_rules! reimpl {
+macro_rules! impl_fmt {
     (std::fmt::$trait:ident for $outer_type:ident) => {
         impl std::fmt::$trait for $outer_type {
             #[inline]
@@ -171,8 +178,8 @@ macro_rules! reimpl {
     };
 }
 
-reimpl!(std::fmt::Debug for Span);
-reimpl!(std::fmt::Binary for Span);
-reimpl!(std::fmt::Octal for Span);
-reimpl!(std::fmt::LowerHex for Span);
-reimpl!(std::fmt::UpperHex for Span);
+impl_fmt!(std::fmt::Debug for Span);
+impl_fmt!(std::fmt::Binary for Span);
+impl_fmt!(std::fmt::Octal for Span);
+impl_fmt!(std::fmt::LowerHex for Span);
+impl_fmt!(std::fmt::UpperHex for Span);
