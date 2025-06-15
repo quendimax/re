@@ -1,10 +1,10 @@
 use bumpalo::Bump;
 use smallvec::SmallVec;
-use std::cell::RefCell;
+use std::cell::Cell;
 
 pub(crate) struct Arena<T> {
     bump: Bump,
-    len: RefCell<usize>,
+    len: Cell<usize>,
     _phantom: std::marker::PhantomData<T>,
 }
 
@@ -12,7 +12,7 @@ impl<T: Sized> Arena<T> {
     pub(crate) fn with_capacity(capacity: usize) -> Self {
         Self {
             bump: Bump::with_capacity(capacity * std::mem::size_of::<T>()),
-            len: RefCell::new(0),
+            len: Cell::new(0),
             _phantom: Default::default(),
         }
     }
@@ -22,7 +22,7 @@ impl<T: Sized> Arena<T> {
         F: FnOnce() -> T,
     {
         let refer = self.bump.alloc_with(f);
-        *self.len.borrow_mut() += 1;
+        self.len.replace(self.len.get() + 1);
         refer
     }
 }
@@ -30,7 +30,7 @@ impl<T: Sized> Arena<T> {
 impl<T> std::ops::Drop for Arena<T> {
     fn drop(&mut self) {
         // number of allocated nodes
-        let mut len = *self.len.borrow();
+        let mut len = self.len.get();
         if len == 0 {
             return;
         }
@@ -88,7 +88,7 @@ impl<'a, T> Iter<'a, T> {
     fn new(arena: &'a Arena<T>) -> Self {
         let chunk_iter = unsafe { arena.bump.iter_allocated_chunks_raw() };
         Self {
-            len: *arena.len.borrow(),
+            len: arena.len.get(),
             chunks: chunk_iter.collect::<SmallVec<[(*mut u8, usize); 4]>>(),
             chunk_start: std::ptr::null(),
             chunk_size: 0,
