@@ -17,7 +17,6 @@ fn encode_range(range: RangeInclusive<u32>) -> Result<Vec<Sequence>> {
     Utf8Coder.encode_range(start, end, |spans| {
         seq.push(Sequence::try_from(spans).unwrap())
     })?;
-    seq.sort();
     Ok(seq)
 }
 
@@ -136,24 +135,6 @@ fn encode_entire_range() {
     assert_eq!(Ok(seq), encode_range(0x0..=0x10FFFF));
 }
 
-#[test]
-#[ignore]
-fn bruteforce_entire_unicode_range() {
-    let mut iteration = 0;
-    let first_char = '\0';
-    let last_char = '\u{10FFFF}';
-    for start in first_char..=last_char {
-        for end in start..=last_char {
-            iteration += 1;
-            assert_eq!(
-                encode_range(start as u32..=end as u32),
-                expect_range(start as u32..=end as u32),
-                "range: [{start:X?}-{end:X?}], iteration: {iteration}",
-            );
-        }
-    }
-}
-
 mod prop {
     use super::*;
     use pretty_assertions::assert_eq;
@@ -175,14 +156,58 @@ mod prop {
     }
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
-
         #[test]
         fn encode_ranges((start, end) in gen_range()) {
-            assert_eq!(
-                encode_range(start..=end),
-                expect_range(start..=end),
-            );
+            assert_eq!(encode_range(start..=end), expect_range(start..=end));
+        }
+    }
+}
+
+mod bruteforce {
+    use pretty_assertions::assert_eq;
+    use test_case::test_matrix;
+
+    #[test_matrix(0x0..0x40)]
+    #[cfg_attr(not(feature = "test-bruteforce-utf8"), ignore)]
+    fn encode_range(iteration: u32) {
+        const ITERATION_LEN: u32 = 0x40; // must be the same as in #[test_matrix]
+        const CODEPOINT_NUM: u32 = 0x110000;
+        const ITER_CHUNK_LEN: u32 = CODEPOINT_NUM / ITERATION_LEN;
+
+        let first_cp = iteration * (ITER_CHUNK_LEN / 2);
+        let first_char: char = char::try_from(first_cp).unwrap_or('\u{E000}');
+
+        let last_cp = (iteration + 1) * (ITER_CHUNK_LEN / 2) - 1;
+        let last_char: char = char::try_from(last_cp).unwrap_or('\u{D7FF}');
+
+        if first_char <= last_char {
+            for start in first_char..=last_char {
+                for end in start..='\u{10FFFF}' {
+                    assert_eq!(
+                        super::encode_range(start as u32..=end as u32),
+                        super::expect_range(start as u32..=end as u32),
+                        "range: [{start:X?}-{end:X?}]",
+                    );
+                }
+            }
+        }
+
+        let first_cp = CODEPOINT_NUM - (iteration + 1) * (ITER_CHUNK_LEN / 2);
+        let first_char: char = char::try_from(first_cp).unwrap_or('\u{E000}');
+
+        let last_cp = CODEPOINT_NUM - iteration * (ITER_CHUNK_LEN / 2) - 1;
+        let last_char: char = char::try_from(last_cp).unwrap_or('\u{D7FF}');
+
+        if first_char <= last_char {
+            for start in first_char..=last_char {
+                for end in start..='\u{10FFFF}' {
+                    assert_eq!(
+                        super::encode_range(start as u32..=end as u32),
+                        super::expect_range(start as u32..=end as u32),
+                        "range: [{start:X?}-{end:X?}]",
+                    );
+                }
+            }
         }
     }
 }

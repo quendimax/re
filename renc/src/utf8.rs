@@ -135,6 +135,7 @@ fn handle_range<const N: usize>(start: u32, end: u32, handler: &mut impl FnMut(&
         start = tmp_end + 1;
     }
 
+    let mut reversed_codepoints = arrayvec::ArrayVec::<(u32, u32), 5>::new();
     let mut end = end;
     let mut mask = 0;
     for _ in 0..N - 1 {
@@ -148,12 +149,17 @@ fn handle_range<const N: usize>(start: u32, end: u32, handler: &mut impl FnMut(&
         if tmp_start < start {
             break;
         }
-        run_handler::<N>(tmp_start, end, handler);
+        reversed_codepoints.push((tmp_start, end));
         end = tmp_start - 1;
     }
 
     if start <= end {
         run_handler::<N>(start, end, handler);
+    }
+
+    // to save ascending order of the range sequences
+    for (start, end) in reversed_codepoints.iter().rev() {
+        run_handler::<N>(*start, *end, handler);
     }
 }
 

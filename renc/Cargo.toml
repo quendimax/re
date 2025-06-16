@@ -7,13 +7,16 @@ edition.workspace = true
 repository.workspace = true
 
 [dependencies]
+arrayvec.workspace = true
 regr = { path = "../regr" }
 thiserror.workspace = true
 
 [dev-dependencies]
-arrayvec.workspace = true
 assert_matches.workspace = true
-ntest.workspace = true
 pretty_assertions.workspace = true
 proptest.workspace = true
 regex-syntax.workspace = true
+test-case.workspace = true
+
+[features]
+test-bruteforce-utf8 = []

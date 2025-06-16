@@ -496,6 +496,7 @@ fn parse_escape_fails() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn parse_dot_class() {
     assert_eq!(
         parse("."),
@@ -504,12 +505,12 @@ fn parse_dot_class() {
                 [00h-7Fh] -> node(1)
                 [C2h-DFh] -> node(2)
                 [E0h] -> node(3)
-                [EDh] -> node(5)
-                [E1h-ECh] -> node(7)
+                [E1h-ECh] -> node(5)
+                [EDh] -> node(7)
                 [EEh-EFh] -> node(9)
                 [F0h] -> node(11)
-                [F4h] -> node(14)
-                [F1h-F3h] -> node(17)
+                [F1h-F3h] -> node(14)
+                [F4h] -> node(17)
             }
             node(1) {}
             node(2) {
@@ -522,13 +523,13 @@ fn parse_dot_class() {
                 [80h-BFh] -> node(1)
             }
             node(5) {
-                [80h-9Fh] -> node(6)
+                [80h-BFh] -> node(6)
             }
             node(6) {
                 [80h-BFh] -> node(1)
             }
             node(7) {
-                [80h-BFh] -> node(8)
+                [80h-9Fh] -> node(8)
             }
             node(8) {
                 [80h-BFh] -> node(1)
@@ -549,7 +550,7 @@ fn parse_dot_class() {
                 [80h-BFh] -> node(1)
             }
             node(14) {
-                [80h-8Fh] -> node(15)
+                [80h-BFh] -> node(15)
             }
             node(15) {
                 [80h-BFh] -> node(16)
@@ -558,7 +559,7 @@ fn parse_dot_class() {
                 [80h-BFh] -> node(1)
             }
             node(17) {
-                [80h-BFh] -> node(18)
+                [80h-8Fh] -> node(18)
             }
             node(18) {
                 [80h-BFh] -> node(19)
