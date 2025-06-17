@@ -1,6 +1,7 @@
 use crate::coder::Coder;
 use crate::error::{Error::*, Result};
-use regr::{Span, span};
+use arrayvec::ArrayVec;
+use regr::Span;
 
 /// Unicode code point inclusive range.
 type UcpRange = std::ops::RangeInclusive<u32>;
@@ -135,7 +136,7 @@ fn handle_range<const N: usize>(start: u32, end: u32, handler: &mut impl FnMut(&
         start = tmp_end + 1;
     }
 
-    let mut reversed_codepoints = arrayvec::ArrayVec::<(u32, u32), 5>::new();
+    let mut reversed_codepoints = ArrayVec::<(u32, u32), N>::new();
     let mut end = end;
     let mut mask = 0;
     for _ in 0..N - 1 {
@@ -164,42 +165,25 @@ fn handle_range<const N: usize>(start: u32, end: u32, handler: &mut impl FnMut(&
 }
 
 fn run_handler<const N: usize>(start: u32, end: u32, handler: &mut impl FnMut(&[Span])) {
-    let mut start_buffer = [0u8; N];
-    let mut end_buffer = [0u8; N];
-    let start_str = char::from_u32(start)
-        .unwrap()
-        .encode_utf8(&mut start_buffer);
-    let end_str = char::from_u32(end).unwrap().encode_utf8(&mut end_buffer);
-    assert_eq!(start_str.len(), N);
-    assert_eq!(end_str.len(), N);
-
-    match N {
-        1 => {
-            handler(&[span(start_buffer[0]..=end_buffer[0])]);
-        }
-        2 => {
-            handler(&[
-                span(start_buffer[0]..=end_buffer[0]),
-                span(start_buffer[1]..=end_buffer[1]),
-            ]);
-        }
-        3 => {
-            handler(&[
-                span(start_buffer[0]..=end_buffer[0]),
-                span(start_buffer[1]..=end_buffer[1]),
-                span(start_buffer[2]..=end_buffer[2]),
-            ]);
-        }
-        4 => {
-            handler(&[
-                span(start_buffer[0]..=end_buffer[0]),
-                span(start_buffer[1]..=end_buffer[1]),
-                span(start_buffer[2]..=end_buffer[2]),
-                span(start_buffer[3]..=end_buffer[3]),
-            ]);
-        }
-        _ => unreachable!(),
+    let mut start = start;
+    let mut end = end;
+    let mut buffer = [Span::new_unchecked(0, 0); N];
+    for i in (1..N).rev() {
+        let start_byte = (start as u8 & 0x3F) | 0x80;
+        start >>= 6;
+        let end_byte = (end as u8 & 0x3F) | 0x80;
+        end >>= 6;
+        buffer[i] = Span::new(start_byte, end_byte);
     }
+    let prefix: u8 = match N {
+        1 => 0x00,
+        2 => 0xC0,
+        3 => 0xE0,
+        4 => 0xF0,
+        _ => unreachable!("Invalid UTF-8 sequence length"),
+    };
+    buffer[0] = Span::new_unchecked(start as u8 | prefix, end as u8 | prefix);
+    handler(&buffer);
 }
 
 fn char_try_from(codepoint: u32) -> Result<char> {

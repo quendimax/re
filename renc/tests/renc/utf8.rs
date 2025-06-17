@@ -6,7 +6,9 @@ use renc::{Coder, Result, Utf8Coder};
 use std::ops::RangeInclusive;
 
 type Sequence = ArrayVec<Span, 4>;
-type Sequences = ArrayVec<Sequence, 16>;
+
+// CAP == 11 found with bruteforcing all utf8 range sequences
+type Sequences = ArrayVec<Sequence, 11>;
 
 fn arr<T: Clone, const CAP: usize>(spans: &[T]) -> ArrayVec<T, CAP> {
     ArrayVec::<T, CAP>::try_from(spans).unwrap()
