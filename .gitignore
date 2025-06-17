@@ -1,2 +1,8 @@
 /target
 /Cargo.lock
+
+# output of different profiling tools
+*.perf
+perf.data
+perf.data.old
+flamegraph.svg
