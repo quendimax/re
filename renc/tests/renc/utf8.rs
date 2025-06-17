@@ -1,17 +1,19 @@
+use arrayvec::ArrayVec;
 use pretty_assertions::assert_eq;
 use regex_syntax::utf8::Utf8Sequences;
 use regr::{Span, span};
 use renc::{Coder, Result, Utf8Coder};
 use std::ops::RangeInclusive;
 
-type Sequence = arrayvec::ArrayVec<Span, 4>;
+type Sequence = ArrayVec<Span, 4>;
+type Sequences = ArrayVec<Sequence, 16>;
 
-fn arr(spans: &[Span]) -> Sequence {
-    Sequence::try_from(spans).unwrap()
+fn arr<T: Clone, const CAP: usize>(spans: &[T]) -> ArrayVec<T, CAP> {
+    ArrayVec::<T, CAP>::try_from(spans).unwrap()
 }
 
-fn encode_range(range: RangeInclusive<u32>) -> Result<Vec<Sequence>> {
-    let mut seq = Vec::<Sequence>::new();
+fn encode_range(range: RangeInclusive<u32>) -> Result<Sequences> {
+    let mut seq = Sequences::new();
     let start = *range.start();
     let end = *range.end();
     Utf8Coder.encode_range(start, end, |spans| {
@@ -20,13 +22,13 @@ fn encode_range(range: RangeInclusive<u32>) -> Result<Vec<Sequence>> {
     Ok(seq)
 }
 
-fn _encode<const N: usize>(start: &[u8; N], end: &[u8; N]) -> Result<Vec<Sequence>> {
+fn _encode<const N: usize>(start: &[u8; N], end: &[u8; N]) -> Result<Sequences> {
     let start = str::from_utf8(start).unwrap().chars().next().unwrap() as u32;
     let end = str::from_utf8(end).unwrap().chars().next().unwrap() as u32;
     encode_range(start..=end)
 }
 
-fn expect_range(range: RangeInclusive<u32>) -> Result<Vec<Sequence>> {
+fn expect_range(range: RangeInclusive<u32>) -> Result<Sequences> {
     let start = char::from_u32(*range.start()).unwrap();
     let end = char::from_u32(*range.end()).unwrap();
     let seq = Utf8Sequences::new(start, end)
@@ -35,11 +37,11 @@ fn expect_range(range: RangeInclusive<u32>) -> Result<Vec<Sequence>> {
                 .map(|r| Span::new(r.start, r.end))
                 .collect::<Sequence>()
         })
-        .collect::<Vec<_>>();
+        .collect::<Sequences>();
     Ok(seq)
 }
 
-fn _expect<const N: usize>(start: &[u8; N], end: &[u8; N]) -> Result<Vec<Sequence>> {
+fn _expect<const N: usize>(start: &[u8; N], end: &[u8; N]) -> Result<Sequences> {
     let start = str::from_utf8(start).unwrap().chars().next().unwrap() as u32;
     let end = str::from_utf8(end).unwrap().chars().next().unwrap() as u32;
     expect_range(start..=end)
@@ -47,23 +49,23 @@ fn _expect<const N: usize>(start: &[u8; N], end: &[u8; N]) -> Result<Vec<Sequenc
 
 #[test]
 fn encode_one_byte_ranges() {
-    assert_eq!(encode_range(0..=0), Ok(vec![arr(&[span(0..=0)])]));
-    assert_eq!(encode_range(0..=23), Ok(vec![arr(&[span(0..=23)])]));
-    assert_eq!(encode_range(0..=0x7F), Ok(vec![arr(&[span(0..=0x7F)])]));
+    assert_eq!(encode_range(0..=0), Ok(arr(&[arr(&[span(0..=0)])])));
+    assert_eq!(encode_range(0..=23), Ok(arr(&[arr(&[span(0..=23)])])));
+    assert_eq!(encode_range(0..=0x7F), Ok(arr(&[arr(&[span(0..=0x7F)])])));
 }
 
 #[test]
 fn encode_two_byte_ranges() {
     assert_eq!(
         encode_range(0x80..=0x81),
-        Ok(vec![arr(&[
+        Ok(arr(&[arr(&[
             span(0b110_00010..=0b110_00010),
             span(0b10_000000..=0b10_000001)
-        ])])
+        ])]))
     );
     assert_eq!(
         encode_range(0x83..=0x734),
-        Ok(vec![
+        Ok(arr(&[
             arr(&[
                 span(0b110_00010..=0b110_00010),
                 span(0b10_000011..=0b10_111111)
@@ -76,11 +78,11 @@ fn encode_two_byte_ranges() {
                 span(0b110_11100..=0b110_11100),
                 span(0b10_000000..=0b10_110100)
             ]),
-        ])
+        ]))
     );
     assert_eq!(
         encode_range(0x83..=0xD6),
-        Ok(vec![
+        Ok(arr(&[
             arr(&[
                 span(0b110_00010..=0b110_00010),
                 span(0b10_000011..=0b10_111111)
@@ -89,14 +91,14 @@ fn encode_two_byte_ranges() {
                 span(0b110_00011..=0b110_00011),
                 span(0b10_000000..=0b10_010110)
             ]),
-        ])
+        ]))
     );
     assert_eq!(
         encode_range(0x80..=0x7FF),
-        Ok(vec![arr(&[
+        Ok(arr(&[arr(&[
             span(0b110_00010..=0b110_11111),
             span(0b10_000000..=0b10_111111)
-        ])])
+        ])]))
     );
 }
 
@@ -124,10 +126,10 @@ fn encode_four_byte_ranges() {
 
 #[test]
 fn encode_entire_range() {
-    let mut seq = Vec::<Sequence>::new();
+    let mut seq = Sequences::new();
     assert!(
         Utf8Coder
-            .encode_entire_range(|spans| seq.push(Sequence::try_from(spans).unwrap()))
+            .encode_entire_range(|spans| seq.push(arr(spans)))
             .is_ok()
     );
     seq.sort();

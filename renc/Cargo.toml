@@ -13,8 +13,8 @@ thiserror.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
-pretty_assertions.workspace = true
 proptest.workspace = true
+pretty_assertions.workspace = true
 regex-syntax.workspace = true
 test-case.workspace = true
 
