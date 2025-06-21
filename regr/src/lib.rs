@@ -6,7 +6,7 @@ mod graph;
 pub use graph::{AutomatonKind, Graph};
 
 pub mod node;
-pub use node::{Node, NodeId};
+pub use node::Node;
 
 mod ops;
 

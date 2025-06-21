@@ -9,14 +9,6 @@ use std::fmt::Write;
 use std::iter::FilterMap;
 use std::ptr::NonNull;
 
-/// Integer type that represents node identifier. It is expected that it is
-/// unique within a graph.
-pub type NodeId = u32;
-
-/// Integer type that represents node identifier. It is expected that it is
-/// unique both within a graph and in the running process.
-pub type UniqId = u64;
-
 /// Node for an NFA graph.
 ///
 /// It contains ID (unique within its graph owner). Also it can be connected to
@@ -24,8 +16,7 @@ pub type UniqId = u64;
 pub struct Node<'a>(&'a NodeInner);
 
 pub(crate) struct NodeInner {
-    node_id: NodeId,
-    graph_id: NodeId,
+    uid: u64,
     owner: NonNull<Graph>,
     borrow: Cell<BorrowFlag>,
     accept: Cell<bool>,
@@ -44,24 +35,25 @@ use NodeVariant::{DfaNode, NfaNode};
 
 /// Public API
 impl<'a> Node<'a> {
-    /// Returns the node's identifier that is unique within its graph owner.
+    pub(crate) const ID_MASK: u64 = (1 << (u64::BITS / 2)) - 1;
+    pub(crate) const ID_BITS: u32 = u64::BITS / 2;
+
+    /// Returns the node's identifier that is unique within its owner.
     #[inline]
-    pub fn nid(self) -> NodeId {
-        self.0.node_id
+    pub fn nid(self) -> u64 {
+        self.0.uid & Self::ID_MASK
     }
 
     /// Returns the node's graph owner identifier.
     #[inline]
-    pub fn gid(self) -> NodeId {
-        self.0.graph_id
+    pub fn gid(self) -> u64 {
+        self.0.uid >> Self::ID_BITS
     }
 
     /// Returns the node's identifier unique within the running process.
     #[inline]
-    pub fn uid(self) -> UniqId {
-        let gid = (self.0.graph_id as UniqId) << NodeId::BITS;
-        let nid = self.0.node_id as UniqId;
-        gid | nid
+    pub fn uid(self) -> u64 {
+        self.0.uid
     }
 
     /// Checks if the node is an DFA node.
@@ -144,11 +136,10 @@ impl<'a> Node<'a> {
 
 /// Private API
 impl<'a> Node<'a> {
-    pub(crate) fn new_inner(node_id: u32, graph: &'a Graph) -> NodeInner {
+    pub(crate) fn new_inner(id: u64, graph: &'a Graph) -> NodeInner {
         match graph.kind() {
             AutomatonKind::NFA => NodeInner {
-                graph_id: graph.gid(),
-                node_id,
+                uid: id,
                 owner: graph.into(),
                 borrow: Cell::new(0),
                 accept: Cell::new(false),
@@ -156,8 +147,7 @@ impl<'a> Node<'a> {
                 variant: NfaNode,
             },
             AutomatonKind::DFA => NodeInner {
-                graph_id: graph.gid(),
-                node_id,
+                uid: id,
                 owner: graph.into(),
                 borrow: Cell::new(0),
                 accept: Cell::new(false),

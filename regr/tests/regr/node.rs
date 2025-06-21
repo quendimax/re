@@ -1,5 +1,5 @@
 use pretty_assertions::{assert_eq, assert_ne};
-use regr::{Epsilon, Graph, NodeId};
+use regr::{Epsilon, Graph};
 use std::collections::BTreeSet;
 
 #[test]
@@ -9,10 +9,10 @@ fn node_id() {
     let b = graph_0.node();
 
     assert_eq!(a.nid(), 0);
-    assert_eq!(a.uid(), (a.gid() as u64) << NodeId::BITS);
+    assert_eq!(a.uid(), a.gid() << (u64::BITS / 2));
 
     assert_eq!(b.nid(), 1);
-    assert_eq!(b.uid(), ((b.gid() as u64) << NodeId::BITS) | 1);
+    assert_eq!(b.uid(), (b.gid() << (u64::BITS / 2)) | 1);
 
     let graph_1 = Graph::dfa();
     let c = graph_1.node();
@@ -20,11 +20,11 @@ fn node_id() {
 
     assert_eq!(c.nid(), 0);
     assert_eq!(c.gid(), a.gid() + 1);
-    assert_eq!(c.uid(), (c.gid() as u64) << NodeId::BITS);
+    assert_eq!(c.uid(), c.gid() << (u64::BITS / 2));
 
     assert_eq!(d.nid(), 1);
     assert_eq!(d.gid(), a.gid() + 1);
-    assert_eq!(d.uid(), ((c.gid() as u64) << NodeId::BITS) | 1);
+    assert_eq!(d.uid(), (c.gid() << (u64::BITS / 2)) | 1);
 }
 
 #[test]

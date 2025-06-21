@@ -1,5 +1,5 @@
 use crate::arena::Arena;
-use crate::node::{ClosureOp, Node, NodeId, NodeInner};
+use crate::node::{ClosureOp, Node, NodeInner};
 use crate::symbol::Epsilon;
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
@@ -15,13 +15,13 @@ pub enum AutomatonKind {
     DFA,
 }
 
-static GRAPH_ID: Mutex<NodeId> = Mutex::new(0);
+static NEXT_GRAPH_ID: Mutex<u32> = Mutex::new(0);
 
 #[allow(private_bounds)]
 pub struct Graph {
     arena: Arena,
-    graph_id: u32,
-    next_id: Cell<NodeId>,
+    graph_id: u64,
+    next_id: Cell<u32>,
     start_node: Cell<Option<NonNull<NodeInner>>>,
     kind: AutomatonKind,
 }
@@ -63,7 +63,7 @@ impl Graph {
 
     /// This graph's unique ID.
     #[inline]
-    pub fn gid(&self) -> NodeId {
+    pub fn gid(&self) -> u64 {
         self.graph_id
     }
 
@@ -72,13 +72,13 @@ impl Graph {
     pub fn with_capacity(capacity: usize, kind: AutomatonKind) -> Self {
         let arena = Arena::with_capacity(capacity);
 
-        let mut graph_id = GRAPH_ID.lock().expect("graph id mutex failed");
-        let new_graph_id = *graph_id;
-        *graph_id = graph_id.checked_add(1).expect("graph id overflow");
+        let mut next_graph_id = NEXT_GRAPH_ID.lock().expect("graph id mutex failed");
+        let graph_id = *next_graph_id as u64;
+        *next_graph_id = next_graph_id.checked_add(1).expect("graph id overflow");
 
         Self {
             arena,
-            graph_id: new_graph_id,
+            graph_id,
             next_id: Cell::new(0),
             start_node: Cell::new(None),
             kind,
@@ -90,7 +90,8 @@ impl Graph {
         let new_node_id = self.next_id.get();
         self.next_id
             .set(new_node_id.checked_add(1).expect("node id overflow"));
-        let node_mut = self.arena.alloc_with(|| Node::new_inner(new_node_id, self));
+        let id = new_node_id as u64 | (self.graph_id << Node::ID_BITS);
+        let node_mut = self.arena.alloc_with(|| Node::new_inner(id, self));
         let node = Node::from_mut(node_mut);
         if self.start_node.get().is_none() {
             self.start_node.set(Some(node.as_ptr()));

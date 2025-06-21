@@ -101,8 +101,8 @@ impl<T> std::iter::Iterator for BumpIter<T> {
 
 #[cfg(test)]
 mod utest {
-    use super::*;
-    use pretty_assertions::assert_eq;
+    // use super::*;
+    // use pretty_assertions::assert_eq;
 
     // #[test]
     // fn arena_iter() {
