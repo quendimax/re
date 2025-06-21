@@ -19,7 +19,7 @@ static GRAPH_ID: Mutex<NodeId> = Mutex::new(0);
 
 #[allow(private_bounds)]
 pub struct Graph {
-    arena: Arena<NodeInner>,
+    arena: Arena,
     graph_id: u32,
     next_id: Cell<NodeId>,
     start_node: Cell<Option<NonNull<NodeInner>>>,
@@ -157,7 +157,7 @@ macro_rules! impl_fmt {
         impl std::fmt::$trait for Graph {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 let mut first = true;
-                for node in self.arena.iter().map(Node::from_ref) {
+                for node in self.arena.nodes() {
                     if first {
                         first = false;
                     } else {
