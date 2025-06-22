@@ -66,9 +66,6 @@ impl Arena {
         }
         self.gr_data.set(Some((gid, kind)));
         self.drop_nodes();
-        self.drop_nodes();
-        self.drop_nodes();
-        self.drop_nodes();
     }
 
     /// Unbinds this arena from a graph. Should be run by the graph destructor.
@@ -86,11 +83,14 @@ impl Arena {
     fn drop_nodes(&mut self) {
         if self.nodes_len.get() != 0 {
             let iter = BumpIter::<NodeInner>::new(&self.node_bump, self.nodes_len.get());
+            let mut cnt = 0;
             for (i, ptr) in iter.enumerate() {
                 // check layout within the bump allocator; each next node should have next node id
                 assert_eq!(Node::from(unsafe { &*ptr }).nid() as usize, i);
                 unsafe { std::ptr::drop_in_place::<NodeInner>(ptr) };
+                cnt += 1;
             }
+            assert_eq!(cnt, self.nodes_len.get());
             self.nodes_len.set(0);
             self.node_bump.reset();
         }
@@ -158,45 +158,44 @@ impl<T> std::iter::Iterator for BumpIter<T> {
 
         Some(self.cur_ptr as *mut T)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.len, Some(self.len))
+    }
 }
+
+impl<T> std::iter::ExactSizeIterator for BumpIter<T> {}
 
 #[cfg(test)]
 mod utest {
-    // use super::*;
-    // use pretty_assertions::assert_eq;
+    use super::*;
+    use pretty_assertions::assert_eq;
 
-    // #[test]
-    // fn arena_iter() {
-    //     // if right order for some chunks inside of the arena
-    //     let arena = Arena::with_capacity(10);
-    //     let mut items = Vec::new();
-    //     for i in 0..1000 {
-    //         items.push(i);
-    //         arena.alloc_with(|| i);
-    //     }
+    #[test]
+    fn bump_iter() {
+        // if right order for some chunks inside of the arena
+        let bump = Bump::with_capacity(10);
+        let mut items = Vec::<u32>::new();
+        for i in 0..1000 {
+            items.push(i);
+            bump.alloc_with(|| i);
+        }
 
-    //     let iter = arena.iter();
-    //     let collect = iter.copied().collect::<Vec<_>>();
-    //     assert_eq!(collect, items);
+        let iter = BumpIter::new(&bump, items.len());
+        assert_eq!(iter.len(), items.len());
+        let collection = iter.map(|ptr| unsafe { *ptr }).collect::<Vec<u32>>();
+        assert_eq!(collection, items);
 
-    //     let arena = Arena::<u32>::with_capacity(10);
-    //     assert_eq!(arena.iter().collect::<Vec<_>>(), Vec::<&u32>::new());
-    // }
+        let bump = Bump::with_capacity(10);
+        let iter = BumpIter::new(&bump, 0);
+        assert_eq!(iter.collect::<Vec<_>>(), Vec::<*mut u32>::new());
+    }
 
-    // #[test]
-    // fn arena_alloc_during_iteration() {
-    //     let arena = Arena::with_capacity(0);
-    //     let mut items = vec![1, 2, 3, 4, 5];
-    //     for item in &items {
-    //         arena.alloc_with(|| *item);
-    //     }
-
-    //     for item in arena.iter() {
-    //         let _ = arena.alloc_with(|| 2 * *item);
-    //         items.push(2 * *item);
-    //     }
-
-    //     assert_eq!(items.len(), 10);
-    //     assert_eq!(items, arena.iter().copied().collect::<Vec<_>>());
-    // }
+    #[test]
+    #[should_panic]
+    fn arena_graph_binding_overlapping() {
+        let mut arena = Arena::new();
+        arena.set_graph_data(1, AutomatonKind::DFA);
+        arena.set_graph_data(1, AutomatonKind::DFA);
+    }
 }

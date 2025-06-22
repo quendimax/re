@@ -94,6 +94,10 @@ impl<'a> Graph<'a> {
         self.start_node.get().unwrap_or_else(|| self.node())
     }
 
+    pub fn owner(&self) -> &'a Arena {
+        self.arena
+    }
+
     /// Builds a new DFA determining the this NFA graph.
     ///
     /// If instead of NFA, this graph is a DFA, this method just builds a clone

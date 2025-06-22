@@ -1,3 +1,4 @@
+mod arena;
 mod graph;
 mod node;
 mod span;
