@@ -1,10 +1,11 @@
 use pretty_assertions::{assert_eq, assert_ne};
-use regr::{Epsilon, Graph};
+use regr::{Arena, Epsilon, Graph};
 use std::collections::BTreeSet;
 
 #[test]
 fn node_id() {
-    let graph_0 = Graph::dfa();
+    let mut arena_0 = Arena::new();
+    let graph_0 = Graph::dfa_in(&mut arena_0);
     let a = graph_0.node();
     let b = graph_0.node();
 
@@ -14,7 +15,8 @@ fn node_id() {
     assert_eq!(b.nid(), 1);
     assert_eq!(b.uid(), (b.gid() << (u64::BITS / 2)) | 1);
 
-    let graph_1 = Graph::dfa();
+    let mut arena_1 = Arena::new();
+    let graph_1 = Graph::dfa_in(&mut arena_1);
     let c = graph_1.node();
     let d = graph_1.node();
 
@@ -29,18 +31,22 @@ fn node_id() {
 
 #[test]
 fn node_partial_eq() {
-    let graph = Graph::nfa();
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
     let node_1 = graph.node();
     assert_ne!(node_1, graph.node());
+    drop(graph);
 
-    let graph_2 = Graph::nfa();
-    let node_2 = graph_2.node();
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
+    let node_2 = graph.node();
     assert_ne!(node_1, node_2);
 }
 
 #[test]
 fn node_connect() {
-    let graph = Graph::nfa();
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
     let node_a = graph.node();
     let node_b = graph.node();
     let node_c = graph.node();
@@ -52,7 +58,8 @@ fn node_connect() {
 
 #[test]
 fn node_closure() {
-    let graph = Graph::nfa();
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
     let a = graph.node();
     let b = graph.node();
     let c = graph.node();
@@ -73,7 +80,8 @@ fn node_closure() {
 
 #[test]
 fn node_eclosure() {
-    let graph = Graph::nfa();
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
     let a = graph.node();
     let b = graph.node();
     let c = graph.node();
@@ -95,7 +103,8 @@ fn node_eclosure() {
 
 #[test]
 fn node_symbol_targets() {
-    let graph = Graph::nfa();
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
     let a = graph.node();
     let b = graph.node();
     let c = graph.node();
@@ -117,7 +126,8 @@ fn node_symbol_targets() {
 #[test]
 #[should_panic]
 fn node_symbol_targets_panic() {
-    let graph = Graph::nfa();
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
     let a = graph.node();
     let b = graph.node();
     a.connect(b, b'c');
@@ -129,7 +139,8 @@ fn node_symbol_targets_panic() {
 
 #[test]
 fn node_epsilon_targets() {
-    let graph = Graph::nfa();
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
     let a = graph.node();
     let b = graph.node();
     let c = graph.node();
@@ -150,7 +161,8 @@ fn node_epsilon_targets() {
 #[test]
 #[should_panic]
 fn node_epsilon_targets_panics() {
-    let graph = Graph::nfa();
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
     let a = graph.node();
     let b = graph.node();
     let c = graph.node();
@@ -165,7 +177,8 @@ fn node_epsilon_targets_panics() {
 
 #[test]
 fn node_acceptize() {
-    let graph = Graph::nfa();
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
     let a = graph.node();
     assert_eq!(format!("{:?}", a), "node(0)");
     a.acceptize();
@@ -176,7 +189,8 @@ fn node_acceptize() {
 
 #[test]
 fn node_fmt_debug() {
-    let graph = Graph::nfa();
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
     let a = graph.node();
     let b = graph.node();
     let c = graph.node().acceptize();

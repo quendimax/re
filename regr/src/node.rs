@@ -1,5 +1,6 @@
 use crate::adt::{Map, MapIter};
-use crate::graph::{AutomatonKind, Graph};
+use crate::arena::Arena;
+use crate::graph::AutomatonKind;
 use crate::span::Span;
 use crate::symbol::Epsilon;
 use crate::transition::Transition;
@@ -13,14 +14,14 @@ use std::ptr::NonNull;
 ///
 /// It contains ID (unique within its graph owner). Also it can be connected to
 /// another node via [`Transition`]'s.
-pub struct Node<'a>(&'a NodeInner);
+pub struct Node<'a>(&'a NodeInner<'a>);
 
-pub(crate) struct NodeInner {
+pub(crate) struct NodeInner<'a> {
     uid: u64,
-    owner: NonNull<Graph>,
+    owner: &'a Arena,
     borrow: Cell<BorrowFlag>,
     accept: Cell<bool>,
-    targets: UnsafeCell<Map<NonNull<NodeInner>, Transition>>,
+    targets: UnsafeCell<Map<Node<'a>, Transition>>,
     variant: NodeVariant,
 }
 
@@ -56,6 +57,13 @@ impl<'a> Node<'a> {
         self.0.uid
     }
 
+    pub fn kind(self) -> AutomatonKind {
+        match self.0.variant {
+            DfaNode { .. } => AutomatonKind::DFA,
+            NfaNode => AutomatonKind::NFA,
+        }
+    }
+
     /// Checks if the node is an DFA node.
     pub fn is_dfa(self) -> bool {
         matches!(self.0.variant, DfaNode { .. })
@@ -84,9 +92,9 @@ impl<'a> Node<'a> {
         self
     }
 
-    /// Returns a reference to the graph that is an owner of this node.
-    pub fn owner(self) -> &'a Graph {
-        unsafe { self.0.owner.as_ref() }
+    /// Returns a reference to the arena which is an owner of this node.
+    pub fn owner(self) -> &'a Arena {
+        self.0.owner
     }
 
     /// Connects this node to another node with a specified edge rule.
@@ -136,19 +144,19 @@ impl<'a> Node<'a> {
 
 /// Private API
 impl<'a> Node<'a> {
-    pub(crate) fn new_inner(id: u64, graph: &'a Graph) -> NodeInner {
-        match graph.kind() {
+    pub(crate) fn new_inner(uid: u64, arena: &'a Arena, kind: AutomatonKind) -> NodeInner<'a> {
+        match kind {
             AutomatonKind::NFA => NodeInner {
-                uid: id,
-                owner: graph.into(),
+                uid,
+                owner: arena,
                 borrow: Cell::new(0),
                 accept: Cell::new(false),
                 targets: Default::default(),
                 variant: NfaNode,
             },
             AutomatonKind::DFA => NodeInner {
-                uid: id,
-                owner: graph.into(),
+                uid,
+                owner: arena,
                 borrow: Cell::new(0),
                 accept: Cell::new(false),
                 targets: Default::default(),
@@ -157,26 +165,6 @@ impl<'a> Node<'a> {
                 },
             },
         }
-    }
-
-    #[inline]
-    pub(crate) fn from_ref(value: &'a NodeInner) -> Self {
-        Self(value)
-    }
-
-    #[inline]
-    pub(crate) fn from_mut(value: &'a mut NodeInner) -> Self {
-        Self(value)
-    }
-
-    #[inline]
-    pub(crate) unsafe fn from_ptr(ptr: NonNull<NodeInner>) -> Self {
-        Self(unsafe { ptr.as_ref() })
-    }
-
-    #[inline]
-    pub(crate) fn as_ptr(self) -> NonNull<NodeInner> {
-        unsafe { NonNull::<NodeInner>::new_unchecked(self.0 as *const NodeInner as *mut NodeInner) }
     }
 }
 
@@ -244,7 +232,7 @@ macro_rules! impl_connect {
                     occupied_symbols.merge(with);
                 }
 
-                let to = to.as_ptr();
+                #[allow(clippy::mutable_key_type)]
                 let targets = unsafe { self.0.targets.get().as_mut() }.unwrap();
                 if let Some(tr) = targets.get_mut(&to) {
                     tr.merge(with);
@@ -279,7 +267,7 @@ impl<'a> ConnectOp<'a, Epsilon> for Node<'a> {
             }
             NfaNode => {
                 _ = BorrowMut::new(&self.0.borrow);
-                let to = to.as_ptr();
+                #[allow(clippy::mutable_key_type)]
                 let targets = unsafe { self.0.targets.get().as_mut() }.unwrap();
                 if let Some(tr) = targets.get_mut(&to) {
                     tr.merge(with);
@@ -327,6 +315,18 @@ impl std::hash::Hash for Node<'_> {
     }
 }
 
+impl<'a> std::convert::From<&'a NodeInner<'a>> for Node<'a> {
+    fn from(inner: &'a NodeInner<'a>) -> Self {
+        Self(inner)
+    }
+}
+
+impl<'a> std::convert::From<&'a mut NodeInner<'a>> for Node<'a> {
+    fn from(inner: &'a mut NodeInner<'a>) -> Self {
+        Self(inner)
+    }
+}
+
 macro_rules! impl_fmt {
     (std::fmt::$trait:ident) => {
         impl std::fmt::$trait for Node<'_> {
@@ -356,12 +356,13 @@ impl_fmt!(std::fmt::LowerHex);
 
 pub struct TargetIter<'a> {
     borrow_ref: BorrowRef<'a>,
-    iter: MapIter<'a, NonNull<NodeInner>, Transition>,
+    iter: MapIter<'a, Node<'a>, Transition>,
 }
 
 impl<'a> TargetIter<'a> {
     pub fn new(node: Node<'a>) -> Self {
         let borrow_ref = BorrowRef::new(&node.0.borrow);
+        #[allow(clippy::mutable_key_type)]
         let targets = unsafe { node.0.targets.get().as_ref() }.unwrap();
         let iter = targets.iter();
         Self { borrow_ref, iter }
@@ -372,10 +373,9 @@ impl<'a> std::iter::Iterator for TargetIter<'a> {
     type Item = (Node<'a>, TransitionRef<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next().map(|(node_ptr, transition)| {
-            let node = unsafe { Node::from_ptr(*node_ptr) };
+        self.iter.next().map(|(node, transition)| {
             let transition_ref = unsafe { TransitionRef::new(self.borrow_ref.clone(), transition) };
-            (node, transition_ref)
+            (*node, transition_ref)
         })
     }
 }

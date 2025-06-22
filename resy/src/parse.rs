@@ -11,14 +11,14 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::str::Chars;
 
-pub struct Parser<'n, 's, T: Coder> {
-    nfa: &'n Graph,
+pub struct Parser<'g, 'n, 's, T: Coder> {
+    nfa: &'g Graph<'n>,
     lexer: Lexer<'s>,
     codec: T,
 }
 
-impl<'n, 's, T: Coder> Parser<'n, 's, T> {
-    pub fn new(nfa: &'n Graph, codec: T) -> Self {
+impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
+    pub fn new(nfa: &'g Graph<'n>, codec: T) -> Self {
         assert!(nfa.is_nfa(), "`repy::Parser` can build only an NFA graph");
         let lexer = Lexer::empty();
         Self { nfa, lexer, codec }
@@ -600,7 +600,7 @@ impl<'n, 's, T: Coder> Parser<'n, 's, T> {
                 if let Some(clone_target) = map.get(&target) {
                     collect.push((*clone_target, tr));
                 } else {
-                    let clone_target = node.owner().node();
+                    let clone_target = node.owner().alloc_node();
                     rec(target, clone_target, map);
                     collect.push((clone_target, tr));
                 }

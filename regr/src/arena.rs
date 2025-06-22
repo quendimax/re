@@ -1,29 +1,46 @@
+use crate::AutomatonKind;
 use crate::node::{Node, NodeInner};
 use bumpalo::Bump;
 use smallvec::SmallVec;
 use std::cell::Cell;
 use std::iter::Iterator;
 
-pub(crate) struct Arena {
+pub struct Arena {
     node_bump: Bump,
     nodes_len: Cell<usize>,
+    gr_data: Cell<Option<(u64, AutomatonKind)>>,
 }
 
+/// Public API
 impl Arena {
-    pub(crate) fn with_capacity(capacity: usize) -> Self {
+    #[inline]
+    pub fn new() -> Self {
+        Self::with_capacity(0)
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self {
         Self {
             node_bump: Bump::with_capacity(capacity * std::mem::size_of::<NodeInner>()),
             nodes_len: Cell::new(0),
+            gr_data: Cell::new(None), // bound graph id
         }
     }
 
-    pub(crate) fn alloc_with<F>(&self, f: F) -> &mut NodeInner
-    where
-        F: FnOnce() -> NodeInner,
-    {
-        let refer = self.node_bump.alloc_with(f);
+    pub fn alloc_node(&self) -> Node<'_> {
+        let (gid, kind) = self
+            .gr_data
+            .get()
+            .expect("you can't create a node until arena is bound to a graph");
+
+        let nid: u32 = self.nodes_len.get().try_into().expect("node id overflow");
         self.nodes_len.replace(self.nodes_len.get() + 1);
-        refer
+
+        let uid: u64 = nid as u64 | (gid << Node::ID_BITS);
+
+        let node_mut = self
+            .node_bump
+            .alloc_with(|| Node::new_inner(uid, self, kind));
+        Node::from(node_mut)
     }
 
     /// Returns an iterator over the items in the arena.
@@ -32,26 +49,70 @@ impl Arena {
     /// items to the arena during iteration. But the iteration won't be affected
     /// by the new items, i.e. if at the moment of creation the iterator the
     /// arena contains `n` items, then the iterator will iterate over `n` items.
-    pub(crate) fn nodes(&self) -> impl Iterator<Item = Node<'_>> {
-        BumpIter::new(&self.node_bump, self.nodes_len.get())
-            .map(|ptr| Node::from_ref(unsafe { &*ptr }))
+    pub fn nodes(&self) -> impl Iterator<Item = Node<'_>> {
+        BumpIter::new(&self.node_bump, self.nodes_len.get()).map(|ptr| Node::from(unsafe { &*ptr }))
+    }
+}
+
+/// Crate API
+impl Arena {
+    /// Binds this arena with a graph. Should be run by the graph constructor.
+    ///
+    /// We run nodes dropping here because I can't save mutable referance to the
+    /// arena in the graph, but can have it in the graph constructor.
+    pub(crate) fn set_graph_data(&mut self, gid: u64, kind: AutomatonKind) {
+        if let Some((gid, _)) = self.gr_data.get() {
+            panic!("this arena is already bound to a graph(gid={})", gid);
+        }
+        self.gr_data.set(Some((gid, kind)));
+        self.drop_nodes();
+        self.drop_nodes();
+        self.drop_nodes();
+        self.drop_nodes();
+    }
+
+    /// Unbinds this arena from a graph. Should be run by the graph destructor.
+    ///
+    /// Dispite expectations, this doesn't run nodes dropping, because the graph
+    /// can't hold a mutable reference to the arena. So the dropping is run by
+    /// either a new graph constructor or the arena destructor.
+    pub(crate) fn reset_graph_data(&self) {
+        self.gr_data.set(None);
+    }
+}
+
+/// Private API
+impl Arena {
+    fn drop_nodes(&mut self) {
+        if self.nodes_len.get() != 0 {
+            let iter = BumpIter::<NodeInner>::new(&self.node_bump, self.nodes_len.get());
+            for (i, ptr) in iter.enumerate() {
+                // check layout within the bump allocator; each next node should have next node id
+                assert_eq!(Node::from(unsafe { &*ptr }).nid() as usize, i);
+                unsafe { std::ptr::drop_in_place::<NodeInner>(ptr) };
+            }
+            self.nodes_len.set(0);
+            self.node_bump.reset();
+        }
+    }
+}
+
+impl std::default::Default for Arena {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
     }
 }
 
 impl std::ops::Drop for Arena {
     fn drop(&mut self) {
-        let iter = BumpIter::<NodeInner>::new(&self.node_bump, self.nodes_len.get());
-        for (i, ptr) in iter.enumerate() {
-            // check layout within the bump allocator; each next node should have next node id
-            assert_eq!(Node::from_mut(unsafe { &mut *ptr }).nid() as usize, i);
-            unsafe { std::ptr::drop_in_place::<NodeInner>(ptr) };
-        }
+        self.drop_nodes();
     }
 }
 
 /// Iterator over the one type items within the Bump arena.
 struct BumpIter<T> {
-    // number of items at current the iterator creating moment
+    // number of items at the moment when this iterator was created
     len: usize,
     chunks: SmallVec<[(*mut u8, usize); 4]>,
     chunk_start: *const u8,

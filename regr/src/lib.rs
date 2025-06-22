@@ -1,4 +1,5 @@
 mod arena;
+pub use arena::Arena;
 
 pub mod adt;
 

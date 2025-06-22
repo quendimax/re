@@ -1,11 +1,10 @@
 use crate::arena::Arena;
-use crate::node::{ClosureOp, Node, NodeInner};
+use crate::node::{ClosureOp, Node};
 use crate::symbol::Epsilon;
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 use std::ops::Deref;
-use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::Mutex;
 
@@ -15,27 +14,47 @@ pub enum AutomatonKind {
     DFA,
 }
 
-static NEXT_GRAPH_ID: Mutex<u32> = Mutex::new(0);
-
 #[allow(private_bounds)]
-pub struct Graph {
-    arena: Arena,
-    graph_id: u64,
-    next_id: Cell<u32>,
-    start_node: Cell<Option<NonNull<NodeInner>>>,
+pub struct Graph<'a> {
+    gid: u64,
+    arena: &'a Arena,
+    start_node: Cell<Option<Node<'a>>>,
     kind: AutomatonKind,
 }
 
+static NEXT_GRAPH_ID: Mutex<u32> = Mutex::new(0);
+
 #[allow(private_bounds)]
-impl Graph {
+impl<'a> Graph<'a> {
+    pub fn new_in(arena: &'a mut Arena, kind: AutomatonKind) -> Self {
+        let mut next_graph_id = NEXT_GRAPH_ID.lock().expect("graph id mutex failed");
+        let gid = *next_graph_id as u64;
+        *next_graph_id = next_graph_id.checked_add(1).expect("graph id overflow");
+
+        arena.set_graph_data(gid, kind);
+
+        Self {
+            gid,
+            arena,
+            start_node: Cell::new(None),
+            kind,
+        }
+    }
+
+    /// This graph's ID.
+    #[inline]
+    pub fn gid(&self) -> u64 {
+        self.gid
+    }
+
     /// Creates a new DFA graph.
-    pub fn dfa() -> Self {
-        Self::with_capacity(0, AutomatonKind::DFA)
+    pub fn dfa_in(arena: &'a mut Arena) -> Self {
+        Self::new_in(arena, AutomatonKind::DFA)
     }
 
     /// Creates a new NFA graph.
-    pub fn nfa() -> Self {
-        Self::with_capacity(0, AutomatonKind::NFA)
+    pub fn nfa_in(arena: &'a mut Arena) -> Self {
+        Self::new_in(arena, AutomatonKind::NFA)
     }
 
     /// Returns the graph's kind.
@@ -61,67 +80,35 @@ impl Graph {
         }
     }
 
-    /// This graph's unique ID.
-    #[inline]
-    pub fn gid(&self) -> u64 {
-        self.graph_id
-    }
-
-    /// Creates a new NFA graph with preallocated memory for at least `capacity`
-    /// nodes.
-    pub fn with_capacity(capacity: usize, kind: AutomatonKind) -> Self {
-        let arena = Arena::with_capacity(capacity);
-
-        let mut next_graph_id = NEXT_GRAPH_ID.lock().expect("graph id mutex failed");
-        let graph_id = *next_graph_id as u64;
-        *next_graph_id = next_graph_id.checked_add(1).expect("graph id overflow");
-
-        Self {
-            arena,
-            graph_id,
-            next_id: Cell::new(0),
-            start_node: Cell::new(None),
-            kind,
-        }
-    }
-
     /// Creates a new node.
-    pub fn node(&self) -> Node<'_> {
-        let new_node_id = self.next_id.get();
-        self.next_id
-            .set(new_node_id.checked_add(1).expect("node id overflow"));
-        let id = new_node_id as u64 | (self.graph_id << Node::ID_BITS);
-        let node_mut = self.arena.alloc_with(|| Node::new_inner(id, self));
-        let node = Node::from_mut(node_mut);
+    pub fn node(&self) -> Node<'a> {
+        let node: Node<'a> = self.arena.alloc_node();
         if self.start_node.get().is_none() {
-            self.start_node.set(Some(node.as_ptr()));
+            self.start_node.set(Some(node));
         }
         node
     }
 
     #[inline]
-    pub fn start_node(&self) -> Node<'_> {
-        if let Some(node_ptr) = self.start_node.get() {
-            return unsafe { Node::from_ptr(node_ptr) };
-        }
-        self.node()
+    pub fn start_node(&self) -> Node<'a> {
+        self.start_node.get().unwrap_or_else(|| self.node())
     }
 
-    /// Builds a new DFA determining the specified NFA.
+    /// Builds a new DFA determining the this NFA graph.
     ///
-    /// If instead of NFA, a DFA is passed as the argument, this meathod just
-    /// builds a clone of it.
-    pub fn determined<'n>(nfa: &'n Self) -> Self {
-        let dfa = Graph::dfa();
+    /// If instead of NFA, this graph is a DFA, this method just builds a clone
+    /// of it.
+    pub fn determine_in<'d>(self, arena: &'d mut Arena) -> Graph<'d> {
+        let dfa = Graph::dfa_in(arena);
         type ConvertMap<'n, 'd> = BTreeMap<Rc<BTreeSet<Node<'n>>>, Node<'d>>;
         #[allow(clippy::mutable_key_type)]
-        let mut convert_map: ConvertMap<'n, '_> = BTreeMap::new();
+        let mut convert_map: ConvertMap<'a, 'd> = BTreeMap::new();
 
         #[allow(clippy::mutable_key_type)]
         fn convert_impl<'n, 'd>(
             nfa_closure: Rc<BTreeSet<Node<'n>>>,
             convert_map: &mut ConvertMap<'n, 'd>,
-            dfa: &'d Graph,
+            dfa: &Graph<'d>,
         ) -> Node<'d> {
             if let Some(dfa_node) = convert_map.get(&nfa_closure) {
                 return *dfa_node;
@@ -140,22 +127,21 @@ impl Graph {
             dfa_node
         }
 
-        let start_e_closure = Rc::new(nfa.start_node().closure(Epsilon));
+        let start_e_closure = Rc::new(self.start_node().closure(Epsilon));
         convert_impl(start_e_closure, &mut convert_map, &dfa);
         dfa
     }
 }
 
-impl std::default::Default for Graph {
-    #[inline]
-    fn default() -> Self {
-        Self::nfa()
+impl std::ops::Drop for Graph<'_> {
+    fn drop(&mut self) {
+        self.arena.reset_graph_data();
     }
 }
 
 macro_rules! impl_fmt {
     (std::fmt::$trait:ident) => {
-        impl std::fmt::$trait for Graph {
+        impl std::fmt::$trait for Graph<'_> {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 let mut first = true;
                 for node in self.arena.nodes() {

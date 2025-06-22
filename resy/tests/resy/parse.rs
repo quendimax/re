@@ -1,6 +1,6 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
-use regr::Graph;
+use regr::{Arena, Graph};
 use renc::{Error::*, Utf8Coder};
 use resy::Error::*;
 use resy::{Error, Parser};
@@ -20,7 +20,8 @@ fn fmt<T: std::fmt::Display + ?Sized>(obj: &T) -> String {
 }
 
 fn try_parse(input: &str) -> Result<String, Error> {
-    let graph = Graph::nfa();
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
     let start_node = graph.start_node();
     let mut parser = Parser::new(&graph, CODER);
     parser.parse(input, start_node)?;

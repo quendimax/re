@@ -1,5 +1,5 @@
 use pretty_assertions::assert_eq;
-use regr::{AutomatonKind, Epsilon, Graph, Span, span};
+use regr::{Arena, AutomatonKind, Epsilon, Graph, Span, span};
 
 fn dsp<T: std::fmt::Display>(obj: &T) -> String {
     let mut result = String::new();
@@ -27,18 +27,23 @@ fn dbg<T: std::fmt::Debug>(obj: &T) -> String {
 
 #[test]
 fn graph_ctor() {
-    _ = Graph::nfa();
-    _ = Graph::default();
-    _ = Graph::with_capacity(150, AutomatonKind::NFA);
+    let mut arena = Arena::new();
+    _ = Graph::nfa_in(&mut arena);
+    let mut arena = Arena::with_capacity(150);
+    _ = Graph::new_in(&mut arena, AutomatonKind::NFA);
 }
 
 #[test]
 fn graph_node() {
-    let graph = Graph::nfa();
+    let mut arena = Arena::new();
+    let graph = Graph::new_in(&mut arena, AutomatonKind::NFA);
     assert_eq!(graph.node().nid(), 0);
     assert_eq!(graph.node().nid(), 1);
     assert_eq!(graph.node().nid(), 2);
-    let graph = Graph::with_capacity(9, AutomatonKind::NFA);
+    drop(graph);
+
+    let mut arena = Arena::with_capacity(9);
+    let graph = Graph::new_in(&mut arena, AutomatonKind::NFA);
     assert_eq!(graph.node().nid(), 0);
     assert_eq!(graph.node().nid(), 1);
     assert_eq!(graph.node().nid(), 2);
@@ -46,12 +51,14 @@ fn graph_node() {
 
 #[test]
 fn graph_start_node() {
-    let graph = Graph::nfa();
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
     assert_eq!(graph.start_node().nid(), 0);
     assert_eq!(graph.node().nid(), 1);
     assert_eq!(graph.node().nid(), 2);
+    drop(graph);
 
-    let graph = Graph::nfa();
+    let graph = Graph::nfa_in(&mut arena);
     assert_eq!(graph.node(), graph.start_node());
     assert_eq!(graph.start_node().nid(), 0);
     assert_eq!(graph.node().nid(), 1);
@@ -61,7 +68,8 @@ fn graph_start_node() {
 
 #[test]
 fn graph_determined_0() {
-    let nfa = Graph::nfa();
+    let mut arena = Arena::new();
+    let nfa = Graph::nfa_in(&mut arena);
     let a = nfa.node();
     a.connect(a, Epsilon);
     assert_eq!(
@@ -73,14 +81,16 @@ fn graph_determined_0() {
         ")
     );
 
-    let dfa = Graph::determined(&nfa);
+    let mut dfa_arena = Arena::new();
+    let dfa = nfa.determine_in(&mut dfa_arena);
     assert_eq!(format!("{dfa}"), "node(0) {}");
 }
 
 #[test]
 #[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn graph_determined_1() {
-    let nfa = Graph::nfa();
+    let mut arena = Arena::new();
+    let nfa = Graph::nfa_in(&mut arena);
     let a = nfa.node();
     let b = nfa.node();
     let c = nfa.node();
@@ -106,7 +116,8 @@ fn graph_determined_1() {
         ")
     );
 
-    let dfa = Graph::determined(&nfa);
+    let mut dfa_arena = Arena::new();
+    let dfa = nfa.determine_in(&mut dfa_arena);
     assert_eq!(
         dsp(&dfa),
         dsp(&"
@@ -130,7 +141,8 @@ fn graph_determined_1() {
 #[test]
 #[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn graph_display_fmt_0() {
-    let graph = Graph::with_capacity(1, AutomatonKind::NFA);
+    let mut arena = Arena::with_capacity(1);
+    let graph = Graph::new_in(&mut arena, AutomatonKind::NFA);
     let a = graph.node();
     let b = graph.node();
     let c = graph.node();
@@ -169,7 +181,8 @@ fn graph_display_fmt_0() {
 #[test]
 #[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn graph_display_fmt_1() {
-    let graph = Graph::nfa();
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
     let n0 = graph.node();
     let n1 = graph.node();
     let n2 = graph.node();
@@ -207,7 +220,8 @@ fn graph_display_fmt_1() {
 #[test]
 #[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn graph_display_fmt_2() {
-    let graph = Graph::nfa();
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
     let n0 = graph.node();
     let n1 = graph.node();
     let n2 = graph.node();
@@ -257,7 +271,8 @@ fn graph_display_fmt_2() {
 #[test]
 #[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn graph_display_fmt_3() {
-    let graph = Graph::dfa();
+    let mut arena = Arena::new();
+    let graph = Graph::dfa_in(&mut arena);
     let a = graph.node();
     let b = graph.node();
     let c = graph.node();
