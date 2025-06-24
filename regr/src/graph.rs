@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 use std::ops::Deref;
 use std::rc::Rc;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum AutomatonKind {
@@ -14,28 +14,29 @@ pub enum AutomatonKind {
     DFA,
 }
 
-#[allow(private_bounds)]
 pub struct Graph<'a> {
     gid: u64,
     arena: &'a Arena,
+    next_nid: Cell<u32>,
     start_node: Cell<Option<Node<'a>>>,
     kind: AutomatonKind,
 }
 
-static NEXT_GRAPH_ID: Mutex<u32> = Mutex::new(0);
+static NEXT_GRAPH_ID: AtomicU32 = AtomicU32::new(0);
 
-#[allow(private_bounds)]
 impl<'a> Graph<'a> {
     pub fn new_in(arena: &'a mut Arena, kind: AutomatonKind) -> Self {
-        let mut next_graph_id = NEXT_GRAPH_ID.lock().expect("graph id mutex failed");
-        let gid = *next_graph_id as u64;
-        *next_graph_id = next_graph_id.checked_add(1).expect("graph id overflow");
+        let gid = NEXT_GRAPH_ID.load(Ordering::Relaxed);
+        let gid = gid.checked_add(1).expect("graph id overflow");
+        NEXT_GRAPH_ID.store(gid, Ordering::Relaxed);
+        let gid = gid as u64;
 
-        arena.set_graph_data(gid, kind);
+        arena.bind_graph(gid);
 
         Self {
             gid,
             arena,
+            next_nid: Cell::new(0),
             start_node: Cell::new(None),
             kind,
         }
@@ -82,7 +83,16 @@ impl<'a> Graph<'a> {
 
     /// Creates a new node.
     pub fn node(&self) -> Node<'a> {
-        let node: Node<'a> = self.arena.alloc_node();
+        let nid = self.next_nid.replace(
+            self.next_nid
+                .get()
+                .checked_add(1)
+                .expect("node id overflow"),
+        );
+        let node: Node<'a> = self.arena.alloc_node_with(|| {
+            let uid = (self.gid << Node::ID_BITS) | nid as u64;
+            Node::new_inner(uid, self)
+        });
         if self.start_node.get().is_none() {
             self.start_node.set(Some(node));
         }
@@ -98,48 +108,54 @@ impl<'a> Graph<'a> {
         self.arena
     }
 
-    /// Builds a new DFA determining the this NFA graph.
+    /// Builds a new DFA from itself using determinization algorithm.
     ///
     /// If instead of NFA, this graph is a DFA, this method just builds a clone
     /// of it.
-    pub fn determine_in<'d>(self, arena: &'d mut Arena) -> Graph<'d> {
+    pub fn determine_in<'d>(&self, arena: &'d mut Arena) -> Graph<'d> {
         let dfa = Graph::dfa_in(arena);
         type ConvertMap<'n, 'd> = BTreeMap<Rc<BTreeSet<Node<'n>>>, Node<'d>>;
         #[allow(clippy::mutable_key_type)]
         let mut convert_map: ConvertMap<'a, 'd> = BTreeMap::new();
 
-        #[allow(clippy::mutable_key_type)]
-        fn convert_impl<'n, 'd>(
-            nfa_closure: Rc<BTreeSet<Node<'n>>>,
-            convert_map: &mut ConvertMap<'n, 'd>,
-            dfa: &Graph<'d>,
-        ) -> Node<'d> {
-            if let Some(dfa_node) = convert_map.get(&nfa_closure) {
-                return *dfa_node;
-            }
+        struct Lambda<'a, 'n, 'd> {
+            convert_map: &'a mut ConvertMap<'n, 'd>,
+            dfa: &'a Graph<'d>,
+        }
 
-            let dfa_node = dfa.node();
-            convert_map.insert(Rc::clone(&nfa_closure), dfa_node);
-
-            for symbol in u8::MIN..=u8::MAX {
-                let symbol_closure = Rc::new(nfa_closure.closure(symbol));
-                if !symbol_closure.is_empty() {
-                    let target_dfa_node = convert_impl(symbol_closure, convert_map, dfa);
-                    dfa_node.connect(target_dfa_node, symbol);
+        impl<'a, 'n, 'd> Lambda<'a, 'n, 'd> {
+            fn convert(&mut self, nfa_closure: Rc<BTreeSet<Node<'n>>>) -> Node<'d> {
+                if let Some(dfa_node) = self.convert_map.get(&nfa_closure) {
+                    return *dfa_node;
                 }
+
+                let dfa_node = self.dfa.node();
+                self.convert_map.insert(Rc::clone(&nfa_closure), dfa_node);
+
+                for symbol in u8::MIN..=u8::MAX {
+                    let symbol_closure = Rc::new(nfa_closure.closure(symbol));
+                    if !symbol_closure.is_empty() {
+                        let target_dfa_node = self.convert(symbol_closure);
+                        dfa_node.connect(target_dfa_node, symbol);
+                    }
+                }
+                dfa_node
             }
-            dfa_node
         }
 
         let start_e_closure = Rc::new(self.start_node().closure(Epsilon));
-        convert_impl(start_e_closure, &mut convert_map, &dfa);
+        Lambda {
+            convert_map: &mut convert_map,
+            dfa: &dfa,
+        }
+        .convert(start_e_closure);
         dfa
     }
 }
 
 impl std::ops::Drop for Graph<'_> {
     fn drop(&mut self) {
-        self.arena.reset_graph_data();
+        self.arena.unbind_graph();
     }
 }
 

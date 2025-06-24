@@ -1,6 +1,5 @@
 use crate::adt::{Map, MapIter};
-use crate::arena::Arena;
-use crate::graph::AutomatonKind;
+use crate::graph::{AutomatonKind, Graph};
 use crate::span::Span;
 use crate::symbol::Epsilon;
 use crate::transition::Transition;
@@ -18,7 +17,6 @@ pub struct Node<'a>(&'a NodeInner<'a>);
 
 pub(crate) struct NodeInner<'a> {
     uid: u64,
-    owner: &'a Arena,
     borrow: Cell<BorrowFlag>,
     accept: Cell<bool>,
     targets: UnsafeCell<Map<Node<'a>, Transition>>,
@@ -92,11 +90,6 @@ impl<'a> Node<'a> {
         self
     }
 
-    /// Returns a reference to the arena which is an owner of this node.
-    pub fn owner(self) -> &'a Arena {
-        self.0.owner
-    }
-
     /// Connects this node to another node with a specified edge rule.
     /// If a connection to the target node already exists, it merges
     /// the new edge rule with the existing one.
@@ -142,13 +135,12 @@ impl<'a> Node<'a> {
     }
 }
 
-/// Private API
+/// Crate API
 impl<'a> Node<'a> {
-    pub(crate) fn new_inner(uid: u64, arena: &'a Arena, kind: AutomatonKind) -> NodeInner<'a> {
-        match kind {
+    pub(crate) fn new_inner(uid: u64, graph: &Graph<'a>) -> NodeInner<'a> {
+        match graph.kind() {
             AutomatonKind::NFA => NodeInner {
                 uid,
-                owner: arena,
                 borrow: Cell::new(0),
                 accept: Cell::new(false),
                 targets: Default::default(),
@@ -156,7 +148,6 @@ impl<'a> Node<'a> {
             },
             AutomatonKind::DFA => NodeInner {
                 uid,
-                owner: arena,
                 borrow: Cell::new(0),
                 accept: Cell::new(false),
                 targets: Default::default(),

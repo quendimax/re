@@ -9,23 +9,6 @@ fn arena_ctor() {
 }
 
 #[test]
-#[should_panic]
-fn arena_alloc_node_panics_0() {
-    let arena = Arena::new();
-    _ = arena.alloc_node();
-}
-
-#[test]
-#[should_panic]
-fn arena_alloc_node_panics_1() {
-    let mut arena = Arena::new();
-    {
-        _ = Graph::nfa_in(&mut arena);
-    }
-    _ = arena.alloc_node();
-}
-
-#[test]
 fn arena_alloc_node() {
     let mut arena = Arena::new();
     let gr = Graph::nfa_in(&mut arena);
@@ -55,7 +38,6 @@ fn arena_alloc_during_iteration() {
         items.push(node.nid());
     }
 
-    // magic!
     let arena = gr.owner();
 
     for _ in arena.nodes() {
@@ -64,6 +46,7 @@ fn arena_alloc_during_iteration() {
     }
 
     assert_eq!(items.len(), 10);
+    assert_eq!(arena.nodes().len(), 10);
     assert_eq!(
         items,
         arena.nodes().map(|node| node.nid()).collect::<Vec<_>>()

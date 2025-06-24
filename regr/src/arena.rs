@@ -1,14 +1,12 @@
-use crate::AutomatonKind;
 use crate::node::{Node, NodeInner};
 use bumpalo::Bump;
 use smallvec::SmallVec;
 use std::cell::Cell;
-use std::iter::Iterator;
 
 pub struct Arena {
     node_bump: Bump,
     nodes_len: Cell<usize>,
-    gr_data: Cell<Option<(u64, AutomatonKind)>>,
+    bound_gid: Cell<Option<u64>>,
 }
 
 /// Public API
@@ -22,25 +20,8 @@ impl Arena {
         Self {
             node_bump: Bump::with_capacity(capacity * std::mem::size_of::<NodeInner>()),
             nodes_len: Cell::new(0),
-            gr_data: Cell::new(None), // bound graph id
+            bound_gid: Cell::new(None), // bound graph id
         }
-    }
-
-    pub fn alloc_node(&self) -> Node<'_> {
-        let (gid, kind) = self
-            .gr_data
-            .get()
-            .expect("you can't create a node until arena is bound to a graph");
-
-        let nid: u32 = self.nodes_len.get().try_into().expect("node id overflow");
-        self.nodes_len.replace(self.nodes_len.get() + 1);
-
-        let uid: u64 = nid as u64 | (gid << Node::ID_BITS);
-
-        let node_mut = self
-            .node_bump
-            .alloc_with(|| Node::new_inner(uid, self, kind));
-        Node::from(node_mut)
     }
 
     /// Returns an iterator over the items in the arena.
@@ -49,23 +30,42 @@ impl Arena {
     /// items to the arena during iteration. But the iteration won't be affected
     /// by the new items, i.e. if at the moment of creation the iterator the
     /// arena contains `n` items, then the iterator will iterate over `n` items.
-    pub fn nodes(&self) -> impl Iterator<Item = Node<'_>> {
+    pub fn nodes(&self) -> impl ExactSizeIterator<Item = Node<'_>> {
         BumpIter::new(&self.node_bump, self.nodes_len.get()).map(|ptr| Node::from(unsafe { &*ptr }))
     }
 }
 
 /// Crate API
 impl Arena {
+    pub(crate) fn alloc_node_with<'a, F>(&'a self, f: F) -> Node<'a>
+    where
+        F: FnOnce() -> NodeInner<'a>,
+    {
+        let gid = self
+            .bound_gid
+            .get()
+            .expect("you can't create a node until arena is bound to a graph");
+
+        let node_mut = self.node_bump.alloc_with(f);
+        self.nodes_len.replace(self.nodes_len.get() + 1);
+
+        let node = Node::from(node_mut);
+        assert_eq!(gid, node.gid());
+
+        node
+    }
+
     /// Binds this arena with a graph. Should be run by the graph constructor.
     ///
     /// We run nodes dropping here because I can't save mutable referance to the
     /// arena in the graph, but can have it in the graph constructor.
-    pub(crate) fn set_graph_data(&mut self, gid: u64, kind: AutomatonKind) {
-        if let Some((gid, _)) = self.gr_data.get() {
+    pub(crate) fn bind_graph(&mut self, gid: u64) {
+        if let Some(gid) = self.bound_gid.get() {
             panic!("this arena is already bound to a graph(gid={})", gid);
         }
-        self.gr_data.set(Some((gid, kind)));
+
         self.drop_nodes();
+        self.bound_gid.set(Some(gid));
     }
 
     /// Unbinds this arena from a graph. Should be run by the graph destructor.
@@ -73,8 +73,8 @@ impl Arena {
     /// Dispite expectations, this doesn't run nodes dropping, because the graph
     /// can't hold a mutable reference to the arena. So the dropping is run by
     /// either a new graph constructor or the arena destructor.
-    pub(crate) fn reset_graph_data(&self) {
-        self.gr_data.set(None);
+    pub(crate) fn unbind_graph(&self) {
+        self.bound_gid.set(None);
     }
 }
 
@@ -86,7 +86,8 @@ impl Arena {
             let mut cnt = 0;
             for (i, ptr) in iter.enumerate() {
                 // check layout within the bump allocator; each next node should have next node id
-                assert_eq!(Node::from(unsafe { &*ptr }).nid() as usize, i);
+                let node_id = Node::from(unsafe { &*ptr }).nid();
+                assert_eq!(node_id as usize, i);
                 unsafe { std::ptr::drop_in_place::<NodeInner>(ptr) };
                 cnt += 1;
             }
@@ -195,7 +196,7 @@ mod utest {
     #[should_panic]
     fn arena_graph_binding_overlapping() {
         let mut arena = Arena::new();
-        arena.set_graph_data(1, AutomatonKind::DFA);
-        arena.set_graph_data(1, AutomatonKind::DFA);
+        arena.bind_graph(1);
+        arena.bind_graph(1);
     }
 }

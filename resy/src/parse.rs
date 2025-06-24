@@ -593,15 +593,20 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
         let mut map = HashMap::new();
 
         #[allow(clippy::mutable_key_type)]
-        fn rec<'n>(node: Node<'n>, clone: Node<'n>, map: &mut HashMap<Node<'n>, Node<'n>>) {
+        fn rec<'n>(
+            node: Node<'n>,
+            clone: Node<'n>,
+            map: &mut HashMap<Node<'n>, Node<'n>>,
+            nfa: &Graph<'n>,
+        ) {
             map.insert(node, clone);
             let mut collect = SmallVec::<[_; 3]>::new();
             for (target, tr) in node.targets() {
                 if let Some(clone_target) = map.get(&target) {
                     collect.push((*clone_target, tr));
                 } else {
-                    let clone_target = node.owner().alloc_node();
-                    rec(target, clone_target, map);
+                    let clone_target = nfa.node();
+                    rec(target, clone_target, map, nfa);
                     collect.push((clone_target, tr));
                 }
             }
@@ -610,7 +615,7 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
             }
         }
 
-        rec(start_node, end_node, &mut map);
+        rec(start_node, end_node, &mut map, self.nfa);
         (end_node, map[&end_node])
     }
 }
