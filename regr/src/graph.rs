@@ -22,14 +22,14 @@ pub struct Graph<'a> {
     kind: AutomatonKind,
 }
 
-static NEXT_GRAPH_ID: AtomicU32 = AtomicU32::new(0);
+static NEXT_GRAPH_ID: AtomicU32 = AtomicU32::new(1);
 
 impl<'a> Graph<'a> {
     pub fn new_in(arena: &'a mut Arena, kind: AutomatonKind) -> Self {
-        let gid = NEXT_GRAPH_ID.load(Ordering::Relaxed);
-        let gid = gid.checked_add(1).expect("graph id overflow");
-        NEXT_GRAPH_ID.store(gid, Ordering::Relaxed);
-        let gid = gid as u64;
+        let gid = NEXT_GRAPH_ID.fetch_add(1, Ordering::Relaxed) as u64;
+        if gid == 0 {
+            panic!("graph id overflow");
+        }
 
         arena.bind_graph(gid);
 
