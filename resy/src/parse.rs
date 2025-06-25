@@ -6,7 +6,6 @@
 use crate::error::{Error::*, Result, err};
 use regr::{Epsilon, Graph, Node};
 use renc::Coder;
-use smallvec::SmallVec;
 use std::collections::HashMap;
 use std::str::Chars;
 
@@ -591,31 +590,36 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
         #[allow(clippy::mutable_key_type)]
         let mut map = HashMap::new();
 
-        // FIX: remove cloning transitions
-        #[allow(clippy::mutable_key_type)]
-        fn rec<'n>(
-            node: Node<'n>,
-            clone: Node<'n>,
-            map: &mut HashMap<Node<'n>, Node<'n>>,
-            nfa: &Graph<'n>,
-        ) {
-            map.insert(node, clone);
-            let mut collect = SmallVec::<[_; 3]>::new();
-            for (target, tr) in node.targets().iter() {
-                if let Some(clone_target) = map.get(target) {
-                    collect.push((*clone_target, tr.clone()));
-                } else {
-                    let clone_target = nfa.node();
-                    rec(*target, clone_target, map, nfa);
-                    collect.push((clone_target, tr.clone()));
+        struct Lambda<'a, 'n> {
+            map: &'a mut HashMap<Node<'n>, Node<'n>>,
+            nfa: &'a Graph<'n>,
+        }
+        impl<'a, 'n> Lambda<'a, 'n> {
+            // maybe `tr.clone()` can be replaced with something more efficient
+            fn copy_tail(&mut self, node: Node<'n>, clone: Node<'n>) {
+                self.map.insert(node, clone);
+                let mut collect = Vec::new();
+                for (target, tr) in node.targets().iter() {
+                    if let Some(clone_target) = self.map.get(target) {
+                        collect.push((*clone_target, tr.clone()));
+                    } else {
+                        let clone_target = self.nfa.node();
+                        self.copy_tail(*target, clone_target);
+                        collect.push((clone_target, tr.clone()));
+                    }
                 }
-            }
-            for (clone_target, tr) in collect {
-                clone.connect(clone_target, &tr);
+                for (clone_target, tr) in collect {
+                    clone.connect(clone_target, &tr);
+                }
             }
         }
 
-        rec(start_node, end_node, &mut map, self.nfa);
+        Lambda {
+            map: &mut map,
+            nfa: self.nfa,
+        }
+        .copy_tail(start_node, end_node);
+
         (end_node, map[&end_node])
     }
 }
