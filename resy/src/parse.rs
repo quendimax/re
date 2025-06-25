@@ -8,7 +8,6 @@ use regr::{Epsilon, Graph, Node};
 use renc::Coder;
 use smallvec::SmallVec;
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::str::Chars;
 
 pub struct Parser<'g, 'n, 's, T: Coder> {
@@ -592,6 +591,7 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
         #[allow(clippy::mutable_key_type)]
         let mut map = HashMap::new();
 
+        // FIX: remove cloning transitions
         #[allow(clippy::mutable_key_type)]
         fn rec<'n>(
             node: Node<'n>,
@@ -601,17 +601,17 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
         ) {
             map.insert(node, clone);
             let mut collect = SmallVec::<[_; 3]>::new();
-            for (target, tr) in node.targets() {
-                if let Some(clone_target) = map.get(&target) {
-                    collect.push((*clone_target, tr));
+            for (target, tr) in node.targets().iter() {
+                if let Some(clone_target) = map.get(target) {
+                    collect.push((*clone_target, tr.clone()));
                 } else {
                     let clone_target = nfa.node();
-                    rec(target, clone_target, map, nfa);
-                    collect.push((clone_target, tr));
+                    rec(*target, clone_target, map, nfa);
+                    collect.push((clone_target, tr.clone()));
                 }
             }
             for (clone_target, tr) in collect {
-                clone.connect(clone_target, tr.deref());
+                clone.connect(clone_target, &tr);
             }
         }
 

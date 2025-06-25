@@ -119,8 +119,20 @@ fn node_symbol_targets() {
     d.connect(b, Epsilon);
     d.connect(c, Epsilon);
 
-    assert_eq!(a.targets().map(|x| x.0).collect::<Vec<_>>(), vec![b]);
-    assert_eq!(c.targets().map(|x| x.0).collect::<Vec<_>>(), vec![d]);
+    assert_eq!(
+        a.targets()
+            .iter()
+            .map(|(node, _)| *node)
+            .collect::<Vec<_>>(),
+        vec![b]
+    );
+    assert_eq!(
+        c.targets()
+            .iter()
+            .map(|(node, _)| *node)
+            .collect::<Vec<_>>(),
+        vec![d]
+    );
 }
 
 #[test]
@@ -133,8 +145,9 @@ fn node_symbol_targets_panic() {
     a.connect(b, b'c');
 
     // expected that _node_tr is (Node, TransitionRef), and it locks writing to node a
-    let _node_tr = a.targets().next();
-    a.connect(b, b'a');
+    for _ in a.targets().iter() {
+        a.connect(b, b'a');
+    }
 }
 
 #[test]
@@ -155,7 +168,7 @@ fn node_epsilon_targets() {
     d.connect(b, Epsilon);
     d.connect(c, Epsilon);
 
-    assert_eq!(a.epsilon_targets().collect::<Vec<_>>(), vec![b]);
+    assert_eq!(a.collect_epsilon_targets::<Vec<_>>(), vec![b]);
 }
 
 #[test]
@@ -168,11 +181,11 @@ fn node_epsilon_targets_panics() {
     let c = graph.node();
     a.connect(b, Epsilon);
     b.connect(c, Epsilon);
-    for b in a.epsilon_targets() {
-        for c in b.epsilon_targets() {
+    a.for_each_epsilon_target(|b| {
+        b.for_each_epsilon_target(|c| {
             b.connect(c, Epsilon);
-        }
-    }
+        });
+    });
 }
 
 #[test]

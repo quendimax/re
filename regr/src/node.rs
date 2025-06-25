@@ -1,13 +1,12 @@
-use crate::adt::{Map, MapIter};
+use crate::adt::Map;
 use crate::graph::{AutomatonKind, Graph};
 use crate::span::Span;
 use crate::symbol::Epsilon;
 use crate::transition::Transition;
-use std::cell::{Cell, UnsafeCell};
+use std::cell::{Cell, RefCell};
 use std::collections::BTreeSet;
 use std::fmt::Write;
-use std::iter::FilterMap;
-use std::ptr::NonNull;
+use std::ops::Deref;
 
 /// Node for an NFA graph.
 ///
@@ -17,15 +16,14 @@ pub struct Node<'a>(&'a NodeInner<'a>);
 
 pub(crate) struct NodeInner<'a> {
     uid: u64,
-    borrow: Cell<BorrowFlag>,
     accept: Cell<bool>,
-    targets: UnsafeCell<Map<Node<'a>, Transition>>,
+    targets: RefCell<Map<Node<'a>, Transition>>,
     variant: NodeVariant,
 }
 
 enum NodeVariant {
     DfaNode {
-        occupied_symbols: UnsafeCell<Transition>,
+        occupied_symbols: RefCell<Transition>,
     },
     NfaNode,
 }
@@ -123,15 +121,36 @@ impl<'a> Node<'a> {
     ///
     /// This iterator walks over pairs (`Node`, `TransitionRef`).
     #[inline]
-    pub fn targets(self) -> TargetIter<'a> {
-        TargetIter::new(self)
+    pub fn targets(self) -> impl Deref<Target = Map<Node<'a>, Transition>> {
+        self.0.targets.borrow()
     }
 
-    /// Returns an iterator over epsilon target nodes, i.e. nodes that this node is
+    /// Iterates over epsilon target nodes, i.e. nodes that this node is
     /// connected to with Epsilon transition.
-    #[inline]
-    pub fn epsilon_targets(self) -> EpsilonTargetIter<'a> {
-        EpsilonTargetIter::new(self)
+    pub fn for_each_epsilon_target(self, f: impl FnMut(Node<'a>)) {
+        let mut f = f;
+        if matches!(self.0.variant, DfaNode { .. }) {
+            panic!("iteration over Epsilon targets is possible for NFA nodes only");
+        }
+        for (target, transition) in self.0.targets.borrow().iter() {
+            if transition.contains(Epsilon) {
+                f(*target);
+            }
+        }
+    }
+
+    /// Collects epsilon target nodes, i.e. nodes that this node is
+    /// connected to with Epsilon transition.
+    pub fn collect_epsilon_targets<B: FromIterator<Node<'a>>>(self) -> B {
+        let targets = self.0.targets.borrow();
+        let iter = targets.iter().filter_map(|(target, tr)| {
+            if tr.contains(Epsilon) {
+                Some(*target)
+            } else {
+                None
+            }
+        });
+        FromIterator::from_iter(iter)
     }
 }
 
@@ -141,14 +160,12 @@ impl<'a> Node<'a> {
         match graph.kind() {
             AutomatonKind::NFA => NodeInner {
                 uid,
-                borrow: Cell::new(0),
                 accept: Cell::new(false),
                 targets: Default::default(),
                 variant: NfaNode,
             },
             AutomatonKind::DFA => NodeInner {
                 uid,
-                borrow: Cell::new(0),
                 accept: Cell::new(false),
                 targets: Default::default(),
                 variant: DfaNode {
@@ -177,7 +194,7 @@ impl<'a> ClosureOp<'a, u8> for BTreeSet<Node<'a>> {
     fn closure(&self, symbol: u8) -> BTreeSet<Node<'a>> {
         let mut closure = BTreeSet::new();
         for node in self.iter() {
-            for (target_node, transition) in node.targets() {
+            for (target_node, transition) in node.targets().iter() {
                 if transition.contains(symbol) {
                     let e_closure = target_node.closure(Epsilon);
                     closure.extend(e_closure);
@@ -197,9 +214,9 @@ impl<'a> ClosureOp<'a, Epsilon> for Node<'a> {
                 return;
             }
             closure.insert(node);
-            for target_node in node.epsilon_targets() {
+            node.for_each_epsilon_target(|target_node| {
                 closure_impl(target_node, closure);
-            }
+            });
         }
         closure_impl(*self, &mut closure);
         closure
@@ -214,9 +231,8 @@ macro_rules! impl_connect {
     ($symty:ty) => {
         impl<'a> ConnectOp<'a, $symty> for Node<'a> {
             fn connect(self, to: Node<'a>, with: $symty) {
-                _ = BorrowMut::new(&self.0.borrow);
                 if let DfaNode { occupied_symbols } = &self.0.variant {
-                    let occupied_symbols = unsafe { occupied_symbols.get().as_mut() }.unwrap();
+                    let mut occupied_symbols = occupied_symbols.borrow_mut();
                     if occupied_symbols.contains(with) {
                         panic!("connection {with:?} already exists; DFA node can't have more");
                     }
@@ -224,7 +240,7 @@ macro_rules! impl_connect {
                 }
 
                 #[allow(clippy::mutable_key_type)]
-                let targets = unsafe { self.0.targets.get().as_mut() }.unwrap();
+                let mut targets = self.0.targets.borrow_mut();
                 if let Some(tr) = targets.get_mut(&to) {
                     tr.merge(with);
                 } else {
@@ -257,9 +273,8 @@ impl<'a> ConnectOp<'a, Epsilon> for Node<'a> {
                 panic!("NFA nodes can't be connected with Epsilon");
             }
             NfaNode => {
-                _ = BorrowMut::new(&self.0.borrow);
                 #[allow(clippy::mutable_key_type)]
-                let targets = unsafe { self.0.targets.get().as_mut() }.unwrap();
+                let mut targets = self.0.targets.borrow_mut();
                 if let Some(tr) = targets.get_mut(&to) {
                     tr.merge(with);
                 } else {
@@ -344,141 +359,3 @@ impl_fmt!(std::fmt::Binary);
 impl_fmt!(std::fmt::Octal);
 impl_fmt!(std::fmt::UpperHex);
 impl_fmt!(std::fmt::LowerHex);
-
-pub struct TargetIter<'a> {
-    borrow_ref: BorrowRef<'a>,
-    iter: MapIter<'a, Node<'a>, Transition>,
-}
-
-impl<'a> TargetIter<'a> {
-    pub fn new(node: Node<'a>) -> Self {
-        let borrow_ref = BorrowRef::new(&node.0.borrow);
-        #[allow(clippy::mutable_key_type)]
-        let targets = unsafe { node.0.targets.get().as_ref() }.unwrap();
-        let iter = targets.iter();
-        Self { borrow_ref, iter }
-    }
-}
-
-impl<'a> std::iter::Iterator for TargetIter<'a> {
-    type Item = (Node<'a>, TransitionRef<'a>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next().map(|(node, transition)| {
-            let transition_ref = unsafe { TransitionRef::new(self.borrow_ref.clone(), transition) };
-            (*node, transition_ref)
-        })
-    }
-}
-
-pub struct TransitionRef<'a> {
-    _borrow_ref: BorrowRef<'a>,
-    transition_ptr: NonNull<Transition>,
-}
-
-impl<'a> TransitionRef<'a> {
-    unsafe fn new(borrow_ref: BorrowRef<'a>, transition: &Transition) -> Self {
-        let transition_ptr =
-            unsafe { NonNull::new_unchecked(transition as *const Transition as *mut Transition) };
-        Self {
-            _borrow_ref: borrow_ref,
-            transition_ptr,
-        }
-    }
-}
-
-impl std::ops::Deref for TransitionRef<'_> {
-    type Target = Transition;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        unsafe { self.transition_ptr.as_ref() }
-    }
-}
-
-impl std::fmt::Debug for TransitionRef<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use std::ops::Deref;
-        std::fmt::Debug::fmt(self.deref(), f)
-    }
-}
-
-type EpsilonTargetIterFn<'a> = fn((Node<'a>, TransitionRef<'a>)) -> Option<Node<'a>>;
-
-pub struct EpsilonTargetIter<'a> {
-    iter: FilterMap<TargetIter<'a>, EpsilonTargetIterFn<'a>>,
-}
-
-impl<'a> EpsilonTargetIter<'a> {
-    pub fn new(node: Node<'a>) -> Self {
-        if matches!(node.0.variant, NfaNode) {
-            return Self {
-                iter: node
-                    .targets()
-                    .filter_map(|(n, tr)| if tr.contains(Epsilon) { Some(n) } else { None }),
-            };
-        }
-        panic!("iteration over Epsilon targets is possible for NFA nodes only");
-    }
-}
-
-impl<'a> std::iter::Iterator for EpsilonTargetIter<'a> {
-    type Item = Node<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next()
-    }
-}
-
-type BorrowFlag = isize;
-const UNUSED: BorrowFlag = 0;
-
-struct BorrowRef<'a>(&'a Cell<BorrowFlag>);
-
-impl<'a> BorrowRef<'a> {
-    fn new(borrow: &'a Cell<BorrowFlag>) -> Self {
-        let b = borrow.get().wrapping_add(1);
-        if b > UNUSED {
-            borrow.set(b);
-            Self(borrow)
-        } else {
-            panic!("already mutably borrowed");
-        }
-    }
-}
-
-impl std::ops::Drop for BorrowRef<'_> {
-    fn drop(&mut self) {
-        let borrow = self.0.get();
-        debug_assert!(borrow > UNUSED);
-        self.0.set(borrow - 1);
-    }
-}
-
-impl Clone for BorrowRef<'_> {
-    fn clone(&self) -> Self {
-        BorrowRef::new(self.0)
-    }
-}
-
-struct BorrowMut<'a>(&'a Cell<BorrowFlag>);
-
-impl<'a> BorrowMut<'a> {
-    fn new(borrow: &'a Cell<BorrowFlag>) -> Self {
-        let b = borrow.get();
-        if b == UNUSED {
-            borrow.set(b - 1);
-            Self(borrow)
-        } else {
-            panic!("already borrowed");
-        }
-    }
-}
-
-impl std::ops::Drop for BorrowMut<'_> {
-    fn drop(&mut self) {
-        let borrow = self.0.get().wrapping_add(1);
-        debug_assert!(borrow == UNUSED);
-        self.0.set(borrow)
-    }
-}

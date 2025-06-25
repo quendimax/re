@@ -173,11 +173,11 @@ macro_rules! impl_fmt {
                     let mut is_empty = true;
                     std::fmt::$trait::fmt(&node, f)?;
                     f.write_str(" {")?;
-                    for (target, transition) in node.targets() {
+                    for (target, transition) in node.targets().iter() {
                         f.write_str("\n    ")?;
                         std::fmt::$trait::fmt(transition.deref(), f)?;
                         f.write_str(" -> ")?;
-                        if node == target {
+                        if node == *target {
                             f.write_str("self")?;
                         } else {
                             std::fmt::$trait::fmt(&target, f)?;
