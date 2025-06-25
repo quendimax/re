@@ -222,10 +222,10 @@ impl MergeOp<Span> for Transition {
                     *self.chunks.get_unchecked_mut(ls_index + 2) |= ms_mask;
                 }
                 3 => {
-                    *self.chunks.get_unchecked_mut(ls_index) |= ls_mask;
-                    *self.chunks.get_unchecked_mut(ls_index + 1) |= u64::MAX;
-                    *self.chunks.get_unchecked_mut(ls_index + 2) |= u64::MAX;
-                    *self.chunks.get_unchecked_mut(ls_index + 3) |= ms_mask;
+                    *self.chunks.get_unchecked_mut(0) |= ls_mask;
+                    *self.chunks.get_unchecked_mut(1) |= u64::MAX;
+                    *self.chunks.get_unchecked_mut(2) |= u64::MAX;
+                    *self.chunks.get_unchecked_mut(3) |= ms_mask;
                 }
                 _ => std::hint::unreachable_unchecked(),
             }
