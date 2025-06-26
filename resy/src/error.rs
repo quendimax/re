@@ -13,14 +13,14 @@ pub enum Error {
     #[error("character `{0}` must be escaped with a prior backslash `\\`")]
     EscapeIt(char),
 
-    #[error("invalid hexadecimal {0}")]
-    InvalidHex(String),
+    #[error("invalid hexadecimal `{0}`")]
+    InvalidHex(Box<str>),
 
     #[error("value {0} doesn't make sense here")]
     NonsenseValue(u32),
 
     #[error("value `{value}` is out of allowable range {range}")]
-    OutOfRange { value: String, range: String },
+    OutOfRange { value: Box<str>, range: Box<str> },
 
     #[error("escape expression '\\{0}' is not supported")]
     UnsupportedEscape(char),
@@ -29,13 +29,16 @@ pub enum Error {
     UnexpcetedCloseBracket(char),
 
     #[error("expected that {expected}")]
-    UnexpectedCond { expected: String },
+    UnexpectedCond { expected: Box<str> },
 
     #[error("unexpected end of file within {aborted_expr} expression")]
-    UnexpectedEof { aborted_expr: String },
+    UnexpectedEof { aborted_expr: Box<str> },
 
     #[error("expected {expected}, but got {gotten}")]
-    UnexpectedToken { gotten: String, expected: String },
+    UnexpectedToken {
+        gotten: Box<str>,
+        expected: Box<str>,
+    },
 }
 
 /// Helper module to facilitate creating new error instances.
@@ -46,33 +49,52 @@ pub(crate) mod err {
         Err(Error::EscapeIt(symbol))
     }
 
+    #[inline(never)]
+    pub(crate) fn invalid_hex<T>(got: impl Into<String>) -> Result<T> {
+        Err(Error::InvalidHex(got.into().into_boxed_str()))
+    }
+
     pub(crate) fn nonsense_value<T>(value: u32) -> Result<T> {
         Err(Error::NonsenseValue(value))
+    }
+
+    #[inline(never)]
+    pub(crate) fn out_of_range<T>(
+        value: impl Into<Box<str>>,
+        range: impl Into<Box<str>>,
+    ) -> Result<T> {
+        Err(Error::OutOfRange {
+            value: value.into(),
+            range: range.into(),
+        })
     }
 
     pub(crate) fn unexpected_close_bracket<T>(bracket: char) -> Result<T> {
         Err(Error::UnexpcetedCloseBracket(bracket))
     }
 
-    pub(crate) fn unexpected_cond<T>(expected: impl Into<String>) -> Result<T> {
+    #[inline(never)]
+    pub(crate) fn unexpected_cond<T>(expected: impl Into<Box<str>>) -> Result<T> {
         Err(Error::UnexpectedCond {
             expected: expected.into(),
         })
     }
 
-    pub(crate) fn unexpected_eof<T>(aborted_expr: impl Into<String>) -> Result<T> {
+    #[inline(never)]
+    pub(crate) fn unexpected_eof<T>(aborted_expr: impl Into<Box<str>>) -> Result<T> {
         Err(Error::UnexpectedEof {
             aborted_expr: aborted_expr.into(),
         })
     }
 
+    #[inline(never)]
     pub(crate) fn unexpected_token<T>(
         gotten: impl Into<String>,
         expected: impl Into<String>,
     ) -> Result<T> {
         Err(Error::UnexpectedToken {
-            gotten: gotten.into(),
-            expected: expected.into(),
+            gotten: gotten.into().into_boxed_str(),
+            expected: expected.into().into_boxed_str(),
         })
     }
 }

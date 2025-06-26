@@ -460,7 +460,10 @@ fn parse_escape_fails() {
     assert_matches!(try_parse(r"\u{s}"), Err(InvalidHex(..)));
     assert_matches!(
         try_parse(r"\u{0000000}"),
-        Err(Error::UnexpectedToken { gotten, expected }) if gotten == "0" && expected == "}"
+        Err(Error::UnexpectedToken {
+            gotten,
+            expected
+        }) if gotten == "0".into() && expected == "}".into()
     );
     assert_matches!(
         try_parse(r"\u{110000}"),

@@ -476,15 +476,12 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
         if !first_hex.is_ascii_hexdigit() || !second_hex.is_ascii_hexdigit() {
             let mut hex_str = first_hex.to_string();
             hex_str.push(second_hex);
-            return Err(InvalidHex(hex_str));
+            return err::invalid_hex(hex_str);
         }
         if first_hex > '7' {
             let mut hex_str = first_hex.to_string();
             hex_str.push(second_hex);
-            return Err(OutOfRange {
-                value: hex_str,
-                range: "[0x00..=0x7F]".into(),
-            });
+            return err::out_of_range(hex_str, "[0x00..=0x7F]");
         }
         let mut codepoint = (first_hex as u32 - '0' as u32) << 4;
         if second_hex > '9' {
@@ -527,7 +524,7 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
                 }
             }
             if !c.is_ascii_hexdigit() {
-                return Err(InvalidHex(c.into()));
+                return err::invalid_hex(c);
             }
             codepoint <<= 4;
             if c > '9' {
