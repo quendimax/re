@@ -61,7 +61,7 @@ impl Arena {
     /// arena in the graph, but can have it in the graph constructor.
     pub(crate) fn bind_graph(&mut self, gid: u64) {
         if let Some(gid) = self.bound_gid.get() {
-            panic!("this arena is already bound to a graph(gid={})", gid);
+            panic!("this arena is already bound to a graph(gid={gid})");
         }
 
         self.drop_nodes();

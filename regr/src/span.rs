@@ -124,7 +124,7 @@ impl Span {
     /// panics.
     pub fn merge(self, other: Self) -> Self {
         self.try_merge(other)
-            .unwrap_or_else(|| panic!("can't merge spans {} and {}", self, other))
+            .unwrap_or_else(|| panic!("can't merge spans {self} and {other}"))
     }
 }
 

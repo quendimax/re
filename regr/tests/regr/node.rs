@@ -119,20 +119,8 @@ fn node_symbol_targets() {
     d.connect(b, Epsilon);
     d.connect(c, Epsilon);
 
-    assert_eq!(
-        a.targets()
-            .iter()
-            .map(|(node, _)| *node)
-            .collect::<Vec<_>>(),
-        vec![b]
-    );
-    assert_eq!(
-        c.targets()
-            .iter()
-            .map(|(node, _)| *node)
-            .collect::<Vec<_>>(),
-        vec![d]
-    );
+    assert_eq!(a.targets().keys().copied().collect::<Vec<_>>(), vec![b]);
+    assert_eq!(c.targets().keys().copied().collect::<Vec<_>>(), vec![d]);
 }
 
 #[test]

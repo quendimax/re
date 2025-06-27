@@ -3,7 +3,7 @@ use regr::{Arena, AutomatonKind, Epsilon, Graph, Span, span};
 
 fn dsp<T: std::fmt::Display>(obj: &T) -> String {
     let mut result = String::new();
-    for line in format!("{}", obj).split('\n') {
+    for line in format!("{obj}").split('\n') {
         if !line.ends_with('{') && !line.ends_with('}') {
             result.push_str("    ");
         }
@@ -15,7 +15,7 @@ fn dsp<T: std::fmt::Display>(obj: &T) -> String {
 
 fn dbg<T: std::fmt::Debug>(obj: &T) -> String {
     let mut result = String::new();
-    for line in format!("{:?}", obj).split('\n') {
+    for line in format!("{obj:?}").split('\n') {
         if !line.ends_with('{') && !line.ends_with('}') {
             result.push_str("    ");
         }

@@ -9,7 +9,7 @@ const CODER: Utf8Coder = Utf8Coder;
 
 fn fmt<T: std::fmt::Display + ?Sized>(obj: &T) -> String {
     let mut result = String::new();
-    for line in format!("{}", obj).split('\n') {
+    for line in format!("{obj}").split('\n') {
         if !line.ends_with('{') && !line.ends_with('}') {
             result.push_str("    ");
         }
