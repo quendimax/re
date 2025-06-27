@@ -239,13 +239,12 @@ fn graph_display_fmt_2() {
     n6.connect(n7, b'd');
     n7.connect(n1, Epsilon);
     assert_eq!(
-        dsp(graph.owner()),
+        dsp(&graph),
         dsp(&"
             node(0) {
                 [Epsilon] -> node(2)
                 [Epsilon] -> node(5)
             }
-            node(1) {}
             node(2) {
                 ['a'] -> node(3)
             }
@@ -255,6 +254,7 @@ fn graph_display_fmt_2() {
             node(4) {
                 [Epsilon] -> node(1)
             }
+            node(1) {}
             node(5) {
                 ['c'] -> node(6)
             }

@@ -54,13 +54,13 @@ impl Transition {
 
     /// Returns iterator over all symbols in this trasition instance in
     /// ascendent order.
-    pub fn symbols(&self) -> SymbolIter {
+    pub fn symbols(&self) -> SymbolIter<'_> {
         SymbolIter::new(&self.chunks)
     }
 
     /// Returns iterator over all symbol spans in this trasition instance in
     /// ascendent order.
-    pub fn spans(&self) -> SpanIter {
+    pub fn spans(&self) -> SpanIter<'_> {
         SpanIter::new(&self.chunks)
     }
 

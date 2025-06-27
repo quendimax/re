@@ -117,7 +117,6 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
                 '|' => Ok(start_node),
                 ')' => Ok(start_node),
                 '[' => self.parse_class(start_node),
-                ']' => err::unexpected_close_bracket(next_sym),
                 '.' => self.parse_dot_class(start_node),
                 _ => self.parse_term(start_node),
             };
