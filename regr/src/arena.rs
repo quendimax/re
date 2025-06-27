@@ -2,6 +2,7 @@ use crate::node::{Node, NodeInner};
 use bumpalo::Bump;
 use smallvec::SmallVec;
 use std::cell::Cell;
+use std::fmt::Write;
 
 pub struct Arena {
     node_bump: Bump,
@@ -110,6 +111,49 @@ impl std::ops::Drop for Arena {
         self.drop_nodes();
     }
 }
+
+macro_rules! impl_fmt {
+    (std::fmt::$trait:ident) => {
+        impl ::std::fmt::$trait for Arena {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let mut first = true;
+                for node in self.nodes() {
+                    if first {
+                        first = false;
+                    } else {
+                        f.write_char('\n')?;
+                    }
+                    let mut is_empty = true;
+                    ::std::fmt::$trait::fmt(&node, f)?;
+                    f.write_str(" {")?;
+                    for (target, transition) in node.targets().iter() {
+                        f.write_str("\n    ")?;
+                        ::std::fmt::$trait::fmt(transition, f)?;
+                        f.write_str(" -> ")?;
+                        if node == *target {
+                            f.write_str("self")?;
+                        } else {
+                            ::std::fmt::$trait::fmt(&target, f)?;
+                        }
+                        is_empty = false;
+                    }
+                    if !is_empty {
+                        f.write_char('\n')?;
+                    }
+                    f.write_char('}')?;
+                }
+                Ok(())
+            }
+        }
+    };
+}
+
+impl_fmt!(std::fmt::Display);
+impl_fmt!(std::fmt::Debug);
+impl_fmt!(std::fmt::Binary);
+impl_fmt!(std::fmt::Octal);
+impl_fmt!(std::fmt::UpperHex);
+impl_fmt!(std::fmt::LowerHex);
 
 /// Iterator over the one type items within the Bump arena.
 struct BumpIter<T> {

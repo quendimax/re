@@ -4,7 +4,6 @@ use crate::symbol::Epsilon;
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
-use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -161,35 +160,53 @@ impl std::ops::Drop for Graph<'_> {
 
 macro_rules! impl_fmt {
     (std::fmt::$trait:ident) => {
-        impl std::fmt::$trait for Graph<'_> {
+        impl ::std::fmt::$trait for Graph<'_> {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                let mut first = true;
-                for node in self.arena.nodes() {
-                    if first {
-                        first = false;
-                    } else {
-                        f.write_char('\n')?;
-                    }
-                    let mut is_empty = true;
-                    std::fmt::$trait::fmt(&node, f)?;
-                    f.write_str(" {")?;
-                    for (target, transition) in node.targets().iter() {
-                        f.write_str("\n    ")?;
-                        std::fmt::$trait::fmt(transition.deref(), f)?;
-                        f.write_str(" -> ")?;
-                        if node == *target {
-                            f.write_str("self")?;
-                        } else {
-                            std::fmt::$trait::fmt(&target, f)?;
-                        }
-                        is_empty = false;
-                    }
-                    if !is_empty {
-                        f.write_char('\n')?;
-                    }
-                    f.write_char('}')?;
+                struct Lambda<'b, 'c> {
+                    first: bool,
+                    f: &'b mut std::fmt::Formatter<'c>,
+                    visited: crate::adt::Set<u64>,
                 }
-                Ok(())
+                impl<'a, 'b, 'c> Lambda<'b, 'c> {
+                    fn call(&mut self, node: Node<'a>) -> std::fmt::Result {
+                        self.visited.insert(node.uid());
+                        if self.first {
+                            self.first = false;
+                        } else {
+                            self.f.write_char('\n')?;
+                        }
+                        let mut is_empty = true;
+                        ::std::fmt::$trait::fmt(&node, self.f)?;
+                        self.f.write_str(" {")?;
+                        for (target, transition) in node.targets().iter() {
+                            self.f.write_str("\n    ")?;
+                            ::std::fmt::$trait::fmt(transition, self.f)?;
+                            self.f.write_str(" -> ")?;
+                            if node == *target {
+                                self.f.write_str("self")?;
+                            } else {
+                                ::std::fmt::$trait::fmt(&target, self.f)?;
+                            }
+                            is_empty = false;
+                        }
+                        if !is_empty {
+                            self.f.write_char('\n')?;
+                        }
+                        self.f.write_char('}')?;
+                        for target in node.targets().keys().copied() {
+                            if !self.visited.contains(&target.uid()) {
+                                self.call(target)?;
+                            }
+                        }
+                        Ok(())
+                    }
+                }
+                Lambda {
+                    first: true,
+                    f,
+                    visited: crate::adt::Set::new(),
+                }
+                .call(self.start_node())
             }
         }
     };

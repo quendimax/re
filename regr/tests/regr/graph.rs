@@ -239,7 +239,7 @@ fn graph_display_fmt_2() {
     n6.connect(n7, b'd');
     n7.connect(n1, Epsilon);
     assert_eq!(
-        dsp(&graph),
+        dsp(graph.owner()),
         dsp(&"
             node(0) {
                 [Epsilon] -> node(2)
