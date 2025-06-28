@@ -7,7 +7,7 @@ pub enum Error {
     #[error("coder error: {0}")]
     CoderError(#[from] renc::Error),
 
-    #[error("empty class expression is not supported")]
+    #[error("empty class expression `[]` is not supported")]
     EmptyClass,
 
     #[error("empty escape expression is not supported")]
@@ -31,13 +31,13 @@ pub enum Error {
     #[error("unexpected close bracket `{0}` encountered without open one")]
     UnexpcetedCloseBracket(char),
 
-    #[error("expected that {expected}")]
-    UnexpectedCond { expected: Box<str> },
+    #[error("expected that {condition}")]
+    UnexpectedCond { condition: Box<str> },
 
     #[error("unexpected end of file within {aborted_expr} expression")]
     UnexpectedEof { aborted_expr: Box<str> },
 
-    #[error("expected {expected}, but got {gotten}")]
+    #[error("expected {expected}, but got '{gotten}'")]
     UnexpectedToken {
         gotten: Box<str>,
         expected: Box<str>,
@@ -79,7 +79,7 @@ pub(crate) mod err {
     #[inline(never)]
     pub(crate) fn unexpected_cond<T>(expected: impl Into<Box<str>>) -> Result<T> {
         Err(Error::UnexpectedCond {
-            expected: expected.into(),
+            condition: expected.into(),
         })
     }
 

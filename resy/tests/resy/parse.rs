@@ -49,6 +49,29 @@ fn expect(chars: &[&str]) -> String {
 }
 
 #[test]
+fn parser_new() {
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
+    _ = Parser::new(&graph, CODER);
+}
+
+#[test]
+#[should_panic(expected = "this parser can build only an NFA graph")]
+fn parser_new_panics() {
+    let mut arena = Arena::new();
+    let graph = Graph::dfa_in(&mut arena);
+    _ = Parser::new(&graph, CODER);
+}
+
+#[test]
+fn parse_close_paren() {
+    assert_eq!(
+        parse(")"),
+        "unexpected close bracket `)` encountered without open one"
+    );
+}
+
+#[test]
 fn parse_parens() {
     assert_eq!(parse("()"), expect(&["Epsilon"]));
     assert_eq!(parse("((((()))))"), expect(&["Epsilon"]));
@@ -293,6 +316,10 @@ fn parse_braces_with_one_num() {
     assert_eq!(parse("a{,}"), "expected decimal, but got ','");
     assert_eq!(parse("a{-1}"), "expected decimal, but got '-'");
     assert_eq!(parse("a{0}"), "value 0 doesn't make sense here");
+    assert_eq!(
+        parse("a{0"),
+        "unexpected end of file within braces expression"
+    );
 }
 
 #[test]
@@ -409,8 +436,10 @@ fn parse_braces_with_two_nums() {
     assert_eq!(parse("a{0,0}"), "value 0 doesn't make sense here");
     assert_eq!(
         parse("a{3,1}"),
-        "expected that expression `{n,m}` has `n` <= `m`"
+        "expected that expression `{n,m}` has invariant `n` <= `m`"
     );
+    assert_eq!(parse("a{1,a}"), "expected '}', but got 'a'");
+    assert_eq!(parse("a{1a"), "expected '}' or ',', but got 'a'");
 }
 
 #[test]
@@ -444,6 +473,23 @@ fn parse_escape() {
     assert_eq!(parse(r"\u{00000}"), expect(&["00h"]));
     assert_eq!(parse(r"\u{000000}"), expect(&["00h"]));
     assert_eq!(parse(r"\u{10FFFF}"), expect(&["F4h", "8Fh", "BFh", "BFh"]));
+
+    assert_eq!(
+        parse(r"\"),
+        "unexpected end of file within escape expression"
+    );
+    assert_eq!(
+        parse(r"\x"),
+        "unexpected end of file within ascii escape expression"
+    );
+    assert_eq!(
+        parse(r"\u"),
+        "unexpected end of file within regular expression"
+    );
+    assert_eq!(
+        parse(r"\u{"),
+        "unexpected end of file within unicode escape expression"
+    );
 }
 
 #[test]
@@ -458,13 +504,7 @@ fn parse_escape_fails() {
 
     assert_matches!(try_parse(r"\u{}"), Err(EmptyEscape));
     assert_matches!(try_parse(r"\u{s}"), Err(InvalidHex(..)));
-    assert_matches!(
-        try_parse(r"\u{0000000}"),
-        Err(Error::UnexpectedToken {
-            gotten,
-            expected
-        }) if gotten == "0".into() && expected == "}".into()
-    );
+    assert_eq!(parse(r"\u{0000000}"), "expected '}', but got '0'");
     assert_matches!(
         try_parse(r"\u{110000}"),
         Err(CoderError(InvalidCodePoint(..)))
@@ -603,6 +643,11 @@ fn parse_class() {
             node(2) {}
         ")
     );
+    assert_eq!(parse("[]"), "empty class expression `[]` is not supported");
+    assert_eq!(
+        parse("["),
+        "unexpected end of file within regular expression"
+    );
 }
 
 #[test]
@@ -688,4 +733,9 @@ fn parse_char() {
     assert_eq!(parse("ў"), expect(&["D1h", "9Eh"]));
     assert_eq!(parse("Ⲁ"), expect(&["E2h", "B2h", "80h"]));
     assert_eq!(parse("𐌰"), expect(&["F0h", "90h", "8Ch", "B0h"]));
+
+    assert_eq!(
+        parse("[*]"),
+        "character `*` must be escaped with a prior backslash `\\`"
+    );
 }

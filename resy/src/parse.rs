@@ -17,7 +17,7 @@ pub struct Parser<'g, 'n, 's, T: Coder> {
 
 impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
     pub fn new(nfa: &'g Graph<'n>, codec: T) -> Self {
-        assert!(nfa.is_nfa(), "`repy::Parser` can build only an NFA graph");
+        assert!(nfa.is_nfa(), "this parser can build only an NFA graph");
         let lexer = Lexer::empty();
         Self {
             nfa,
@@ -264,7 +264,7 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
     fn parse_braces(&mut self, item_start: Node<'n>, item_end: Node<'n>) -> Result<Node<'n>> {
         self.lexer.expect('{')?;
         let Some(first_num) = self.parse_decimal() else {
-            let gotten = format!("'{}'", self.lexer.peek().unwrap());
+            let gotten = self.lexer.peek().unwrap();
             return err::unexpected_token(gotten, "decimal");
         };
         let sym = self.lexer.peek().ok_or_else(|| UnexpectedEof {
@@ -276,7 +276,7 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
                 self.lexer.take_peeked();
                 if let Some(second_num) = self.parse_decimal() {
                     if second_num < first_num {
-                        return err::unexpected_cond("expression `{n,m}` has `n` <= `m`");
+                        return err::unexpected_cond("expression `{n,m}` has invariant `n` <= `m`");
                     }
                     Some(second_num)
                 } else {
@@ -370,7 +370,6 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
     ///     term '-' term
     /// ```
     fn parse_class(&mut self, start_node: Node<'n>, end_node: Node<'n>) -> Result<Node<'n>> {
-        dbg!(start_node, end_node);
         self.lexer.expect('[')?;
         if self.lexer.peek() == Some(']') {
             return Err(EmptyClass);
@@ -650,7 +649,6 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
         start_node: Node<'n>,
         end_node: Option<Node<'n>>,
     ) -> Result<Node<'n>> {
-        dbg!(end_node);
         let mut buf = [0u8; 8];
         let len = self.coder.encode_ucp(codepoint, &mut buf)?;
 
@@ -730,7 +728,7 @@ impl<'s> Lexer<'s> {
             if gotten == expected {
                 Ok(())
             } else {
-                err::unexpected_token(gotten, expected)
+                err::unexpected_token(gotten, format!("'{expected}'"))
             }
         } else {
             err::unexpected_eof("regular")
