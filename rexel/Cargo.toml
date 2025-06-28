@@ -1,7 +1,0 @@
-[package]
-name = "rexel"
-version = "0.1.0"
-# workspace inheritance
-authors.workspace = true
-edition.workspace = true
-repository.workspace = true
