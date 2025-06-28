@@ -12,9 +12,14 @@
   {
     "label": "qm::cargo_llvm_cov",
     "command": "cargo",
-    "args": ["llvm-cov", "nextest", "--features=ordered-hash", "--open"],
+    "args": ["llvm-cov", "nextest", "--features=ordered-hash", "--open"]
+  },
+  {
+    "label": "qm::cargo_miri_test",
+    "command": "cargo",
+    "args": ["+nightly", "miri", "test", "--features=ordered-hash"],
     "env": {
-      "BROWSER": "firefox"
+      "MIRIFLAGS": "-Zmiri-backtrace=full -Zmiri-disable-isolation"
     }
   }
 ]
