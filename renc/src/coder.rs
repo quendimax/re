@@ -14,9 +14,7 @@ pub trait Coder {
     fn encode_ucp(&self, codepoint: u32, buffer: &mut [u8]) -> Result<usize>;
 
     /// Encode char into a byte sequence.
-    fn encode_char(&self, c: char, buffer: &mut [u8]) -> Result<usize> {
-        self.encode_ucp(c as u32, buffer)
-    }
+    fn encode_char(&self, c: char, buffer: &mut [u8]) -> Result<usize>;
 
     /// Encode string into a byte sequence.
     fn encode_str(&self, s: &str, buffer: &mut [u8]) -> Result<usize>;

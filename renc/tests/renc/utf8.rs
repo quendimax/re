@@ -1,9 +1,12 @@
 use arrayvec::ArrayVec;
+use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use regex_syntax::utf8::Utf8Sequences;
 use regr::{Span, span};
-use renc::{Coder, Result, Utf8Coder};
+use renc::{Coder, Error, Result, Utf8Coder};
 use std::ops::RangeInclusive;
+
+static CODER: Utf8Coder = Utf8Coder;
 
 type Sequence = ArrayVec<Span, 4>;
 
@@ -47,6 +50,83 @@ fn _expect<const N: usize>(start: &[u8; N], end: &[u8; N]) -> Result<Sequences> 
     let start = str::from_utf8(start).unwrap().chars().next().unwrap() as u32;
     let end = str::from_utf8(end).unwrap().chars().next().unwrap() as u32;
     expect_range(start..=end)
+}
+
+#[test]
+fn encode_char() {
+    let mut buffer = [0u8; 4];
+    assert_eq!(CODER.encode_char('a', &mut buffer), Ok(1));
+    assert_eq!(buffer, [b'a', 0, 0, 0]);
+
+    assert_eq!(CODER.encode_char('ў', &mut buffer), Ok(2));
+    assert_eq!(buffer, [0xD1, 0x9E, 0, 0]);
+
+    assert_eq!(CODER.encode_char('Ⲁ', &mut buffer), Ok(3));
+    assert_eq!(buffer, [0xE2, 0xB2, 0x80, 0]);
+
+    assert_eq!(CODER.encode_char('𐌰', &mut buffer), Ok(4));
+    assert_eq!(buffer, [0xF0, 0x90, 0x8C, 0xB0]);
+}
+
+#[test]
+fn encode_char_fails() {
+    let mut buffer = [0u8; 2];
+    assert_eq!(CODER.encode_char('𐌰', &mut buffer), Err(Error::SmallBuffer));
+}
+
+#[test]
+fn encode_ucp() {
+    let mut buffer = [0u8; 4];
+    assert_eq!(CODER.encode_ucp('a' as u32, &mut buffer), Ok(1));
+    assert_eq!(buffer, [b'a', 0, 0, 0]);
+
+    assert_eq!(CODER.encode_ucp('ў' as u32, &mut buffer), Ok(2));
+    assert_eq!(buffer, [0xD1, 0x9E, 0, 0]);
+
+    assert_eq!(CODER.encode_ucp('Ⲁ' as u32, &mut buffer), Ok(3));
+    assert_eq!(buffer, [0xE2, 0xB2, 0x80, 0]);
+
+    assert_eq!(CODER.encode_ucp('𐌰' as u32, &mut buffer), Ok(4));
+    assert_eq!(buffer, [0xF0, 0x90, 0x8C, 0xB0]);
+}
+
+#[test]
+fn encode_ucp_fails() {
+    let mut buffer = [0u8; 3];
+    assert_eq!(
+        CODER.encode_ucp('𐌰' as u32, &mut buffer),
+        Err(Error::SmallBuffer)
+    );
+    assert_eq!(
+        CODER.encode_ucp(0x110000, &mut buffer),
+        Err(Error::InvalidCodePoint(0x110000))
+    );
+    assert_matches!(
+        CODER.encode_ucp(0xD811, &mut buffer),
+        Err(Error::SurrogateUnsupported { .. })
+    );
+}
+
+#[test]
+fn encode_str() {
+    let mut buffer = [0u8; 9];
+    assert_eq!(CODER.encode_str("abc", &mut buffer), Ok(3));
+    assert_eq!(&buffer[..3], [b'a', b'b', b'c']);
+
+    assert_eq!(CODER.encode_str("ўⲀ𐌰", &mut buffer), Ok(9));
+    assert_eq!(
+        buffer,
+        [0xD1, 0x9E, 0xE2, 0xB2, 0x80, 0xF0, 0x90, 0x8C, 0xB0]
+    );
+}
+
+#[test]
+fn encode_str_fails() {
+    let mut buffer = [0u8; 8];
+    assert_eq!(
+        CODER.encode_str("ўⲀ𐌰", &mut buffer),
+        Err(Error::SmallBuffer)
+    );
 }
 
 #[test]
@@ -123,6 +203,14 @@ fn encode_four_byte_ranges() {
     assert_eq!(
         encode_range(0x10FFFF..=0x10FFFF),
         expect_range(0x10FFFF..=0x10FFFF)
+    );
+}
+
+#[test]
+fn encode_out_ranges() {
+    assert_eq!(
+        CODER.encode_range(0x800, 0x11FFFF, |_| {}),
+        Err(Error::InvalidCodePoint(0x11FFFF))
     );
 }
 
