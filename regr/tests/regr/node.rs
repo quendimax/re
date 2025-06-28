@@ -1,6 +1,22 @@
 use pretty_assertions::{assert_eq, assert_ne};
-use regr::{Arena, Epsilon, Graph};
+use regr::{Arena, AutomatonKind, Epsilon, Graph};
 use std::collections::BTreeSet;
+
+#[test]
+fn node_copy_and_clone() {
+    let mut arena = Arena::new();
+    let graph = Graph::dfa_in(&mut arena);
+    let node = graph.node();
+    #[allow(clippy::clone_on_copy)]
+    let cloned_node = node.clone();
+    let copied_node = node;
+    assert_eq!(node.nid(), cloned_node.nid());
+    assert_eq!(node.gid(), cloned_node.gid());
+    assert_eq!(node.uid(), cloned_node.uid());
+    assert_eq!(node.nid(), copied_node.nid());
+    assert_eq!(node.gid(), copied_node.gid());
+    assert_eq!(node.uid(), copied_node.uid());
+}
 
 #[test]
 fn node_id() {
@@ -30,6 +46,23 @@ fn node_id() {
 }
 
 #[test]
+fn node_kind() {
+    let mut arena = Arena::new();
+    let graph = Graph::dfa_in(&mut arena);
+    let node = graph.node();
+    assert_eq!(node.kind(), AutomatonKind::DFA);
+    assert!(node.is_dfa());
+    assert!(!node.is_nfa());
+
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
+    let node = graph.node();
+    assert_eq!(node.kind(), AutomatonKind::NFA);
+    assert!(!node.is_dfa());
+    assert!(node.is_nfa());
+}
+
+#[test]
 fn node_partial_eq() {
     let mut arena = Arena::new();
     let graph = Graph::nfa_in(&mut arena);
@@ -44,7 +77,7 @@ fn node_partial_eq() {
 }
 
 #[test]
-fn node_connect() {
+fn node_connect_nfa() {
     let mut arena = Arena::new();
     let graph = Graph::nfa_in(&mut arena);
     let node_a = graph.node();
@@ -54,6 +87,47 @@ fn node_connect() {
     node_a.connect(node_c, b'a');
     node_a.connect(node_c, b'a');
     node_c.connect(node_a, Epsilon);
+}
+
+#[test]
+fn node_connect_dfa() {
+    let mut arena = Arena::new();
+    let graph = Graph::dfa_in(&mut arena);
+    let node_a = graph.node();
+    let node_b = graph.node();
+    node_a.connect(node_b, b'a');
+}
+
+#[test]
+#[should_panic]
+fn node_connect_dfa_repeat_panics() {
+    let mut arena = Arena::new();
+    let graph = Graph::dfa_in(&mut arena);
+    let node_a = graph.node();
+    node_a.connect(graph.node(), b'a');
+    node_a.connect(graph.node(), b'a');
+}
+
+#[test]
+#[should_panic(expected = "NFA nodes can't be connected with Epsilon")]
+fn node_connect_epsilon_panics() {
+    let mut arena = Arena::new();
+    let graph = Graph::dfa_in(&mut arena);
+    let node_a = graph.node();
+    let node_b = graph.node();
+    node_a.connect(node_b, Epsilon);
+}
+
+#[test]
+#[should_panic(expected = "only nodes of the same graph can be joint")]
+fn node_connect_panics() {
+    let mut arena_a = Arena::new();
+    let mut arena_b = Arena::new();
+    let graph_a = Graph::nfa_in(&mut arena_a);
+    let graph_b = Graph::nfa_in(&mut arena_b);
+    let node_a = graph_a.node();
+    let node_b = graph_b.node();
+    node_a.connect(node_b, Epsilon);
 }
 
 #[test]
@@ -139,7 +213,7 @@ fn node_symbol_targets_panic() {
 }
 
 #[test]
-fn node_epsilon_targets() {
+fn node_collect_epsilon_targets() {
     let mut arena = Arena::new();
     let graph = Graph::nfa_in(&mut arena);
     let a = graph.node();
@@ -157,11 +231,12 @@ fn node_epsilon_targets() {
     d.connect(c, Epsilon);
 
     assert_eq!(a.collect_epsilon_targets::<Vec<_>>(), vec![b]);
+    assert_eq!(c.collect_epsilon_targets::<Vec<_>>(), vec![]);
 }
 
 #[test]
 #[should_panic]
-fn node_epsilon_targets_panics() {
+fn node_iter_and_connect_overlap_panics() {
     let mut arena = Arena::new();
     let graph = Graph::nfa_in(&mut arena);
     let a = graph.node();
@@ -174,6 +249,22 @@ fn node_epsilon_targets_panics() {
             b.connect(c, Epsilon);
         });
     });
+}
+
+#[test]
+#[should_panic(expected = "iteration over Epsilon targets is possible for NFA nodes only")]
+fn node_collect_epsilon_targets_panics() {
+    let mut arena = Arena::new();
+    let graph = Graph::dfa_in(&mut arena);
+    graph.node().collect_epsilon_targets::<Vec<_>>();
+}
+
+#[test]
+#[should_panic(expected = "iteration over Epsilon targets is possible for NFA nodes only")]
+fn node_epsilon_for_each_epsilon_targets_panics() {
+    let mut arena = Arena::new();
+    let graph = Graph::dfa_in(&mut arena);
+    graph.node().for_each_epsilon_target(|_| {});
 }
 
 #[test]

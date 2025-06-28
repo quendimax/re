@@ -103,7 +103,7 @@ impl<'a> Graph<'a> {
         self.start_node.get().unwrap_or_else(|| self.node())
     }
 
-    pub fn owner(&self) -> &'a Arena {
+    pub fn arena(&self) -> &'a Arena {
         self.arena
     }
 
@@ -121,7 +121,6 @@ impl<'a> Graph<'a> {
             convert_map: &'a mut ConvertMap<'n, 'd>,
             dfa: &'a Graph<'d>,
         }
-
         impl<'a, 'n, 'd> Lambda<'a, 'n, 'd> {
             fn convert(&mut self, nfa_closure: Rc<BTreeSet<Node<'n>>>) -> Node<'d> {
                 if let Some(dfa_node) = self.convert_map.get(&nfa_closure) {
@@ -218,3 +217,17 @@ impl_fmt!(std::fmt::Binary);
 impl_fmt!(std::fmt::Octal);
 impl_fmt!(std::fmt::UpperHex);
 impl_fmt!(std::fmt::LowerHex);
+
+#[cfg(test)]
+mod utest {
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "graph id overflow")]
+    fn graph_ctor_panic() {
+        NEXT_GRAPH_ID.store(u32::MAX, Ordering::Relaxed);
+        let mut arena = Arena::new();
+        _ = Graph::nfa_in(&mut arena);
+        _ = Graph::nfa_in(&mut arena);
+    }
+}

@@ -20,6 +20,15 @@ fn transition_from_symbols() {
 }
 
 #[test]
+fn transition_from() {
+    let tr = Transition::from(8);
+    assert!(tr.contains(8));
+
+    let tr = Transition::from(Epsilon);
+    assert!(tr.contains(Epsilon));
+}
+
+#[test]
 fn transition_symbols() {
     type Vec = smallvec::SmallVec<[u8; 8]>;
     fn symbols(a: u64, b: u64, c: u64, d: u64) -> Vec {
@@ -106,21 +115,33 @@ fn transition_contains_symbol() {
     assert_eq!(tr.contains(0), true);
     assert_eq!(tr.contains(255), true);
     assert_eq!(tr.contains(b'b'), true);
-    assert_eq!(tr.contains(b'c'), true);
+    assert_eq!(tr.contains(&b'c'), true);
     assert_eq!(tr.contains(b'f'), false);
     assert_eq!(tr.contains(254), false);
 }
 
 #[test]
-fn transition_contains_range() {
+fn transition_contains_span() {
     let tr = Transition::from_symbols(&[0, 1, 5, 6, 7, 255]);
     assert!(tr.contains(span(0)));
     assert!(tr.contains(span(0..=1)));
-    assert!(tr.contains(span(5..=7)));
+    assert!(tr.contains(&span(5..=7)));
     assert!(tr.contains(span(255)));
     assert!(!tr.contains(span(0..=3)));
-    assert!(!tr.contains(span(2..=4)));
+    assert!(!tr.contains(&span(2..=4)));
     assert!(!tr.contains(span(254)));
+}
+
+#[test]
+fn transition_contains_range_inclusive() {
+    let tr = Transition::from_symbols(&[0, 1, 5, 6, 7, 255]);
+    assert!(tr.contains(0..=0));
+    assert!(tr.contains(0..=1));
+    assert!(tr.contains(&(5..=7)));
+    assert!(tr.contains(255..=255));
+    assert!(!tr.contains(0..=3));
+    assert!(!tr.contains(&(2..=4)));
+    assert!(!tr.contains(254..=254));
 }
 
 #[test]
@@ -154,19 +175,30 @@ fn transition_intersects_symbol() {
     assert_eq!(tr.intersects(255), true);
     assert_eq!(tr.intersects(b'b'), true);
     assert_eq!(tr.intersects(b'c'), true);
-    assert_eq!(tr.intersects(b'f'), false);
-    assert_eq!(tr.intersects(254), false);
+    assert_eq!(tr.intersects(&b'f'), false);
+    assert_eq!(tr.intersects(&254), false);
 }
 
 #[test]
-fn transition_intersects_range() {
+fn transition_intersects_span() {
     let tr = Transition::from_symbols(b"\x00bcde\xFF");
     assert_eq!(tr.intersects(span(0..=255)), true);
     assert_eq!(tr.intersects(span(0)), true);
     assert_eq!(tr.intersects(span(b'a'..=b'b')), true);
-    assert_eq!(tr.intersects(span(255)), true);
-    assert_eq!(tr.intersects(span(102..=254)), false);
+    assert_eq!(tr.intersects(&span(255)), true);
+    assert_eq!(tr.intersects(&span(102..=254)), false);
     assert_eq!(tr.intersects(254), false);
+}
+
+#[test]
+fn transition_intersects_range_inclusive() {
+    let tr = Transition::from_symbols(b"\x00bcde\xFF");
+    assert_eq!(tr.intersects(0..=255), true);
+    assert_eq!(tr.intersects(0..=0), true);
+    assert_eq!(tr.intersects(b'a'..=b'b'), true);
+    assert_eq!(tr.intersects(255..=255), true);
+    assert_eq!(tr.intersects(&(102..=254)), false);
+    assert_eq!(tr.intersects(&(254..=254)), false);
 }
 
 #[test]
@@ -192,7 +224,7 @@ fn transition_merge_transition() {
 fn transition_merge_symbol() {
     let mut a = Transition::default();
     a.merge(64);
-    a.merge(63);
+    a.merge(&63);
     a.merge(0);
     let mut iter = a.symbols();
     assert_eq!(iter.next(), Some(0));
@@ -202,11 +234,12 @@ fn transition_merge_symbol() {
 }
 
 #[test]
-fn transition_merge_range() {
-    fn check(range: impl Into<Span>) -> Option<Span> {
-        let range = range.into();
+fn transition_merge_span() {
+    fn check(span: impl Into<Span>) -> Option<Span> {
+        let span = span.into();
         let mut a = Transition::default();
-        a.merge(range);
+        a.merge(&span);
+        a.merge(span);
         let mut range: Option<Span> = None;
         for next_range in a.spans() {
             range = if let Some(range) = range {
@@ -228,6 +261,33 @@ fn transition_merge_range() {
 }
 
 #[test]
+fn transition_merge_range_inclusive() {
+    fn check(range: impl Into<std::ops::RangeInclusive<u8>>) -> Option<Span> {
+        let range = range.into();
+        let mut a = Transition::default();
+        a.merge(&range);
+        a.merge(range);
+        let mut span: Option<Span> = None;
+        for next_range in a.spans() {
+            span = if let Some(range) = span {
+                Some(range.merge(next_range))
+            } else {
+                Some(next_range)
+            }
+        }
+        span
+    }
+    assert_eq!(check(0..=2), Some(span(0..=2)));
+    assert_eq!(check(3..=12), Some(span(3..=12)));
+    assert_eq!(check(0..=63), Some(span(0..=63)));
+    assert_eq!(check(0..=100), Some(span(0..=100)));
+    assert_eq!(check(63..=127), Some(span(63..=127)));
+    assert_eq!(check(63..=200), Some(span(63..=200)));
+    assert_eq!(check(0..=255), Some(span(0..=255)));
+    assert_eq!(check(192..=255), Some(span(192..=255)));
+}
+
+#[test]
 fn transition_display_fmt() {
     fn tr(bytes: &[u8]) -> String {
         format!("{}", Transition::from_symbols(bytes))
@@ -236,6 +296,11 @@ fn transition_display_fmt() {
     assert_eq!(tr(b"abc"), "['a'-'c']");
     assert_eq!(tr(b"abc"), "['a'-'c']");
     assert_eq!(tr(b"abcE"), "['E' | 'a'-'c']");
+
+    let mut tr = Transition::default();
+    tr.merge(2..=4);
+    tr.merge(5..=6);
+    assert_eq!(format!("{tr}"), "[02h-06h]");
 }
 
 #[test]

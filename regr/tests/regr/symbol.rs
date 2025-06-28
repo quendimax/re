@@ -1,5 +1,5 @@
 use pretty_assertions::assert_eq;
-use regr::Symbol;
+use regr::{Epsilon, Symbol};
 
 #[test]
 fn u8_steps_between() {
@@ -19,6 +19,7 @@ fn u8_forward() {
 fn u8_backward() {
     assert_eq!(1u8.backward(1), Some(0));
     assert_eq!(1u8.backward(2), None);
+    assert_eq!(1u8.backward(2000), None);
 }
 
 #[test]
@@ -45,4 +46,9 @@ fn u8_display() {
     assert_eq!(0x7F.display().to_string(), r"7Fh");
     assert_eq!(129.display().to_string(), r"81h");
     assert_eq!(255.display().to_string(), r"FFh");
+}
+
+#[test]
+fn epsilon_display() {
+    assert_eq!(format!("{Epsilon}"), r"Epsilon");
 }

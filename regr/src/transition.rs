@@ -156,8 +156,22 @@ impl IntersectOp<u8> for Transition {
     }
 }
 
+impl IntersectOp<&u8> for Transition {
+    #[inline]
+    fn intersects(&self, symbol: &u8) -> bool {
+        Self::intersects(self, *symbol)
+    }
+}
+
 impl IntersectOp<Span> for Transition {
+    #[inline]
     fn intersects(&self, span: Span) -> bool {
+        Self::intersects(self, &span)
+    }
+}
+
+impl IntersectOp<&Span> for Transition {
+    fn intersects(&self, span: &Span) -> bool {
         let mut other = Transition::default();
         other.merge(span);
         IntersectOp::intersects(self, &other)
@@ -166,6 +180,12 @@ impl IntersectOp<Span> for Transition {
 
 impl IntersectOp<std::ops::RangeInclusive<u8>> for Transition {
     fn intersects(&self, range: std::ops::RangeInclusive<u8>) -> bool {
+        Self::intersects(self, &range)
+    }
+}
+
+impl IntersectOp<&std::ops::RangeInclusive<u8>> for Transition {
+    fn intersects(&self, range: &std::ops::RangeInclusive<u8>) -> bool {
         let range = Span::from(range);
         IntersectOp::intersects(self, range)
     }
@@ -204,8 +224,8 @@ impl MergeOp<Span> for Transition {
         let mut ms_mask = 1 << (span.end() & (u8::MAX >> 2));
         ms_mask |= ms_mask - 1;
 
-        let ls_index = span.start() as usize >> 6;
-        let ms_index = span.end() as usize >> 6;
+        let ls_index = (span.start() >> 6) as usize;
+        let ms_index = (span.end() >> 6) as usize;
 
         unsafe {
             match ms_index - ls_index {

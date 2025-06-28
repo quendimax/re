@@ -2,6 +2,13 @@ use pretty_assertions::assert_eq;
 use regr::{Span, span};
 
 #[test]
+fn span_new() {
+    _ = Span::new(1, 2);
+    _ = Span::new(2, 0);
+    _ = Span::new_unchecked(0, 1);
+}
+
+#[test]
 fn span_from_type() {
     let r = Span::from(3);
     assert_eq!(r.start(), 3);
@@ -18,7 +25,7 @@ fn span_from_span_inclusive() {
     assert_eq!(r.start(), 3);
     assert_eq!(r.end(), 5);
 
-    let r = Span::from(3..=3);
+    let r = Span::from(&(3..=3));
     assert_eq!(r.start(), 3);
     assert_eq!(r.end(), 3);
 
@@ -32,6 +39,37 @@ fn span_from_span_inclusive() {
 fn span_fn() {
     let _ = span(3);
     let _ = span(b'a');
+}
+
+#[test]
+fn span_width() {
+    assert_eq!(span(3..=4).width(), 2);
+    assert_eq!(Span::new(7, 2).width(), 6);
+}
+
+#[test]
+fn span_set() {
+    let mut sp = Span::new(2, 3);
+    assert_eq!(sp.start(), 2);
+    assert_eq!(sp.end(), 3);
+    sp.set_start(3);
+    sp.set_end(4);
+    assert_eq!(sp.start(), 3);
+    assert_eq!(sp.end(), 4);
+}
+
+#[test]
+#[should_panic]
+fn span_set_start_panics() {
+    let mut sp = Span::new(2, 3);
+    sp.set_start(4);
+}
+
+#[test]
+#[should_panic]
+fn span_set_end_panics() {
+    let mut sp = Span::new(2, 3);
+    sp.set_end(1);
 }
 
 #[test]

@@ -28,9 +28,14 @@ fn dbg<T: std::fmt::Debug>(obj: &T) -> String {
 #[test]
 fn graph_ctor() {
     let mut arena = Arena::new();
-    _ = Graph::nfa_in(&mut arena);
+    let gr = Graph::nfa_in(&mut arena);
+    assert!(gr.is_nfa());
+    assert!(!gr.is_dfa());
+
     let mut arena = Arena::with_capacity(150);
-    _ = Graph::new_in(&mut arena, AutomatonKind::NFA);
+    let gr = Graph::new_in(&mut arena, AutomatonKind::DFA);
+    assert!(!gr.is_nfa());
+    assert!(gr.is_dfa());
 }
 
 #[test]
@@ -67,7 +72,15 @@ fn graph_start_node() {
 }
 
 #[test]
-fn graph_determined_0() {
+fn graph_arena() {
+    let mut arena = Arena::new();
+    let arena_ptr = &arena as *const Arena;
+    let graph = Graph::nfa_in(&mut arena);
+    assert_eq!(graph.arena() as *const Arena, arena_ptr);
+}
+
+#[test]
+fn graph_determine_0() {
     let mut arena = Arena::new();
     let nfa = Graph::nfa_in(&mut arena);
     let a = nfa.node();
@@ -88,7 +101,7 @@ fn graph_determined_0() {
 
 #[test]
 #[cfg_attr(not(feature = "ordered-hash"), ignore)]
-fn graph_determined_1() {
+fn graph_determine_1() {
     let mut arena = Arena::new();
     let nfa = Graph::nfa_in(&mut arena);
     let a = nfa.node();
@@ -133,6 +146,53 @@ fn graph_determined_1() {
             node(2) {
                 [01h-'`' | 'b'-FFh] -> node(0)
                 ['a'] -> node(1)
+            }
+        ")
+    );
+}
+
+#[test]
+#[cfg_attr(not(feature = "ordered-hash"), ignore)]
+fn graph_determine_klenee_star() {
+    let mut arena = Arena::new();
+    let nfa = Graph::nfa_in(&mut arena);
+    let a = nfa.node();
+    let b = nfa.node();
+    let c = nfa.node();
+    let d = nfa.node();
+    a.connect(b, Epsilon);
+    a.connect(d, Epsilon);
+    b.connect(c, b'a');
+    c.connect(b, Epsilon);
+    c.connect(d, Epsilon);
+    assert_eq!(
+        dsp(&nfa),
+        dsp(&"
+            node(0) {
+                [Epsilon] -> node(1)
+                [Epsilon] -> node(3)
+            }
+            node(1) {
+                ['a'] -> node(2)
+            }
+            node(2) {
+                [Epsilon] -> node(1)
+                [Epsilon] -> node(3)
+            }
+            node(3) {}
+        ")
+    );
+
+    let mut dfa_arena = Arena::new();
+    let dfa = nfa.determine_in(&mut dfa_arena);
+    assert_eq!(
+        dsp(&dfa),
+        dsp(&"
+            node(0) {
+                ['a'] -> node(1)
+            }
+            node(1) {
+                ['a'] -> self
             }
         ")
     );

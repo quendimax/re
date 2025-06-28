@@ -128,10 +128,10 @@ impl<'a> Node<'a> {
     /// Iterates over epsilon target nodes, i.e. nodes that this node is
     /// connected to with Epsilon transition.
     pub fn for_each_epsilon_target(self, f: impl FnMut(Node<'a>)) {
-        let mut f = f;
         if matches!(self.0.variant, DfaNode { .. }) {
             panic!("iteration over Epsilon targets is possible for NFA nodes only");
         }
+        let mut f = f;
         for (target, transition) in self.0.targets.borrow().iter() {
             if transition.contains(Epsilon) {
                 f(*target);
@@ -142,6 +142,9 @@ impl<'a> Node<'a> {
     /// Collects epsilon target nodes, i.e. nodes that this node is
     /// connected to with Epsilon transition.
     pub fn collect_epsilon_targets<B: FromIterator<Node<'a>>>(self) -> B {
+        if matches!(self.0.variant, DfaNode { .. }) {
+            panic!("iteration over Epsilon targets is possible for NFA nodes only");
+        }
         let targets = self.0.targets.borrow();
         let iter = targets.iter().filter_map(|(target, tr)| {
             if tr.contains(Epsilon) {

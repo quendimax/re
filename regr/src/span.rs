@@ -21,7 +21,7 @@ pub fn span(span: impl Into<Span>) -> Span {
 
 impl Span {
     /// Creates a new span with inclusive bounds from `start` to `end`. If
-    /// `start` is greater than `end`, ther are swapped.
+    /// `start` is greater than `end`, they are swapped.
     pub fn new(start: u8, end: u8) -> Self {
         if start <= end {
             Self { start, end }
@@ -35,7 +35,8 @@ impl Span {
 
     /// Creates a new span with inclusive bounds from `start` to `end`.
     ///
-    /// It expects that `start <= end`.
+    /// It expects that `start <= end`. Otherwise it breaks `Span`'s invariant.
+    /// Although it is still safe in terms of Rust.
     #[inline]
     pub fn new_unchecked(start: u8, end: u8) -> Self {
         Self { start, end }
