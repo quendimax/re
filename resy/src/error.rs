@@ -7,6 +7,9 @@ pub enum Error {
     #[error("coder error: {0}")]
     CoderError(#[from] renc::Error),
 
+    #[error("empty class expression is not supported")]
+    EmptyClass,
+
     #[error("empty escape expression is not supported")]
     EmptyEscape,
 

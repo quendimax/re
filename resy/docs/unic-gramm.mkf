@@ -12,6 +12,7 @@ concat
 
 item
     term
+    '.'
     class
     '(' disjunct ')'
     item postfix
@@ -25,7 +26,6 @@ postfix
     '{' decimal ',' decimal '}'
 
 class
-    '.'
     '[' elements ']'
     ;unicode_class
 
@@ -34,6 +34,7 @@ elements
     element elements
 
 element
+    '.'
     term
     term '-' term
     ;unicode_class

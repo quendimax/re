@@ -501,6 +501,112 @@ fn parse_escape_fails() {
 
 #[test]
 #[cfg_attr(not(feature = "ordered-hash"), ignore)]
+fn parse_class() {
+    assert_eq!(
+        parse("[.]"),
+        fmt("\
+            node(0) {
+                [00h-7Fh] -> node(1)
+                [C2h-DFh] -> node(2)
+                [E0h] -> node(3)
+                [E1h-ECh] -> node(5)
+                [EDh] -> node(7)
+                [EEh-EFh] -> node(9)
+                [F0h] -> node(11)
+                [F1h-F3h] -> node(14)
+                [F4h] -> node(17)
+            }
+            node(1) {}
+            node(2) {
+                [80h-BFh] -> node(1)
+            }
+            node(3) {
+                [A0h-BFh] -> node(4)
+            }
+            node(4) {
+                [80h-BFh] -> node(1)
+            }
+            node(5) {
+                [80h-BFh] -> node(6)
+            }
+            node(6) {
+                [80h-BFh] -> node(1)
+            }
+            node(7) {
+                [80h-9Fh] -> node(8)
+            }
+            node(8) {
+                [80h-BFh] -> node(1)
+            }
+            node(9) {
+                [80h-BFh] -> node(10)
+            }
+            node(10) {
+                [80h-BFh] -> node(1)
+            }
+            node(11) {
+                [90h-BFh] -> node(12)
+            }
+            node(12) {
+                [80h-BFh] -> node(13)
+            }
+            node(13) {
+                [80h-BFh] -> node(1)
+            }
+            node(14) {
+                [80h-BFh] -> node(15)
+            }
+            node(15) {
+                [80h-BFh] -> node(16)
+            }
+            node(16) {
+                [80h-BFh] -> node(1)
+            }
+            node(17) {
+                [80h-8Fh] -> node(18)
+            }
+            node(18) {
+                [80h-BFh] -> node(19)
+            }
+            node(19) {
+                [80h-BFh] -> node(1)
+            }
+        ")
+    );
+    assert_eq!(
+        parse("[a-z0-8]"),
+        fmt("\
+            node(0) {
+                ['0'-'8' | 'a'-'z'] -> node(1)
+            }
+            node(1) {}
+        ")
+    );
+    assert_eq!(
+        parse("[a-bdf0-8]"),
+        fmt("\
+            node(0) {
+                ['0'-'8' | 'a'-'b' | 'd' | 'f'] -> node(1)
+            }
+            node(1) {}
+        ")
+    );
+    assert_eq!(
+        parse("[\\n][\\r\\0]"),
+        fmt("\
+            node(0) {
+                [0Ah] -> node(1)
+            }
+            node(1) {
+                [00h | 0Dh] -> node(2)
+            }
+            node(2) {}
+        ")
+    );
+}
+
+#[test]
+#[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn parse_dot_class() {
     assert_eq!(
         parse("."),

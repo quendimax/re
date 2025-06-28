@@ -4,7 +4,7 @@
 //! form.
 
 use crate::error::{Error::*, Result, err};
-use regr::{Epsilon, Graph, Node};
+use regr::{Epsilon, Graph, Node, Span};
 use renc::Coder;
 use std::collections::HashMap;
 use std::str::Chars;
@@ -12,14 +12,18 @@ use std::str::Chars;
 pub struct Parser<'g, 'n, 's, T: Coder> {
     nfa: &'g Graph<'n>,
     lexer: Lexer<'s>,
-    codec: T,
+    coder: T,
 }
 
 impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
     pub fn new(nfa: &'g Graph<'n>, codec: T) -> Self {
         assert!(nfa.is_nfa(), "`repy::Parser` can build only an NFA graph");
         let lexer = Lexer::empty();
-        Self { nfa, lexer, codec }
+        Self {
+            nfa,
+            lexer,
+            coder: codec,
+        }
     }
 
     /// Parses a regular expression specified with `pattern` using `start_node`
@@ -82,6 +86,8 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
 
     /// Parses a concatenation expression.
     ///
+    /// # Syntax
+    ///
     /// ```mkf
     /// concat
     ///     ""
@@ -101,7 +107,9 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
         Ok(end_node)
     }
 
-    /// Parses an item:
+    /// Parses an item.
+    ///
+    /// # Syntax
     ///
     /// ```mkf
     /// item
@@ -116,9 +124,9 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
                 '(' => self.parse_parens(start_node),
                 '|' => Ok(start_node),
                 ')' => Ok(start_node),
-                '[' => self.parse_class(start_node),
-                '.' => self.parse_dot_class(start_node),
-                _ => self.parse_term(start_node),
+                '[' => self.parse_class(start_node, self.nfa.node()),
+                '.' => self.parse_dot_class(start_node, self.nfa.node()),
+                _ => self.parse_term(start_node, None),
             };
             let mut end_node = res?;
             if end_node == start_node {
@@ -134,7 +142,7 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
         }
     }
 
-    /// Parses a postfix:
+    /// Parses a postfix.
     ///
     /// # Syntax
     ///
@@ -336,33 +344,61 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
     /// class
     ///     '.'
     /// ```
-    fn parse_dot_class(&mut self, start_node: Node<'n>) -> Result<Node<'n>> {
-        let mut end_node = start_node;
+    fn parse_dot_class(&mut self, start_node: Node<'n>, end_node: Node<'n>) -> Result<Node<'n>> {
         self.lexer.expect('.')?;
-        self.codec.encode_entire_range(|seq| {
-            let mut prev_node = start_node;
-            let len = seq.len();
-            for (i, span) in seq.iter().enumerate() {
-                if i < len - 1 {
-                    let node = self.nfa.node();
-                    prev_node.connect(node, span);
-                    prev_node = node;
-                } else {
-                    if end_node == start_node {
-                        end_node = self.nfa.node();
-                    }
-                    prev_node.connect(end_node, span);
-                }
-            }
+        self.coder.encode_entire_range(|seq| {
+            self.build_from_sequence(seq, start_node, end_node);
         })?;
         Ok(end_node)
     }
 
-    fn parse_class(&mut self, _: Node<'n>) -> Result<Node<'n>> {
-        todo!()
+    /// Parses a class:
+    ///
+    /// # Syntax
+    ///
+    /// ```mkf
+    /// class
+    ///     '[' elements ']'
+    ///
+    /// elements
+    ///     element
+    ///     element elements
+    ///
+    /// element
+    ///     '.'
+    ///     term
+    ///     term '-' term
+    /// ```
+    fn parse_class(&mut self, start_node: Node<'n>, end_node: Node<'n>) -> Result<Node<'n>> {
+        dbg!(start_node, end_node);
+        self.lexer.expect('[')?;
+        if self.lexer.peek() == Some(']') {
+            return Err(EmptyClass);
+        }
+
+        while let Some(sym) = self.lexer.peek() {
+            match sym {
+                ']' => break,
+                '.' => _ = self.parse_dot_class(start_node, end_node)?,
+                _ => {
+                    let first_ucp = self.parse_term_codepoint()?;
+                    if self.lexer.peek() == Some('-') {
+                        _ = self.lexer.take_peeked();
+                        let last_ucp = self.parse_term_codepoint()?;
+                        self.coder.encode_range(first_ucp, last_ucp, |seq| {
+                            self.build_from_sequence(seq, start_node, end_node);
+                        })?;
+                    } else {
+                        self.build_from_codepoint(first_ucp, start_node, Some(end_node))?;
+                    }
+                }
+            };
+        }
+        self.lexer.expect(']')?;
+        Ok(end_node)
     }
 
-    /// Parses terminal:
+    /// Parses a terminal item, that is a single unicode code point.
     ///
     /// # Syntax
     ///
@@ -371,11 +407,16 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
     ///     char
     ///     '\' escape
     /// ```
-    fn parse_term(&mut self, start_node: Node<'n>) -> Result<Node<'n>> {
-        let next_sym = self.lexer.peek().unwrap();
-        match next_sym {
-            '\\' => self.parse_escape(start_node),
-            _ => self.parse_char(start_node),
+    fn parse_term(&mut self, start_node: Node<'n>, end_node: Option<Node<'n>>) -> Result<Node<'n>> {
+        let codepoint = self.parse_term_codepoint()?;
+        self.build_from_codepoint(codepoint, start_node, end_node)
+    }
+
+    fn parse_term_codepoint(&mut self) -> Result<u32> {
+        match self.lexer.peek() {
+            Some('\\') => self.parse_escape(),
+            Some(_) => self.parse_char(),
+            None => err::unexpected_eof("regular"),
         }
     }
 
@@ -424,7 +465,7 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
     /// - `\t` - horizontal tab escape,
     /// - `\0` - null escape,
     /// - `\\` - backslash.
-    fn parse_escape(&mut self, mut prev_node: Node<'n>) -> Result<Node<'n>> {
+    fn parse_escape(&mut self) -> Result<u32> {
         self.lexer.expect('\\')?;
         if let Some(c) = self.lexer.lex() {
             let codepoint: Option<u32> = match c {
@@ -438,16 +479,8 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
                 'u' => Some(self.parse_unicode_escape()?),
                 _ => None,
             };
-            if let Some(c) = codepoint {
-                let mut buf = [0u8; 16];
-                let len = self.codec.encode_ucp(c, &mut buf)?;
-
-                for byte in &buf[0..len] {
-                    let new_node = self.nfa.node();
-                    prev_node.connect(new_node, *byte);
-                    prev_node = new_node;
-                }
-                Ok(prev_node)
+            if let Some(codepoint) = codepoint {
+                Ok(codepoint)
             } else {
                 Err(UnsupportedEscape(c))
             }
@@ -544,7 +577,7 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
     /// char
     ///     '0000' . '10FFFF' - '\' - '|' - '.' - '*' - '+' - '?' - '(' - ')' - '[' - ']' - '{' - '}'
     /// ```
-    fn parse_char(&mut self, start_node: Node<'n>) -> Result<Node<'n>> {
+    fn parse_char(&mut self) -> Result<u32> {
         let symbol = self.lexer.lex().unwrap();
         if matches!(
             symbol,
@@ -552,15 +585,7 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
         ) {
             return err::escape_it(symbol);
         }
-        let mut buffer = [0u8; 4];
-        let len = self.codec.encode_char(symbol, &mut buffer)?;
-        let mut end_node = start_node;
-        for byte in buffer[..len].iter() {
-            let new_node = self.nfa.node();
-            end_node.connect(new_node, *byte);
-            end_node = new_node;
-        }
-        Ok(end_node)
+        Ok(symbol as u32)
     }
 
     /// Parses decimal secquence into `u32` value. If there wasn't found any
@@ -617,6 +642,43 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
         .copy_tail(start_node, end_node);
 
         (end_node, map[&end_node])
+    }
+
+    fn build_from_codepoint(
+        &self,
+        codepoint: u32,
+        start_node: Node<'n>,
+        end_node: Option<Node<'n>>,
+    ) -> Result<Node<'n>> {
+        dbg!(end_node);
+        let mut buf = [0u8; 8];
+        let len = self.coder.encode_ucp(codepoint, &mut buf)?;
+
+        let mut prev_node = start_node;
+        for (i, byte) in buf[0..len].iter().enumerate() {
+            let new_node = if i == len - 1 {
+                end_node.unwrap_or_else(|| self.nfa.node())
+            } else {
+                self.nfa.node()
+            };
+            prev_node.connect(new_node, *byte);
+            prev_node = new_node;
+        }
+        Ok(prev_node)
+    }
+
+    fn build_from_sequence(&self, seq: &[Span], start_node: Node<'n>, end_node: Node<'n>) {
+        let mut prev_node = start_node;
+        let len = seq.len();
+        for (i, span) in seq.iter().enumerate() {
+            let new_node = if i == len - 1 {
+                end_node
+            } else {
+                self.nfa.node()
+            };
+            prev_node.connect(new_node, span);
+            prev_node = new_node;
+        }
     }
 }
 
