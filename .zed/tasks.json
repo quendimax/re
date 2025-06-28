@@ -12,6 +12,9 @@
   {
     "label": "qm::cargo_llvm_cov",
     "command": "cargo",
-    "args": ["llvm-cov", "nextest", "--features=ordered-hash", "--open"]
+    "args": ["llvm-cov", "nextest", "--features=ordered-hash", "--open"],
+    "env": {
+      "BROWSER": "firefox"
+    }
   }
 ]
