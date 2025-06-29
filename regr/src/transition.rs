@@ -309,32 +309,55 @@ impl std::convert::From<Epsilon> for Transition {
     }
 }
 
+impl std::fmt::Display for Transition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_char('[')?;
+        let mut iter = self.spans();
+        let mut span = iter.next();
+        let mut has_symbols = false;
+        while let Some(cur_span) = span {
+            has_symbols = true;
+            if let Some(next_range) = iter.next() {
+                if cur_span.end().steps_between(next_range.start()) == 1 {
+                    span = Some(Span::new(cur_span.start(), next_range.end()));
+                    continue;
+                } else {
+                    std::fmt::Display::fmt(&cur_span, f)?;
+                    f.write_str(" | ")?;
+                    span = Some(next_range);
+                }
+            } else {
+                std::fmt::Display::fmt(&cur_span, f)?;
+                break;
+            }
+        }
+        if self.contains(crate::symbol::Epsilon) {
+            if has_symbols {
+                f.write_str(" | ")?;
+            }
+            f.write_str("Epsilon")?;
+        }
+        f.write_char(']')
+    }
+}
+
 macro_rules! impl_fmt {
     (std::fmt::$trait:ident) => {
         impl std::fmt::$trait for Transition {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 f.write_char('[')?;
-                let mut iter = self.spans();
-                let mut span = iter.next();
-                let mut has_symbols = false;
-                while let Some(cur_span) = span {
-                    has_symbols = true;
-                    if let Some(next_range) = iter.next() {
-                        if cur_span.end().steps_between(next_range.start()) == 1 {
-                            span = Some(Span::new(cur_span.start(), next_range.end()));
-                            continue;
-                        } else {
-                            std::fmt::$trait::fmt(&cur_span, f)?;
-                            f.write_str(" | ")?;
-                            span = Some(next_range);
-                        }
+                let mut first_iter = true;
+                for span in self.spans() {
+                    if first_iter {
+                        first_iter = false;
                     } else {
-                        std::fmt::$trait::fmt(&cur_span, f)?;
-                        break;
+                        f.write_str(" | ")?;
                     }
+                    ::std::fmt::$trait::fmt(&span, f)?;
                 }
+
                 if self.contains(crate::symbol::Epsilon) {
-                    if has_symbols {
+                    if !first_iter {
                         f.write_str(" | ")?;
                     }
                     f.write_str("Epsilon")?;
@@ -345,7 +368,6 @@ macro_rules! impl_fmt {
     };
 }
 
-impl_fmt!(std::fmt::Display);
 impl_fmt!(std::fmt::Debug);
 impl_fmt!(std::fmt::Binary);
 impl_fmt!(std::fmt::Octal);

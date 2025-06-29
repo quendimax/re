@@ -296,6 +296,7 @@ fn transition_display_fmt() {
     assert_eq!(tr(b"abc"), "['a'-'c']");
     assert_eq!(tr(b"abc"), "['a'-'c']");
     assert_eq!(tr(b"abcE"), "['E' | 'a'-'c']");
+    assert_eq!(tr(b"?@"), "['?'-'@']");
 
     let mut tr = Transition::default();
     tr.merge(2..=4);
@@ -311,4 +312,31 @@ fn transition_display_fmt_with_epsilon() {
     assert_eq!(format!("{tr}"), "['a'-'c' | Epsilon]");
     tr.merge(u8::MAX);
     assert_eq!(format!("{tr}"), "['a'-'c' | FFh | Epsilon]");
+}
+
+#[test]
+fn transition_debug_fmt() {
+    fn tr(bytes: &[u8]) -> String {
+        format!("{:?}", Transition::from_symbols(bytes))
+    }
+    assert_eq!(tr(b""), "[]");
+    assert_eq!(tr(b"abc"), "[97-99]");
+    assert_eq!(tr(b"abc"), "[97-99]");
+    assert_eq!(tr(b"abcE"), "[69 | 97-99]");
+    assert_eq!(tr(b"?@"), "[63 | 64]");
+
+    let mut tr = Transition::default();
+    tr.merge(2..=4);
+    tr.merge(5..=6);
+    assert_eq!(format!("{tr}"), "[02h-06h]");
+}
+
+#[test]
+fn transition_debug_fmt_with_epsilon() {
+    assert_eq!(format!("{:?}", Transition::epsilon()), "[Epsilon]");
+    let mut tr = Transition::from_symbols(b"?@ABC");
+    tr.merge(Epsilon);
+    assert_eq!(format!("{tr:?}"), "[63 | 64-67 | Epsilon]");
+    tr.merge(u8::MAX);
+    assert_eq!(format!("{tr:?}"), "[63 | 64-67 | 255 | Epsilon]");
 }
