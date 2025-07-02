@@ -85,12 +85,12 @@ impl<'a, 'g> Codgen<'a, 'g> {
         quote! {
             struct Automaton {
                 state: u32,
-                tr_table: [[#id_type; u8::MAX as usize]; #(self.tr_table.len())],
+                tr_table: [[#id_type; u8::MAX as usize]; #tr_table_len],
                 accept_table: [bool; #tr_table_len],
             }
 
             Automaton {
-                state: 0,
+                state: 0u32,
                 tr_table: [#(#tr_table_quoted),*],
                 accept_table: [false; #tr_table_len],
             }
