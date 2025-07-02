@@ -197,3 +197,23 @@ fn char_try_from(codepoint: u32) -> Result<char> {
         Err(InvalidCodePoint(codepoint))
     }
 }
+
+#[cfg(test)]
+mod utest {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn fn_take_n_bytes_range() {
+        let mut range = 0x110000..=0x110001;
+        assert_eq!(take_n_bytes_range(&mut range), None);
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid UTF-8 sequence length")]
+    fn fn_run_handler() {
+        fn do_nothing(_: &[Span]) {}
+        do_nothing(&[Span::new(0, 1)]);
+        run_handler::<5>(0, 12, &mut do_nothing);
+    }
+}

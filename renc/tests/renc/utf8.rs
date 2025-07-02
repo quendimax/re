@@ -212,6 +212,10 @@ fn encode_out_ranges() {
         CODER.encode_range(0x800, 0x11FFFF, |_| {}),
         Err(Error::InvalidCodePoint(0x11FFFF))
     );
+    assert_eq!(
+        CODER.encode_range(0x118000, 0x11FFFF, |_| {}),
+        Err(Error::InvalidCodePoint(0x118000))
+    );
 }
 
 #[test]
