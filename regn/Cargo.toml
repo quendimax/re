@@ -13,3 +13,5 @@ regr = { path = "../regr" }
 
 [dev-dependencies]
 pretty_assertions.workspace = true
+prettyplease.workspace = true
+syn = { workspace = true, features = ["full"] }

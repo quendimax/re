@@ -5,14 +5,14 @@ use std::collections::{HashMap, HashSet};
 
 pub struct Codgen<'a, 'g> {
     graph: &'g Graph<'a>,
-    tr_table: Vec<[usize; u8::MAX as usize]>,
+    tr_table: Vec<[usize; u8::MAX as usize + 1]>,
     id_map: HashMap<Node<'a>, usize>,
 }
 
 impl<'a, 'g> Codgen<'a, 'g> {
     pub fn new(graph: &'g Graph<'a>) -> Self {
         assert!(graph.is_dfa(), "only DFA graphs are supported");
-        let tr_table = vec![[0; u8::MAX as usize]; graph.arena().nodes().len()];
+        let tr_table = Vec::new();
         Codgen {
             graph,
             tr_table,
@@ -43,6 +43,9 @@ impl<'a, 'g> Codgen<'a, 'g> {
     }
 
     pub fn fill_tables(&mut self) {
+        self.tr_table
+            .resize(self.id_map.len(), [0; u8::MAX as usize + 1]);
+
         let mut visited = HashSet::new();
         fn fill<'a, 'g>(node: Node<'a>, codgen: &mut Codgen<'a, 'g>, visited: &mut HashSet<u64>) {
             if visited.contains(&node.uid()) {
@@ -66,6 +69,7 @@ impl<'a, 'g> Codgen<'a, 'g> {
         for line in &self.tr_table {
             tr_table_quoted.push(quote! { [ #(#line),*; u8::MAX as usize]});
         }
+
         const MAX_LEN_FOR_U8: usize = u8::MAX as usize + 1;
         const MAX_LEN_FOR_U16: usize = u16::MAX as usize + 1;
         const MAX_LEN_FOR_U32: usize = u32::MAX as usize + 1;
@@ -86,13 +90,15 @@ impl<'a, 'g> Codgen<'a, 'g> {
             struct Automaton {
                 state: u32,
                 tr_table: [[#id_type; u8::MAX as usize]; #tr_table_len],
-                accept_table: [bool; #tr_table_len],
             }
 
-            Automaton {
-                state: 0u32,
-                tr_table: [#(#tr_table_quoted),*],
-                accept_table: [false; #tr_table_len],
+            impl Automaton {
+                fn new() -> Self {
+                    Self {
+                        state: 0u32,
+                        tr_table: [#(#tr_table_quoted),*],
+                    }
+                }
             }
         }
     }
