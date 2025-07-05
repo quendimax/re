@@ -1,103 +1,170 @@
-use proc_macro2::TokenStream;
-use quote::quote;
-use regr::{Graph, Node};
-use std::collections::{HashMap, HashSet};
+use proc_macro2::{Delimiter, Group, TokenStream};
+use quote::{TokenStreamExt, quote};
+use regr::Graph;
+use std::collections::HashMap;
+use std::str::FromStr;
 
-pub struct Codgen<'a, 'g> {
-    graph: &'g Graph<'a>,
-    tr_table: Vec<[usize; u8::MAX as usize + 1]>,
-    id_map: HashMap<Node<'a>, usize>,
+type TransitionTable = Vec<[usize; 1 << u8::BITS]>;
+
+pub struct Codgen {
+    tr_table: TransitionTable,
+    invalid_id: usize,
+    start_id: usize,
+    min_accept_id: usize,
 }
 
-impl<'a, 'g> Codgen<'a, 'g> {
-    pub fn new(graph: &'g Graph<'a>) -> Self {
+impl<'a> Codgen {
+    pub fn new(graph: &Graph<'a>) -> Self {
         assert!(graph.is_dfa(), "only DFA graphs are supported");
-        let tr_table = Vec::new();
+        assert!(!graph.is_empty(), "can't generate code for an empty graph");
+
+        let (id_map, invalid_id, start_id, min_accept_id) = Self::build_id_map(graph);
+        let tr_table = Self::build_tr_table(graph, invalid_id, &id_map);
+
         Codgen {
-            graph,
             tr_table,
-            id_map: HashMap::new(),
+            invalid_id,
+            start_id,
+            min_accept_id,
         }
     }
 
-    /// Evaluates the given DFA graph.
-    pub fn fill_id_map(&mut self) {
-        fn eval<'a, 'g>(node: Node<'a>, codgen: &mut Codgen<'a, 'g>) {
-            if codgen.id_map.contains_key(&node) {
-                return;
+    /// Builds a map from node IDs to their respective indices in the transition
+    /// table, rearranging them in the order that all acceptable nodes are
+    /// placed before non-acceptable nodes.
+    ///
+    /// Returns a tuple containing the map and the total number of acceptable
+    /// nodes.
+    fn build_id_map(graph: &Graph<'a>) -> (HashMap<u64, usize>, usize, usize, usize) {
+        let arena_len = graph.arena().nodes().len();
+        let mut acc_nodes = Vec::with_capacity(arena_len);
+        let mut non_acc_nodes = Vec::with_capacity(arena_len);
+        graph.for_each_node(|node| {
+            if node.is_acceptable() {
+                acc_nodes.push(node);
+            } else {
+                non_acc_nodes.push(node);
             }
-            let id = codgen.id_map.len();
-            codgen.id_map.insert(node, id);
-            for target in node.targets().keys() {
-                eval(*target, codgen);
-            }
+        });
+
+        assert_eq!(acc_nodes.len() + non_acc_nodes.len(), arena_len);
+
+        let mut id_map = HashMap::with_capacity(acc_nodes.len() + non_acc_nodes.len());
+        let mut id = 0usize;
+        for node in &non_acc_nodes {
+            id_map.insert(node.uid(), id);
+            id += 1;
         }
-        eval(self.graph.start_node(), self);
+        // push acceptable states to the end of transition table
+        for node in &acc_nodes {
+            id_map.insert(node.uid(), id);
+            id += 1;
+        }
+
+        let invalid_id = id_map.len();
+        let start_id = id_map[&graph.start_node().uid()];
+        let min_accept_id = non_acc_nodes.len();
+
+        (id_map, invalid_id, start_id, min_accept_id)
     }
 
-    fn get_id(&self, node: Node<'a>) -> usize {
-        *self
-            .id_map
-            .get(&node)
-            .expect("run fill_id_map before using get_id")
-    }
-
-    pub fn fill_tables(&mut self) {
-        self.tr_table
-            .resize(self.id_map.len(), [0; u8::MAX as usize + 1]);
-
-        let mut visited = HashSet::new();
-        fn fill<'a, 'g>(node: Node<'a>, codgen: &mut Codgen<'a, 'g>, visited: &mut HashSet<u64>) {
-            if visited.contains(&node.uid()) {
-                return;
-            }
-            visited.insert(node.uid());
-            let id = codgen.get_id(node);
+    fn build_tr_table(
+        graph: &Graph<'a>,
+        invalid_id: usize,
+        id_map: &HashMap<u64, usize>,
+    ) -> TransitionTable {
+        let mut tr_table = vec![[invalid_id; 1 << u8::BITS]; id_map.len()];
+        graph.for_each_node(|node| {
+            let node_id = id_map[&node.uid()];
             for (target, tr) in node.targets().iter() {
+                let target_id = id_map[&target.uid()];
                 for sym in tr.symbols() {
-                    codgen.tr_table[id][sym as usize] = codgen.get_id(*target);
+                    tr_table[node_id][sym as usize] = target_id;
                 }
-                fill(*target, codgen, visited);
             }
-        }
-        fill(self.graph.start_node(), self, &mut visited);
+        });
+        tr_table
     }
 
     pub fn produce(&self) -> TokenStream {
         let tr_table_len: usize = self.tr_table.len();
-        let mut tr_table_quoted = Vec::new();
+        let mut tr_table_lines = Vec::new();
         for line in &self.tr_table {
-            tr_table_quoted.push(quote! { [ #(#line),*; u8::MAX as usize]});
+            let mut token_line = TokenStream::new();
+            for num in line {
+                // to remove suffix
+                let stream = TokenStream::from_str(&format!("{num},")).unwrap();
+                token_line.append_all(stream);
+            }
+            tr_table_lines.push(Group::new(Delimiter::Bracket, token_line))
         }
 
-        const MAX_LEN_FOR_U8: usize = u8::MAX as usize + 1;
-        const MAX_LEN_FOR_U16: usize = u16::MAX as usize + 1;
-        const MAX_LEN_FOR_U32: usize = u32::MAX as usize + 1;
-
-        let id_type = {
-            if tr_table_len <= MAX_LEN_FOR_U8 {
+        let state_type = {
+            if tr_table_len <= 1 << u8::BITS {
                 quote! { u8 }
-            } else if tr_table_len <= MAX_LEN_FOR_U16 {
+            } else if tr_table_len <= 1 << u16::BITS {
                 quote! { u16 }
-            } else if tr_table_len <= MAX_LEN_FOR_U32 {
-                quote! { u32 }
             } else {
-                quote! { u64 }
+                panic!("number of states {tr_table_len} is too big for calculation");
             }
         };
 
+        // Number of all possible bytes, i.e. transitions.
+        let bytes_num: usize = 1 << u8::BITS;
+
+        // Number of states in the automaton.
+        let states_num: usize = tr_table_len;
+
+        let start_state = self.start_id;
+        let invalid_state = self.invalid_id;
+        let min_accept_state = self.min_accept_id;
+
         quote! {
-            struct Automaton {
-                state: u32,
-                tr_table: [[#id_type; u8::MAX as usize]; #tr_table_len],
+            struct StateMachine {
+                state: usize,
             }
 
-            impl Automaton {
+            impl StateMachine {
+                const START_STATE: usize = #start_state;
+                const INVALID_STATE: usize = #invalid_state;
+                const MIN_ACCEPT_STATE: usize = #min_accept_state;
+                const STATES_NUM: usize = #states_num;
+
+                const TRANSITION_TABLE: [[#state_type; #bytes_num]; Self::STATES_NUM] = [
+                    #(#tr_table_lines),*
+                ];
+
+                #[inline]
                 fn new() -> Self {
                     Self {
-                        state: 0u32,
-                        tr_table: [#(#tr_table_quoted),*],
+                        state: Self::START_STATE,
                     }
+                }
+
+                #[inline]
+                fn reset(&mut self) {
+                    self.state = Self::START_STATE;
+                }
+
+                #[inline]
+                fn is_start(&self) -> bool {
+                    self.state == Self::START_STATE
+                }
+
+                #[inline]
+                fn is_acceptable(&self) -> bool {
+                    self.state >= Self::MIN_ACCEPT_STATE
+                }
+
+                #[inline]
+                fn next(&mut self, byte: u8) {
+                    self.state = unsafe {
+                        Self::TRANSITION_TABLE
+                            .get_unchecked(state)
+                            .get_unchecked(byte as usize)
+                    } as usize;
+
+                    debug_assert!(self.state < Self::STATES_NUM, "invalid new state value {state}");
                 }
             }
         }
