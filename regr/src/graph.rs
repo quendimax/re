@@ -99,9 +99,16 @@ impl<'a> Graph<'a> {
         node
     }
 
+    /// Returns the start node of the graph. If the graph is empty, creates a node, and returns it.
     #[inline]
     pub fn start_node(&self) -> Node<'a> {
         self.start_node.get().unwrap_or_else(|| self.node())
+    }
+
+    /// Returns true if the graph is empty.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.start_node.get().is_none()
     }
 
     pub fn arena(&self) -> &'a Arena {
@@ -113,13 +120,11 @@ impl<'a> Graph<'a> {
     /// If instead of NFA, this graph is a DFA, this method just builds a clone
     /// of it.
     pub fn determine_in<'d>(&self, arena: &'d mut Arena) -> Graph<'d> {
-        let dfa = Graph::dfa_in(arena);
         type ConvertMap<'n, 'd> = BTreeMap<Rc<BTreeSet<Node<'n>>>, Node<'d>>;
-        #[allow(clippy::mutable_key_type)]
-        let mut convert_map: ConvertMap<'a, 'd> = BTreeMap::new();
 
         struct Lambda<'a, 'n, 'd> {
-            convert_map: &'a mut ConvertMap<'n, 'd>,
+            #[allow(clippy::mutable_key_type)]
+            convert_map: ConvertMap<'n, 'd>,
             dfa: &'a Graph<'d>,
         }
         impl<'a, 'n, 'd> Lambda<'a, 'n, 'd> {
@@ -142,9 +147,10 @@ impl<'a> Graph<'a> {
             }
         }
 
+        let dfa = Graph::dfa_in(arena);
         let start_e_closure = Rc::new(self.start_node().closure(Epsilon));
         Lambda {
-            convert_map: &mut convert_map,
+            convert_map: ConvertMap::new(),
             dfa: &dfa,
         }
         .convert(start_e_closure);
@@ -229,12 +235,16 @@ macro_rules! impl_fmt {
                         Ok(())
                     }
                 }
-                Lambda {
-                    first: true,
-                    f,
-                    visited: crate::adt::Set::new(),
+                if let Some(start_node) = self.start_node.get() {
+                    Lambda {
+                        first: true,
+                        f,
+                        visited: crate::adt::Set::new(),
+                    }
+                    .call(start_node)
+                } else {
+                    Ok(())
                 }
-                .call(self.start_node())
             }
         }
     };
