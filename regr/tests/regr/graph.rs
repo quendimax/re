@@ -199,6 +199,32 @@ fn graph_determine_klenee_star() {
 }
 
 #[test]
+fn graph_for_each_node() {
+    let mut arena = Arena::with_capacity(1);
+    let graph = Graph::new_in(&mut arena, AutomatonKind::NFA);
+    let a = graph.node();
+    let b = graph.node();
+    let c = graph.node();
+    let d = graph.node();
+
+    a.connect(b, Span::new(b'a', u8::MAX));
+    a.connect(b, Epsilon);
+    b.connect(c, Epsilon);
+    c.connect(d, b'c');
+    b.connect(a, Epsilon);
+    d.connect(a, Epsilon);
+    d.connect(b, Epsilon);
+    d.connect(c, Epsilon);
+
+    #[allow(clippy::mutable_key_type)]
+    let mut visited = std::collections::HashSet::new();
+    graph.for_each_node(|node| {
+        visited.insert(node);
+    });
+    assert_eq!(visited.len(), 4);
+}
+
+#[test]
 #[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn graph_display_fmt_0() {
     let mut arena = Arena::with_capacity(1);

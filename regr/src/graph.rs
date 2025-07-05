@@ -1,3 +1,4 @@
+use crate::adt::Set;
 use crate::arena::Arena;
 use crate::node::{ClosureOp, Node};
 use crate::symbol::Epsilon;
@@ -148,6 +149,34 @@ impl<'a> Graph<'a> {
         }
         .convert(start_e_closure);
         dfa
+    }
+
+    /// Visits each node of the graph, i.e. every node reachable from the start
+    /// node.
+    pub fn for_each_node<F>(&self, f: F)
+    where
+        F: FnMut(Node<'a>),
+    {
+        struct Lambda<'a, F: FnMut(Node<'a>)> {
+            visited: Set<Node<'a>>,
+            handler: F,
+        }
+        impl<'a, F: FnMut(Node<'a>)> Lambda<'a, F> {
+            fn visit(&mut self, node: Node<'a>) {
+                self.visited.insert(node);
+                (self.handler)(node);
+                for target in node.targets().keys() {
+                    if !self.visited.contains(target) {
+                        self.visit(*target);
+                    }
+                }
+            }
+        }
+        Lambda {
+            visited: Set::new(),
+            handler: f,
+        }
+        .visit(self.start_node());
     }
 }
 
