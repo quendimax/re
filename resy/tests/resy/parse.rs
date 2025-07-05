@@ -507,11 +507,11 @@ fn parse_escape_fails() {
     assert_eq!(parse(r"\u{0000000}"), "expected '}', but got '0'");
     assert_matches!(
         try_parse(r"\u{110000}"),
-        Err(CoderError(InvalidCodePoint(..)))
+        Err(EncoderError(InvalidCodePoint(..)))
     );
     assert_matches!(
         try_parse(r"\u{D800}"),
-        Err(CoderError(SurrogateUnsupported { .. }))
+        Err(EncoderError(SurrogateUnsupported { .. }))
     );
 
     assert_matches!(try_parse(r"\x80"), Err(OutOfRange { .. }));
@@ -519,23 +519,23 @@ fn parse_escape_fails() {
     assert_matches!(try_parse(r"\u{0000000}"), Err(UnexpectedToken { .. }));
     assert_matches!(
         try_parse(r"\u{110000}"),
-        Err(CoderError(InvalidCodePoint(..)))
+        Err(EncoderError(InvalidCodePoint(..)))
     );
     assert_matches!(
         try_parse(r"\u{D800}"),
-        Err(CoderError(SurrogateUnsupported { .. }))
+        Err(EncoderError(SurrogateUnsupported { .. }))
     );
     assert_matches!(
         try_parse(r"\u{DBff}"),
-        Err(CoderError(SurrogateUnsupported { .. }))
+        Err(EncoderError(SurrogateUnsupported { .. }))
     );
     assert_matches!(
         try_parse(r"\u{DC00}"),
-        Err(CoderError(SurrogateUnsupported { .. }))
+        Err(EncoderError(SurrogateUnsupported { .. }))
     );
     assert_matches!(
         try_parse(r"\u{dFFf}"),
-        Err(CoderError(SurrogateUnsupported { .. }))
+        Err(EncoderError(SurrogateUnsupported { .. }))
     );
 }
 

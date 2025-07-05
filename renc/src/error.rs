@@ -14,8 +14,8 @@ pub enum Error {
     /// # Parameters
     ///
     /// - `codec_name`: The encoding that encountered the surrogate code point.
-    #[error("surrogate code points are not supported by {coder_name}")]
-    SurrogateUnsupported { coder_name: &'static str },
+    #[error("surrogate code points are not supported by {standard}")]
+    SurrogateUnsupported { standard: &'static str },
 
     /// Error returned when the provided output buffer is too small to hold the
     /// encoded byte sequence.

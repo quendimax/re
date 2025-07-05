@@ -1,5 +1,5 @@
-mod coder;
-pub use coder::Coder;
+mod encoder;
+pub use encoder::Encoder;
 
 mod error;
 pub use error::{Error, Result};

@@ -5,24 +5,24 @@
 
 use crate::error::{Error::*, Result, err};
 use regr::{Epsilon, Graph, Node, Span};
-use renc::Coder;
+use renc::Encoder;
 use std::collections::HashMap;
 use std::str::Chars;
 
-pub struct Parser<'g, 'n, 's, T: Coder> {
+pub struct Parser<'g, 'n, 's, T: Encoder> {
     nfa: &'g Graph<'n>,
     lexer: Lexer<'s>,
-    coder: T,
+    encoder: T,
 }
 
-impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
-    pub fn new(nfa: &'g Graph<'n>, codec: T) -> Self {
+impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
+    pub fn new(nfa: &'g Graph<'n>, encoder: C) -> Self {
         assert!(nfa.is_nfa(), "this parser can build only an NFA graph");
         let lexer = Lexer::empty();
         Self {
             nfa,
             lexer,
-            coder: codec,
+            encoder,
         }
     }
 
@@ -346,7 +346,7 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
     /// ```
     fn parse_dot_class(&mut self, start_node: Node<'n>, end_node: Node<'n>) -> Result<Node<'n>> {
         self.lexer.expect('.')?;
-        self.coder.encode_entire_range(|seq| {
+        self.encoder.encode_entire_range(|seq| {
             self.build_from_sequence(seq, start_node, end_node);
         })?;
         Ok(end_node)
@@ -384,7 +384,7 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
                     if self.lexer.peek() == Some('-') {
                         _ = self.lexer.take_peeked();
                         let last_ucp = self.parse_term_codepoint()?;
-                        self.coder.encode_range(first_ucp, last_ucp, |seq| {
+                        self.encoder.encode_range(first_ucp, last_ucp, |seq| {
                             self.build_from_sequence(seq, start_node, end_node);
                         })?;
                     } else {
@@ -650,7 +650,7 @@ impl<'g, 'n, 's, T: Coder> Parser<'g, 'n, 's, T> {
         end_node: Option<Node<'n>>,
     ) -> Result<Node<'n>> {
         let mut buf = [0u8; 8];
-        let len = self.coder.encode_ucp(codepoint, &mut buf)?;
+        let len = self.encoder.encode_ucp(codepoint, &mut buf)?;
 
         let mut prev_node = start_node;
         for (i, byte) in buf[0..len].iter().enumerate() {

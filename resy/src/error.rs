@@ -4,8 +4,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum Error {
-    #[error("coder error: {0}")]
-    CoderError(#[from] renc::Error),
+    #[error("encoder error: {0}")]
+    EncoderError(#[from] renc::Error),
 
     #[error("empty class expression `[]` is not supported")]
     EmptyClass,

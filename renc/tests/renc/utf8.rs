@@ -3,7 +3,7 @@ use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use regex_syntax::utf8::Utf8Sequences;
 use regr::{Span, span};
-use renc::{Coder, Error, Result, Utf8Coder};
+use renc::{Encoder, Error, Result, Utf8Coder};
 use std::ops::RangeInclusive;
 
 static CODER: Utf8Coder = Utf8Coder;

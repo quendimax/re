@@ -1,4 +1,4 @@
-use crate::coder::Coder;
+use crate::encoder::Encoder;
 use crate::error::{Error::*, Result};
 use arrayvec::ArrayVec;
 use regr::Span;
@@ -6,14 +6,12 @@ use regr::Span;
 /// Unicode code point inclusive range.
 type UcpRange = std::ops::RangeInclusive<u32>;
 
-const CODER_NAME: &str = "Utf8Coder";
-
 pub struct Utf8Coder;
 
-impl Coder for Utf8Coder {
-    const MIN_CODEPOINT: u32 = char::MIN as u32;
+impl Encoder for Utf8Coder {
+    const MIN_CODE_POINT: u32 = char::MIN as u32;
 
-    const MAX_CODEPOINT: u32 = char::MAX as u32;
+    const MAX_CODE_POINT: u32 = char::MAX as u32;
 
     fn encode_char(&self, c: char, buffer: &mut [u8]) -> Result<usize> {
         let expected_len = c.len_utf8();
@@ -55,7 +53,7 @@ impl Coder for Utf8Coder {
     where
         F: FnMut(&[Span]),
     {
-        self.encode_range(Self::MIN_CODEPOINT, Self::MAX_CODEPOINT, handler)
+        self.encode_range(Self::MIN_CODE_POINT, Self::MAX_CODE_POINT, handler)
     }
 }
 
@@ -190,9 +188,7 @@ fn char_try_from(codepoint: u32) -> Result<char> {
     if let Ok(c) = char::try_from(codepoint) {
         Ok(c)
     } else if codepoint <= 0x10FFFF {
-        Err(SurrogateUnsupported {
-            coder_name: CODER_NAME,
-        })
+        Err(SurrogateUnsupported { standard: "UTF-8" })
     } else {
         Err(InvalidCodePoint(codepoint))
     }

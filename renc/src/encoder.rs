@@ -3,12 +3,12 @@ use regr::Span;
 
 /// This trait helps convert unicode code points into byte sequeces
 /// corresponding encoding way chosen by user.
-pub trait Coder {
+pub trait Encoder {
     /// Minimum code point that can be encoded by this coder.
-    const MIN_CODEPOINT: u32;
+    const MIN_CODE_POINT: u32;
 
     /// Maximum code point that can be encoded by this coder.
-    const MAX_CODEPOINT: u32;
+    const MAX_CODE_POINT: u32;
 
     /// Encode unicode code point into a byte sequence
     fn encode_ucp(&self, codepoint: u32, buffer: &mut [u8]) -> Result<usize>;
