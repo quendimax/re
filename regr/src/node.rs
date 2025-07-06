@@ -1,8 +1,7 @@
-use crate::adt::Map;
 use crate::graph::{AutomatonKind, Graph};
 use crate::symbol::Epsilon;
 use crate::transition::Transition;
-use redt::RangeU8;
+use redt::{Map, RangeU8};
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeSet;
 use std::fmt::Write;

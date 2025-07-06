@@ -1,8 +1,6 @@
 mod arena;
 pub use arena::Arena;
 
-pub mod adt;
-
 mod graph;
 pub use graph::{AutomatonKind, Graph};
 

@@ -1,7 +1,7 @@
-use crate::adt::Set;
 use crate::arena::Arena;
 use crate::node::{ClosureOp, Node};
 use crate::symbol::Epsilon;
+use redt::Set;
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
@@ -199,7 +199,7 @@ macro_rules! impl_fmt {
                 struct Lambda<'b, 'c> {
                     first: bool,
                     f: &'b mut std::fmt::Formatter<'c>,
-                    visited: crate::adt::Set<u64>,
+                    visited: ::redt::Set<u64>,
                 }
                 impl<'a, 'b, 'c> Lambda<'b, 'c> {
                     fn call(&mut self, node: Node<'a>) -> std::fmt::Result {
@@ -212,11 +212,14 @@ macro_rules! impl_fmt {
                         let mut is_empty = true;
                         ::std::fmt::$trait::fmt(&node, self.f)?;
                         self.f.write_str(" {")?;
-                        for (target, transition) in node.targets().iter() {
+                        let refer = node.targets();
+                        let mut targets: Vec<_> = refer.iter().collect();
+                        targets.sort_by_key(|(target, _)| target.uid()); // make order consistent
+                        for (target, transition) in targets.iter() {
                             self.f.write_str("\n    ")?;
                             ::std::fmt::$trait::fmt(transition, self.f)?;
                             self.f.write_str(" -> ")?;
-                            if node == *target {
+                            if node == **target {
                                 self.f.write_str("self")?;
                             } else {
                                 ::std::fmt::$trait::fmt(&target, self.f)?;
@@ -239,7 +242,7 @@ macro_rules! impl_fmt {
                     Lambda {
                         first: true,
                         f,
-                        visited: crate::adt::Set::new(),
+                        visited: ::redt::Set::new(),
                     }
                     .call(start_node)
                 } else {

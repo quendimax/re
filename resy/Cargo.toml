@@ -13,14 +13,6 @@ renc = { path = "../renc" }
 smallvec.workspace = true
 thiserror.workspace = true
 
-[features]
-hash-map = ["regr/hash-map"]
-hash-set = ["regr/hash-set"]
-hash = ["hash-map", "hash-set"]
-ordered-hash-map = ["regr/ordered-hash-map"]
-ordered-hash-set = ["regr/ordered-hash-set"]
-ordered-hash = ["ordered-hash-map", "ordered-hash-set"]
-
 [dev-dependencies]
 assert_matches.workspace = true
 ntest.workspace = true

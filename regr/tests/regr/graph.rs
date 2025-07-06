@@ -101,7 +101,6 @@ fn graph_determine_0() {
 }
 
 #[test]
-#[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn graph_determine_1() {
     let mut arena = Arena::new();
     let nfa = Graph::nfa_in(&mut arena);
@@ -153,7 +152,6 @@ fn graph_determine_1() {
 }
 
 #[test]
-#[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn graph_determine_klenee_star() {
     let mut arena = Arena::new();
     let nfa = Graph::nfa_in(&mut arena);
@@ -226,7 +224,6 @@ fn graph_for_each_node() {
 }
 
 #[test]
-#[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn graph_display_fmt_0() {
     let mut arena = Arena::with_capacity(1);
     let graph = Graph::new_in(&mut arena, AutomatonKind::NFA);
@@ -250,8 +247,8 @@ fn graph_display_fmt_0() {
                 ['a'-FFh | Epsilon] -> node(1)
             }
             node(1) {
-                [Epsilon] -> node(2)
                 [Epsilon] -> node(0)
+                [Epsilon] -> node(2)
             }
             node(2) {
                 ['c'] -> node(3)
@@ -266,7 +263,6 @@ fn graph_display_fmt_0() {
 }
 
 #[test]
-#[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn graph_display_fmt_1() {
     let mut arena = Arena::new();
     let graph = Graph::nfa_in(&mut arena);
@@ -296,8 +292,8 @@ fn graph_display_fmt_1() {
             ['a'] -> node(3)
         }
         node(3) {
-            [Epsilon] -> node(4)
             [Epsilon] -> node(2)
+            [Epsilon] -> node(4)
         }
         node(4) {}
         ")
@@ -305,7 +301,6 @@ fn graph_display_fmt_1() {
 }
 
 #[test]
-#[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn graph_display_fmt_2() {
     let mut arena = Arena::new();
     let graph = Graph::nfa_in(&mut arena);
@@ -356,7 +351,6 @@ fn graph_display_fmt_2() {
 }
 
 #[test]
-#[cfg_attr(not(feature = "ordered-hash"), ignore)]
 fn graph_display_fmt_3() {
     let mut arena = Arena::new();
     let graph = Graph::dfa_in(&mut arena);
