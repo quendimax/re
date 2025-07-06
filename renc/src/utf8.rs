@@ -3,12 +3,9 @@ use crate::error::{Error::*, Result};
 use arrayvec::ArrayVec;
 use redt::Range;
 
-/// Unicode code point inclusive range.
-type UcpRange = std::ops::RangeInclusive<u32>;
+pub struct Utf8Encoder;
 
-pub struct Utf8Coder;
-
-impl Encoder for Utf8Coder {
+impl Encoder for Utf8Encoder {
     const MIN_CODE_POINT: u32 = char::MIN as u32;
 
     const MAX_CODE_POINT: u32 = char::MAX as u32;
@@ -57,57 +54,58 @@ impl Encoder for Utf8Coder {
     }
 }
 
-fn encode_range<F>(range: UcpRange, handler: &mut F) -> Result<()>
+fn encode_range<F, R>(range: R, handler: &mut F) -> Result<()>
 where
     F: FnMut(&[Range<u8>]),
+    R: Into<Range<u32>>,
 {
-    let mut range = range;
+    let mut range = range.into();
     while let Some((range, bytes_len)) = take_n_bytes_range(&mut range) {
         match bytes_len {
-            1 => handle_range::<1>(*range.start(), *range.end(), handler),
-            2 => handle_range::<2>(*range.start(), *range.end(), handler),
-            3 => handle_range::<3>(*range.start(), *range.end(), handler),
-            4 => handle_range::<4>(*range.start(), *range.end(), handler),
+            1 => handle_range::<1>(range.start(), range.last(), handler),
+            2 => handle_range::<2>(range.start(), range.last(), handler),
+            3 => handle_range::<3>(range.start(), range.last(), handler),
+            4 => handle_range::<4>(range.start(), range.last(), handler),
             _ => unreachable!(),
         }
     }
     Ok(())
 }
 
-fn take_n_bytes_range(range: &mut UcpRange) -> Option<(UcpRange, usize)> {
-    if range.start() > range.end() {
+fn take_n_bytes_range(range: &mut Range<u32>) -> Option<(Range<u32>, usize)> {
+    if range.start() > range.last() {
         return None;
     }
-    match *range.start() {
+    match range.start() {
         0..=0x7F => {
-            let start = *range.start();
-            let end = *range.end().min(&0x7F);
-            *range = end + 1..=*range.end();
-            Some((start..=end, 1))
+            let start = range.start();
+            let end = range.last().min(0x7F);
+            *range = Range::new_unchecked(end + 1, range.last());
+            Some((Range::new_unchecked(start, end), 1))
         }
         0x80..=0x7FF => {
-            let start = *range.start();
-            let end = *range.end().min(&0x7FF);
-            *range = end + 1..=*range.end();
-            Some((start..=end, 2))
+            let start = range.start();
+            let end = range.last().min(0x7FF);
+            *range = Range::new_unchecked(end + 1, range.last());
+            Some((Range::new_unchecked(start, end), 2))
         }
         0x800..=0xD7FF => {
-            let start = *range.start();
-            let end = *range.end().min(&0xD7FF);
-            *range = end + 1..=*range.end();
-            Some((start..=end, 3))
+            let start = range.start();
+            let end = range.last().min(0xD7FF);
+            *range = Range::new_unchecked(end + 1, range.last());
+            Some((Range::new_unchecked(start, end), 3))
         }
         0xD800..=0xFFFF => {
-            let start = *range.start().max(&0xE000); // skip surrogates
-            let end = *range.end().min(&0xFFFF);
-            *range = end + 1..=*range.end();
-            Some((start..=end, 3))
+            let start = range.start().max(0xE000); // skip surrogates
+            let end = range.last().min(0xFFFF);
+            *range = Range::new_unchecked(end + 1, range.last());
+            Some((Range::new_unchecked(start, end), 3))
         }
         0x10000..=0x10FFFF => {
-            let start = *range.start();
-            let end = *range.end().min(&0x10FFFF);
-            *range = end + 1..=*range.end();
-            Some((start..=end, 4))
+            let start = range.start();
+            let end = range.last().min(0x10FFFF);
+            *range = Range::new_unchecked(end + 1, range.last());
+            Some((Range::new_unchecked(start, end), 4))
         }
         _ => None,
     }
@@ -201,7 +199,7 @@ mod utest {
 
     #[test]
     fn fn_take_n_bytes_range() {
-        let mut range = 0x110000..=0x110001;
+        let mut range = Range::new(0x110000u32, 0x110001u32);
         assert_eq!(take_n_bytes_range(&mut range), None);
     }
 

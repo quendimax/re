@@ -14,10 +14,12 @@ pub struct Range<T> {
     last: T,
 }
 
-/// Just a short [`Span`] constructor.
+/// Just a short [`Range`] constructor.
 #[inline]
-pub fn range<T>(range: impl Into<Range<T>>) -> Range<T> {
-    range.into()
+pub fn range<T: PartialOrd>(start: impl Into<T>, last: impl Into<T>) -> Range<T> {
+    let start = start.into();
+    let last = last.into();
+    Range::new(start, last)
 }
 
 impl<T: PartialOrd> Range<T> {

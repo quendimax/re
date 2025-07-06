@@ -1,11 +1,11 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use regr::{Arena, Graph};
-use renc::{Error::*, Utf8Coder};
+use renc::{Error::*, Utf8Encoder};
 use resy::Error::*;
 use resy::{Error, Parser};
 
-const CODER: Utf8Coder = Utf8Coder;
+const CODER: Utf8Encoder = Utf8Encoder;
 
 fn fmt<T: std::fmt::Display + ?Sized>(obj: &T) -> String {
     let mut result = String::new();

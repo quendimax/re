@@ -33,13 +33,14 @@ fn range_from_range_inclusive() {
 
 #[test]
 fn range_fn() {
-    let _ = range(3);
-    let _ = range(b'a');
+    let _: Range<u8> = range(3, 5);
+    let _: Range<u8> = range(b'a', b'b');
+    let _: Range<u64> = range(3u8, 5u32);
 }
 
 #[test]
 fn range_width() {
-    assert_eq!(range(3u8..=4).width(), 2);
+    assert_eq!(range::<u8>(3, 4).width(), 2);
     assert_eq!(Range::new(7u16, 2).width(), 6);
 }
 
@@ -179,28 +180,28 @@ fn symbol_range_debug_fmt() {
 
 #[test]
 fn symbol_range_binary_fmt() {
-    assert_eq!(format!("{:b}", range(b'a'..=b'a')), r"1100001");
-    assert_eq!(format!("{:b}", range(b'\0'..=b'Z')), r"0-1011010");
-    assert_eq!(format!("{:b}", range(b'\x7E'..=b'~')), r"1111110");
+    assert_eq!(format!("{:b}", range::<u8>(b'a', b'a')), r"1100001");
+    assert_eq!(format!("{:b}", range::<u8>(b'\0', b'Z')), r"0-1011010");
+    assert_eq!(format!("{:b}", range::<u8>(b'\x7E', b'~')), r"1111110");
 }
 
 #[test]
 fn symbol_range_octal_fmt() {
-    assert_eq!(format!("{:o}", range(b'a'..=b'a')), r"141");
-    assert_eq!(format!("{:o}", range(b'\0'..=b'Z')), r"0-132");
-    assert_eq!(format!("{:o}", range(b'\x7E'..=b'~')), r"176");
+    assert_eq!(format!("{:o}", range::<u8>(b'a', b'a')), r"141");
+    assert_eq!(format!("{:o}", range::<u8>(b'\0', b'Z')), r"0-132");
+    assert_eq!(format!("{:o}", range::<u8>(b'\x7E', b'~')), r"176");
 }
 
 #[test]
 fn symbol_range_lowerhex_fmt() {
-    assert_eq!(format!("{:x}", range(b'\0'..=b'Z')), r"0-5a");
-    assert_eq!(format!("{:x}", range(b'\x7E'..=b'~')), r"7e");
+    assert_eq!(format!("{:x}", range::<u8>(b'\0', b'Z')), r"0-5a");
+    assert_eq!(format!("{:x}", range::<u8>(b'\x7E', b'~')), r"7e");
 }
 
 #[test]
 fn symbol_range_upperhex_fmt() {
-    assert_eq!(format!("{:X}", range(b'\0'..=b'Z')), r"0-5A");
-    assert_eq!(format!("{:X}", range(b'\x7E'..=b'~')), r"7E");
+    assert_eq!(format!("{:X}", range::<u8>(b'\0', b'Z')), r"0-5A");
+    assert_eq!(format!("{:X}", range::<u8>(b'\x7E', b'~')), r"7E");
 }
 
 #[test]
