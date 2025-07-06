@@ -4,7 +4,8 @@
 //! form.
 
 use crate::error::{Error::*, Result, err};
-use regr::{Epsilon, Graph, Node, Span};
+use redt::Range;
+use regr::{Epsilon, Graph, Node};
 use renc::Encoder;
 use std::collections::HashMap;
 use std::str::Chars;
@@ -665,16 +666,16 @@ impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
         Ok(prev_node)
     }
 
-    fn build_from_sequence(&self, seq: &[Span], start_node: Node<'n>, end_node: Node<'n>) {
+    fn build_from_sequence(&self, seq: &[Range<u8>], start_node: Node<'n>, end_node: Node<'n>) {
         let mut prev_node = start_node;
         let len = seq.len();
-        for (i, span) in seq.iter().enumerate() {
+        for (i, range) in seq.iter().enumerate() {
             let new_node = if i == len - 1 {
                 end_node
             } else {
                 self.nfa.node()
             };
-            prev_node.connect(new_node, span);
+            prev_node.connect(new_node, range);
             prev_node = new_node;
         }
     }

@@ -1,5 +1,5 @@
 [workspace]
-members = ["regn", "regr", "renc", "resy"]
+members = ["redt", "regn", "regr", "renc", "resy"]
 resolver = "2"
 
 [workspace.package]
@@ -10,11 +10,12 @@ repository = "https://github.com/quendimax/re"
 [workspace.dependencies]
 arrayvec = "0.7.6"
 assert_matches = "1"
-bumpalo = "~3.17"
+bumpalo = "3"
 cfg-if = "1"
 linked-hash-map = "0.5.6"
 linked_hash_set = "0.1.5"
 ntest = "*"
+num-traits = "0.2"
 pretty_assertions = "1"
 prettyplease = "0.2"
 proc-macro2 = "1"

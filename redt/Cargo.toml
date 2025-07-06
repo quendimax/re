@@ -1,5 +1,5 @@
 [package]
-name = "regr"
+name = "redt"
 version = "0.1.0"
 
 authors.workspace = true
@@ -7,13 +7,10 @@ edition.workspace = true
 repository.workspace = true
 
 [dependencies]
-bumpalo.workspace = true
 cfg-if.workspace = true
 linked-hash-map = { workspace = true, optional = true }
 linked_hash_set = { workspace = true, optional = true }
-redt = { path = "../redt" }
-smallvec.workspace = true
-thiserror.workspace = true
+num-traits.workspace = true
 
 [features]
 hash-map = []
@@ -25,4 +22,3 @@ ordered-hash = ["ordered-hash-map", "ordered-hash-set"]
 
 [dev-dependencies]
 pretty_assertions.workspace = true
-smallvec.workspace = true

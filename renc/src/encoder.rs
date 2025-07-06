@@ -1,5 +1,5 @@
 use crate::error::Result;
-use regr::Span;
+use redt::Range;
 
 /// This trait helps convert unicode code points into byte sequeces
 /// corresponding encoding way chosen by user.
@@ -22,11 +22,11 @@ pub trait Encoder {
     /// Encode range of unicode code points into array of byte sequences.
     fn encode_range<F>(&self, start_ucp: u32, end_ucp: u32, handler: F) -> Result<()>
     where
-        F: FnMut(&[Span]);
+        F: FnMut(&[Range<u8>]);
 
     /// Encode the entire range of code points allowed by this coder into array
     /// of byte sequences.
     fn encode_entire_range<F>(&self, handler: F) -> Result<()>
     where
-        F: FnMut(&[Span]);
+        F: FnMut(&[Range<u8>]);
 }

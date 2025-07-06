@@ -8,7 +8,7 @@ repository.workspace = true
 
 [dependencies]
 arrayvec.workspace = true
-regr = { path = "../regr" }
+redt = { path = "../redt" }
 thiserror.workspace = true
 
 [dev-dependencies]

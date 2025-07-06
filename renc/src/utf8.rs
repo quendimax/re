@@ -1,7 +1,7 @@
 use crate::encoder::Encoder;
 use crate::error::{Error::*, Result};
 use arrayvec::ArrayVec;
-use regr::Span;
+use redt::Range;
 
 /// Unicode code point inclusive range.
 type UcpRange = std::ops::RangeInclusive<u32>;
@@ -40,7 +40,7 @@ impl Encoder for Utf8Coder {
 
     fn encode_range<F>(&self, start_ucp: u32, end_ucp: u32, handler: F) -> Result<()>
     where
-        F: FnMut(&[Span]),
+        F: FnMut(&[Range<u8>]),
     {
         assert!(start_ucp <= end_ucp);
         _ = char_try_from(start_ucp)?;
@@ -51,7 +51,7 @@ impl Encoder for Utf8Coder {
 
     fn encode_entire_range<F>(&self, handler: F) -> Result<()>
     where
-        F: FnMut(&[Span]),
+        F: FnMut(&[Range<u8>]),
     {
         self.encode_range(Self::MIN_CODE_POINT, Self::MAX_CODE_POINT, handler)
     }
@@ -59,7 +59,7 @@ impl Encoder for Utf8Coder {
 
 fn encode_range<F>(range: UcpRange, handler: &mut F) -> Result<()>
 where
-    F: FnMut(&[Span]),
+    F: FnMut(&[Range<u8>]),
 {
     let mut range = range;
     while let Some((range, bytes_len)) = take_n_bytes_range(&mut range) {
@@ -113,7 +113,7 @@ fn take_n_bytes_range(range: &mut UcpRange) -> Option<(UcpRange, usize)> {
     }
 }
 
-fn handle_range<const N: usize>(start: u32, end: u32, handler: &mut impl FnMut(&[Span])) {
+fn handle_range<const N: usize>(start: u32, end: u32, handler: &mut impl FnMut(&[Range<u8>])) {
     const MASK: u32 = 0x3F;
     const MASK_LEN: usize = 6;
 
@@ -162,16 +162,16 @@ fn handle_range<const N: usize>(start: u32, end: u32, handler: &mut impl FnMut(&
     }
 }
 
-fn run_handler<const N: usize>(start: u32, end: u32, handler: &mut impl FnMut(&[Span])) {
+fn run_handler<const N: usize>(start: u32, end: u32, handler: &mut impl FnMut(&[Range<u8>])) {
     let mut start = start;
     let mut end = end;
-    let mut buffer = [Span::new_unchecked(0, 0); N];
+    let mut buffer = [Range::new_unchecked(0, 0); N];
     for i in (1..N).rev() {
         let start_byte = (start as u8 & 0x3F) | 0x80;
         start >>= 6;
         let end_byte = (end as u8 & 0x3F) | 0x80;
         end >>= 6;
-        buffer[i] = Span::new(start_byte, end_byte);
+        buffer[i] = Range::new_unchecked(start_byte, end_byte);
     }
     let prefix: u8 = match N {
         1 => 0x00,
@@ -180,7 +180,7 @@ fn run_handler<const N: usize>(start: u32, end: u32, handler: &mut impl FnMut(&[
         4 => 0xF0,
         _ => unreachable!("Invalid UTF-8 sequence length"),
     };
-    buffer[0] = Span::new_unchecked(start as u8 | prefix, end as u8 | prefix);
+    buffer[0] = Range::new_unchecked(start as u8 | prefix, end as u8 | prefix);
     handler(&buffer);
 }
 
@@ -208,8 +208,8 @@ mod utest {
     #[test]
     #[should_panic(expected = "Invalid UTF-8 sequence length")]
     fn fn_run_handler() {
-        fn do_nothing(_: &[Span]) {}
-        do_nothing(&[Span::new(0, 1)]);
+        fn do_nothing(_: &[Range<u8>]) {}
+        do_nothing(&[Range::new(0, 1)]);
         run_handler::<5>(0, 12, &mut do_nothing);
     }
 }

@@ -1,5 +1,6 @@
 use pretty_assertions::assert_eq;
-use regr::{Arena, AutomatonKind, Epsilon, Graph, Span, span};
+use redt::RangeU8;
+use regr::{Arena, AutomatonKind, Epsilon, Graph};
 
 fn dsp<T: std::fmt::Display>(obj: &T) -> String {
     let mut result = String::new();
@@ -207,7 +208,7 @@ fn graph_for_each_node() {
     let c = graph.node();
     let d = graph.node();
 
-    a.connect(b, Span::new(b'a', u8::MAX));
+    a.connect(b, RangeU8::new(b'a', u8::MAX));
     a.connect(b, Epsilon);
     b.connect(c, Epsilon);
     c.connect(d, b'c');
@@ -234,7 +235,7 @@ fn graph_display_fmt_0() {
     let c = graph.node();
     let d = graph.node();
 
-    a.connect(b, Span::new(b'a', u8::MAX));
+    a.connect(b, RangeU8::new(b'a', u8::MAX));
     a.connect(b, Epsilon);
     b.connect(c, Epsilon);
     c.connect(d, b'c');
@@ -274,8 +275,8 @@ fn graph_display_fmt_1() {
     let n2 = graph.node();
     let n3 = graph.node();
     let n4 = graph.node();
-    n0.connect(n1, span(b'a'..=b'b'));
-    n0.connect(n1, span(b'd'..=b'z'));
+    n0.connect(n1, RangeU8::from(b'a'..=b'b'));
+    n0.connect(n1, RangeU8::from(b'd'..=b'z'));
     n1.connect(n2, Epsilon);
     n1.connect(n4, Epsilon);
     n2.connect(n3, b'a');

@@ -1,8 +1,8 @@
 use crate::adt::Map;
 use crate::graph::{AutomatonKind, Graph};
-use crate::span::Span;
 use crate::symbol::Epsilon;
 use crate::transition::Transition;
+use redt::RangeU8;
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeSet;
 use std::fmt::Write;
@@ -258,14 +258,14 @@ macro_rules! impl_connect {
 
 impl_connect!(u8);
 impl_connect!(&u8);
-impl_connect!(Span);
-impl_connect!(&Span);
+impl_connect!(RangeU8);
+impl_connect!(&RangeU8);
 impl_connect!(&Transition);
 
 impl<'a> ConnectOp<'a, std::ops::RangeInclusive<u8>> for Node<'a> {
     #[inline]
     fn connect(self, to: Node<'a>, with: std::ops::RangeInclusive<u8>) {
-        ConnectOp::connect(self, to, Span::from(with))
+        ConnectOp::connect(self, to, RangeU8::from(with))
     }
 }
 

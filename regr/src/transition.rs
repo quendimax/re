@@ -1,7 +1,6 @@
 use crate::ops::{ContainOp, IntersectOp, MergeOp};
-use crate::span::Span;
 use crate::symbol::Epsilon;
-use crate::symbol::Symbol;
+use redt::{Legible, RangeU8, Step};
 use std::fmt::Write;
 
 /// Quantity of `u64` values in the `chunks` member for symbols' bits.
@@ -58,10 +57,10 @@ impl Transition {
         SymbolIter::new(&self.chunks)
     }
 
-    /// Returns iterator over all symbol spans in this trasition instance in
+    /// Returns iterator over all symbol ranges in this trasition instance in
     /// ascendent order.
-    pub fn spans(&self) -> SpanIter<'_> {
-        SpanIter::new(&self.chunks)
+    pub fn ranges(&self) -> RangeIter<'_> {
+        RangeIter::new(&self.chunks)
     }
 
     /// Merges the `other` boject into this transition.
@@ -101,35 +100,35 @@ impl ContainOp<&u8> for Transition {
     }
 }
 
-impl ContainOp<Span> for Transition {
+impl ContainOp<RangeU8> for Transition {
     #[inline]
-    fn contains(&self, span: Span) -> bool {
+    fn contains(&self, range: RangeU8) -> bool {
         let mut other_tr = Transition::default();
-        other_tr.merge(span);
+        other_tr.merge(range);
         ContainOp::contains(self, &other_tr)
     }
 }
 
-impl ContainOp<&Span> for Transition {
+impl ContainOp<&RangeU8> for Transition {
     #[inline]
-    fn contains(&self, span: &Span) -> bool {
-        Self::contains(self, *span)
+    fn contains(&self, range: &RangeU8) -> bool {
+        Self::contains(self, *range)
     }
 }
 
 impl ContainOp<std::ops::RangeInclusive<u8>> for Transition {
     #[inline]
     fn contains(&self, range: std::ops::RangeInclusive<u8>) -> bool {
-        let span = Span::from(range);
-        ContainOp::contains(self, span)
+        let range = RangeU8::from(range);
+        ContainOp::contains(self, range)
     }
 }
 
 impl ContainOp<&std::ops::RangeInclusive<u8>> for Transition {
     #[inline]
     fn contains(&self, range: &std::ops::RangeInclusive<u8>) -> bool {
-        let span = Span::from(range);
-        ContainOp::contains(self, span)
+        let range = RangeU8::new(*range.start(), *range.end());
+        ContainOp::contains(self, range)
     }
 }
 
@@ -163,17 +162,17 @@ impl IntersectOp<&u8> for Transition {
     }
 }
 
-impl IntersectOp<Span> for Transition {
+impl IntersectOp<RangeU8> for Transition {
     #[inline]
-    fn intersects(&self, span: Span) -> bool {
-        Self::intersects(self, &span)
+    fn intersects(&self, range: RangeU8) -> bool {
+        Self::intersects(self, &range)
     }
 }
 
-impl IntersectOp<&Span> for Transition {
-    fn intersects(&self, span: &Span) -> bool {
+impl IntersectOp<&RangeU8> for Transition {
+    fn intersects(&self, range: &RangeU8) -> bool {
         let mut other = Transition::default();
-        other.merge(span);
+        other.merge(range);
         IntersectOp::intersects(self, &other)
     }
 }
@@ -186,7 +185,7 @@ impl IntersectOp<std::ops::RangeInclusive<u8>> for Transition {
 
 impl IntersectOp<&std::ops::RangeInclusive<u8>> for Transition {
     fn intersects(&self, range: &std::ops::RangeInclusive<u8>) -> bool {
-        let range = Span::from(range);
+        let range = RangeU8::new(*range.start(), *range.end());
         IntersectOp::intersects(self, range)
     }
 }
@@ -216,16 +215,16 @@ impl MergeOp<&u8> for Transition {
     }
 }
 
-impl MergeOp<Span> for Transition {
-    fn merge(&mut self, span: Span) {
-        let mut ls_mask = 1 << (span.start() & (u8::MAX >> 2));
+impl MergeOp<RangeU8> for Transition {
+    fn merge(&mut self, range: RangeU8) {
+        let mut ls_mask = 1 << (range.start() & (u8::MAX >> 2));
         ls_mask = !(ls_mask - 1);
 
-        let mut ms_mask = 1 << (span.end() & (u8::MAX >> 2));
+        let mut ms_mask = 1 << (range.last() & (u8::MAX >> 2));
         ms_mask |= ms_mask - 1;
 
-        let ls_index = (span.start() >> 6) as usize;
-        let ms_index = (span.end() >> 6) as usize;
+        let ls_index = (range.start() >> 6) as usize;
+        let ms_index = (range.last() >> 6) as usize;
 
         unsafe {
             match ms_index - ls_index {
@@ -253,26 +252,26 @@ impl MergeOp<Span> for Transition {
     }
 }
 
-impl MergeOp<&Span> for Transition {
+impl MergeOp<&RangeU8> for Transition {
     #[inline]
-    fn merge(&mut self, span: &Span) {
-        Self::merge(self, *span)
+    fn merge(&mut self, range: &RangeU8) {
+        Self::merge(self, *range)
     }
 }
 
 impl MergeOp<std::ops::RangeInclusive<u8>> for Transition {
     #[inline]
     fn merge(&mut self, range: std::ops::RangeInclusive<u8>) {
-        let span = Span::from(range);
-        MergeOp::merge(self, span)
+        let range = RangeU8::from(range);
+        MergeOp::merge(self, range)
     }
 }
 
 impl MergeOp<&std::ops::RangeInclusive<u8>> for Transition {
     #[inline]
     fn merge(&mut self, range: &std::ops::RangeInclusive<u8>) {
-        let span = Span::from(range);
-        MergeOp::merge(self, span)
+        let range = RangeU8::new(*range.start(), *range.end());
+        MergeOp::merge(self, range)
     }
 }
 
@@ -312,22 +311,22 @@ impl std::convert::From<Epsilon> for Transition {
 impl std::fmt::Display for Transition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_char('[')?;
-        let mut iter = self.spans();
-        let mut span = iter.next();
+        let mut iter = self.ranges();
+        let mut range = iter.next();
         let mut has_symbols = false;
-        while let Some(cur_span) = span {
+        while let Some(cur_range) = range {
             has_symbols = true;
             if let Some(next_range) = iter.next() {
-                if cur_span.end().steps_between(next_range.start()) == 1 {
-                    span = Some(Span::new(cur_span.start(), next_range.end()));
+                if cur_range.last().steps_between(next_range.start()) == 1 {
+                    range = Some(RangeU8::new(cur_range.start(), next_range.last()));
                     continue;
                 } else {
-                    std::fmt::Display::fmt(&cur_span, f)?;
+                    std::fmt::Display::fmt(&cur_range.display(), f)?;
                     f.write_str(" | ")?;
-                    span = Some(next_range);
+                    range = Some(next_range);
                 }
             } else {
-                std::fmt::Display::fmt(&cur_span, f)?;
+                std::fmt::Display::fmt(&cur_range.display(), f)?;
                 break;
             }
         }
@@ -347,13 +346,13 @@ macro_rules! impl_fmt {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 f.write_char('[')?;
                 let mut first_iter = true;
-                for span in self.spans() {
+                for range in self.ranges() {
                     if first_iter {
                         first_iter = false;
                     } else {
                         f.write_str(" | ")?;
                     }
-                    ::std::fmt::$trait::fmt(&span, f)?;
+                    ::std::fmt::$trait::fmt(&range, f)?;
                 }
 
                 if self.contains(crate::symbol::Epsilon) {
@@ -414,13 +413,13 @@ impl std::iter::Iterator for SymbolIter<'_> {
     }
 }
 
-pub struct SpanIter<'a> {
+pub struct RangeIter<'a> {
     chunks: &'a [u64; BITMAP_LEN],
     chunk: u64,
     shift: u32,
 }
 
-impl<'a> SpanIter<'a> {
+impl<'a> RangeIter<'a> {
     fn new(bitmap: &'a [u64; BITMAP_LEN]) -> Self {
         Self {
             chunks: bitmap,
@@ -430,8 +429,8 @@ impl<'a> SpanIter<'a> {
     }
 }
 
-impl std::iter::Iterator for SpanIter<'_> {
-    type Item = Span;
+impl std::iter::Iterator for RangeIter<'_> {
+    type Item = RangeU8;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -447,7 +446,7 @@ impl std::iter::Iterator for SpanIter<'_> {
                 let start = trailing_zeros + self.shift;
                 let end = trailing_ones - 1 + self.shift;
 
-                return Some(Span::new_unchecked(start as u8, end as u8));
+                return Some(RangeU8::new_unchecked(start as u8, end as u8));
             }
 
             if self.shift < SHIFT_OVERFLOW - 64 {

@@ -11,15 +11,8 @@ pub use node::Node;
 
 mod ops;
 
-mod private {
-    pub trait Sealed {}
-}
-
-mod span;
-pub use span::{Span, span};
-
 mod symbol;
-pub use symbol::{Epsilon, Symbol};
+pub use symbol::Epsilon;
 
 mod transition;
 pub use transition::Transition;

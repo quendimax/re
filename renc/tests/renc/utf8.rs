@@ -1,28 +1,28 @@
 use arrayvec::ArrayVec;
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
+use redt::{Range, range};
 use regex_syntax::utf8::Utf8Sequences;
-use regr::{Span, span};
 use renc::{Encoder, Error, Result, Utf8Coder};
 use std::ops::RangeInclusive;
 
 static CODER: Utf8Coder = Utf8Coder;
 
-type Sequence = ArrayVec<Span, 4>;
+type Sequence = ArrayVec<Range<u8>, 4>;
 
 // CAP == 11 found with bruteforcing all utf8 range sequences
 type Sequences = ArrayVec<Sequence, 11>;
 
-fn arr<T: Clone, const CAP: usize>(spans: &[T]) -> ArrayVec<T, CAP> {
-    ArrayVec::<T, CAP>::try_from(spans).unwrap()
+fn arr<T: Clone, const CAP: usize>(ranges: &[T]) -> ArrayVec<T, CAP> {
+    ArrayVec::<T, CAP>::try_from(ranges).unwrap()
 }
 
 fn encode_range(range: RangeInclusive<u32>) -> Result<Sequences> {
     let mut seq = Sequences::new();
     let start = *range.start();
     let end = *range.end();
-    Utf8Coder.encode_range(start, end, |spans| {
-        seq.push(Sequence::try_from(spans).unwrap())
+    Utf8Coder.encode_range(start, end, |ranges| {
+        seq.push(Sequence::try_from(ranges).unwrap())
     })?;
     Ok(seq)
 }
@@ -39,7 +39,7 @@ fn expect_range(range: RangeInclusive<u32>) -> Result<Sequences> {
     let seq = Utf8Sequences::new(start, end)
         .map(|s| {
             s.into_iter()
-                .map(|r| Span::new(r.start, r.end))
+                .map(|r| Range::new(r.start, r.end))
                 .collect::<Sequence>()
         })
         .collect::<Sequences>();
@@ -131,9 +131,9 @@ fn encode_str_fails() {
 
 #[test]
 fn encode_one_byte_ranges() {
-    assert_eq!(encode_range(0..=0), Ok(arr(&[arr(&[span(0..=0)])])));
-    assert_eq!(encode_range(0..=23), Ok(arr(&[arr(&[span(0..=23)])])));
-    assert_eq!(encode_range(0..=0x7F), Ok(arr(&[arr(&[span(0..=0x7F)])])));
+    assert_eq!(encode_range(0..=0), Ok(arr(&[arr(&[range(0..=0)])])));
+    assert_eq!(encode_range(0..=23), Ok(arr(&[arr(&[range(0..=23)])])));
+    assert_eq!(encode_range(0..=0x7F), Ok(arr(&[arr(&[range(0..=0x7F)])])));
 }
 
 #[test]
@@ -141,24 +141,24 @@ fn encode_two_byte_ranges() {
     assert_eq!(
         encode_range(0x80..=0x81),
         Ok(arr(&[arr(&[
-            span(0b110_00010..=0b110_00010),
-            span(0b10_000000..=0b10_000001)
+            range(0b110_00010..=0b110_00010),
+            range(0b10_000000..=0b10_000001)
         ])]))
     );
     assert_eq!(
         encode_range(0x83..=0x734),
         Ok(arr(&[
             arr(&[
-                span(0b110_00010..=0b110_00010),
-                span(0b10_000011..=0b10_111111)
+                range(0b110_00010..=0b110_00010),
+                range(0b10_000011..=0b10_111111)
             ]),
             arr(&[
-                span(0b110_00011..=0b110_11011),
-                span(0b10_000000..=0b10_111111)
+                range(0b110_00011..=0b110_11011),
+                range(0b10_000000..=0b10_111111)
             ]),
             arr(&[
-                span(0b110_11100..=0b110_11100),
-                span(0b10_000000..=0b10_110100)
+                range(0b110_11100..=0b110_11100),
+                range(0b10_000000..=0b10_110100)
             ]),
         ]))
     );
@@ -166,20 +166,20 @@ fn encode_two_byte_ranges() {
         encode_range(0x83..=0xD6),
         Ok(arr(&[
             arr(&[
-                span(0b110_00010..=0b110_00010),
-                span(0b10_000011..=0b10_111111)
+                range(0b110_00010..=0b110_00010),
+                range(0b10_000011..=0b10_111111)
             ]),
             arr(&[
-                span(0b110_00011..=0b110_00011),
-                span(0b10_000000..=0b10_010110)
+                range(0b110_00011..=0b110_00011),
+                range(0b10_000000..=0b10_010110)
             ]),
         ]))
     );
     assert_eq!(
         encode_range(0x80..=0x7FF),
         Ok(arr(&[arr(&[
-            span(0b110_00010..=0b110_11111),
-            span(0b10_000000..=0b10_111111)
+            range(0b110_00010..=0b110_11111),
+            range(0b10_000000..=0b10_111111)
         ])]))
     );
 }
@@ -223,7 +223,7 @@ fn encode_entire_range() {
     let mut seq = Sequences::new();
     assert!(
         Utf8Coder
-            .encode_entire_range(|spans| seq.push(arr(spans)))
+            .encode_entire_range(|ranges| seq.push(arr(ranges)))
             .is_ok()
     );
     seq.sort();

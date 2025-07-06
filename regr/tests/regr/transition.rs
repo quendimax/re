@@ -1,5 +1,10 @@
 use pretty_assertions::assert_eq;
-use regr::{Epsilon, Span, Transition, span};
+use redt::RangeU8;
+use regr::{Epsilon, Transition};
+
+fn brange(range: impl Into<RangeU8>) -> RangeU8 {
+    range.into()
+}
 
 #[test]
 fn transition_new() {
@@ -56,57 +61,65 @@ fn transition_symbols() {
 
 #[test]
 fn transition_ranges() {
-    type Vec = smallvec::SmallVec<[Span; 4]>;
+    type Vec = smallvec::SmallVec<[RangeU8; 4]>;
     fn ranges(a: u64, b: u64, c: u64, d: u64) -> Vec {
         let smap = Transition::new(&[a, b, c, d]);
-        smap.spans().collect::<Vec>()
+        smap.ranges().collect::<Vec>()
     }
-    fn vec<const N: usize>(buf: [Span; N]) -> Vec {
-        Vec::from(&buf as &[Span])
+    fn vec<const N: usize>(buf: [RangeU8; N]) -> Vec {
+        Vec::from(&buf as &[RangeU8])
     }
 
     assert_eq!(ranges(0, 0, 0, 0), vec([]));
-    assert_eq!(ranges(255, 0, 0, 0), vec([span(0..=7)]));
-    assert_eq!(ranges(255, 255, 0, 0), vec([span(0..=7), span(64..=71)]));
-    assert_eq!(ranges(0, 255, 0, 0), vec([span(64..=71)]));
-    assert_eq!(ranges(0, 0, 0, 255), vec([span(192..=199)]));
+    assert_eq!(ranges(255, 0, 0, 0), vec([brange(0..=7)]));
+    assert_eq!(
+        ranges(255, 255, 0, 0),
+        vec([brange(0..=7), brange(64..=71)])
+    );
+    assert_eq!(ranges(0, 255, 0, 0), vec([brange(64..=71)]));
+    assert_eq!(ranges(0, 0, 0, 255), vec([brange(192..=199)]));
     assert_eq!(
         ranges(255, 255, 255, 255),
-        vec([span(0..=7), span(64..=71), span(128..=135), span(192..=199)])
+        vec([
+            brange(0..=7),
+            brange(64..=71),
+            brange(128..=135),
+            brange(192..=199)
+        ])
     );
-    assert_eq!(ranges(u64::MAX, 0, 0, 0), vec([span(0..=63)]));
-    assert_eq!(ranges(0, u64::MAX, 0, 0), vec([span(64..=127)]));
-    assert_eq!(ranges(0, 0, u64::MAX, 0), vec([span(128..=191)]));
-    assert_eq!(ranges(0, 0, 0, u64::MAX), vec([span(192..=255)]));
+    assert_eq!(ranges(u64::MAX, 0, 0, 0), vec([brange(0..=63)]));
+    assert_eq!(ranges(0, u64::MAX, 0, 0), vec([brange(64..=127)]));
+    assert_eq!(ranges(0, 0, u64::MAX, 0), vec([brange(128..=191)]));
+    assert_eq!(ranges(0, 0, 0, u64::MAX), vec([brange(192..=255)]));
     assert_eq!(
         ranges(u64::MAX, 0, 0, u64::MAX),
-        vec([span(0..=63), span(192..=255)])
+        vec([brange(0..=63), brange(192..=255)])
     );
     assert_eq!(
         ranges(u64::MAX, u64::MAX, u64::MAX, u64::MAX),
         vec([
-            span(0..=63),
-            span(64..=127),
-            span(128..=191),
-            span(192..=255)
+            brange(0..=63),
+            brange(64..=127),
+            brange(128..=191),
+            brange(192..=255)
         ])
     );
-    assert_eq!(ranges(1, 0, 0, 0), vec([span(0)]));
+    assert_eq!(ranges(1, 0, 0, 0), vec([brange(0)]));
     assert_eq!(
         ranges(0x8000000000000001, 0, 0, 0),
-        vec([span(0), span(63)])
+        vec([brange(0), brange(63)])
     );
     assert_eq!(
         ranges(0x8000000000000001, 0x8000000000000001, 0, 0),
-        vec([span(0), span(63), span(64), span(127)])
+        vec([brange(0), brange(63), brange(64), brange(127)])
     );
     assert_eq!(
         ranges(0xC000000000000007, 0x1F000001, 0, 0),
-        vec([span(0..=2), span(62..=63), span(64), span(88..=92)])
+        vec([brange(0..=2), brange(62..=63), brange(64), brange(88..=92)])
     );
 
     let tr = Transition::epsilon();
-    assert_eq!(tr.spans().next(), None);
+    assert_eq!(tr.ranges().next(), None);
 }
 
 #[test]
@@ -121,15 +134,15 @@ fn transition_contains_symbol() {
 }
 
 #[test]
-fn transition_contains_span() {
+fn transition_contains_range() {
     let tr = Transition::from_symbols(&[0, 1, 5, 6, 7, 255]);
-    assert!(tr.contains(span(0)));
-    assert!(tr.contains(span(0..=1)));
-    assert!(tr.contains(&span(5..=7)));
-    assert!(tr.contains(span(255)));
-    assert!(!tr.contains(span(0..=3)));
-    assert!(!tr.contains(&span(2..=4)));
-    assert!(!tr.contains(span(254)));
+    assert!(tr.contains(brange(0)));
+    assert!(tr.contains(brange(0..=1)));
+    assert!(tr.contains(&brange(5..=7)));
+    assert!(tr.contains(brange(255)));
+    assert!(!tr.contains(brange(0..=3)));
+    assert!(!tr.contains(&brange(2..=4)));
+    assert!(!tr.contains(brange(254)));
 }
 
 #[test]
@@ -180,13 +193,13 @@ fn transition_intersects_symbol() {
 }
 
 #[test]
-fn transition_intersects_span() {
+fn transition_intersects_range() {
     let tr = Transition::from_symbols(b"\x00bcde\xFF");
-    assert_eq!(tr.intersects(span(0..=255)), true);
-    assert_eq!(tr.intersects(span(0)), true);
-    assert_eq!(tr.intersects(span(b'a'..=b'b')), true);
-    assert_eq!(tr.intersects(&span(255)), true);
-    assert_eq!(tr.intersects(&span(102..=254)), false);
+    assert_eq!(tr.intersects(brange(0..=255)), true);
+    assert_eq!(tr.intersects(brange(0)), true);
+    assert_eq!(tr.intersects(brange(b'a'..=b'b')), true);
+    assert_eq!(tr.intersects(&brange(255)), true);
+    assert_eq!(tr.intersects(&brange(102..=254)), false);
     assert_eq!(tr.intersects(254), false);
 }
 
@@ -234,57 +247,57 @@ fn transition_merge_symbol() {
 }
 
 #[test]
-fn transition_merge_span() {
-    fn check(span: impl Into<Span>) -> Option<Span> {
-        let span = span.into();
+fn transition_merge_range() {
+    fn check(range: impl Into<RangeU8>) -> Option<RangeU8> {
+        let range = range.into();
         let mut a = Transition::default();
-        a.merge(&span);
-        a.merge(span);
-        let mut range: Option<Span> = None;
-        for next_range in a.spans() {
+        a.merge(&range);
+        a.merge(range);
+        let mut range: Option<RangeU8> = None;
+        for next_range in a.ranges() {
             range = if let Some(range) = range {
-                Some(range.merge(next_range))
+                Some(range.merge(&next_range))
             } else {
                 Some(next_range)
             }
         }
         range
     }
-    assert_eq!(check(0..=2), Some(span(0..=2)));
-    assert_eq!(check(3..=12), Some(span(3..=12)));
-    assert_eq!(check(0..=63), Some(span(0..=63)));
-    assert_eq!(check(0..=100), Some(span(0..=100)));
-    assert_eq!(check(63..=127), Some(span(63..=127)));
-    assert_eq!(check(63..=200), Some(span(63..=200)));
-    assert_eq!(check(0..=255), Some(span(0..=255)));
-    assert_eq!(check(192..=255), Some(span(192..=255)));
+    assert_eq!(check(0..=2), Some(brange(0..=2)));
+    assert_eq!(check(3..=12), Some(brange(3..=12)));
+    assert_eq!(check(0..=63), Some(brange(0..=63)));
+    assert_eq!(check(0..=100), Some(brange(0..=100)));
+    assert_eq!(check(63..=127), Some(brange(63..=127)));
+    assert_eq!(check(63..=200), Some(brange(63..=200)));
+    assert_eq!(check(0..=255), Some(brange(0..=255)));
+    assert_eq!(check(192..=255), Some(brange(192..=255)));
 }
 
 #[test]
 fn transition_merge_range_inclusive() {
-    fn check(range: impl Into<std::ops::RangeInclusive<u8>>) -> Option<Span> {
+    fn check(range: impl Into<std::ops::RangeInclusive<u8>>) -> Option<RangeU8> {
         let range = range.into();
         let mut a = Transition::default();
         a.merge(&range);
         a.merge(range);
-        let mut span: Option<Span> = None;
-        for next_range in a.spans() {
-            span = if let Some(range) = span {
-                Some(range.merge(next_range))
+        let mut range: Option<RangeU8> = None;
+        for next_range in a.ranges() {
+            range = if let Some(range) = range {
+                Some(range.merge(&next_range))
             } else {
                 Some(next_range)
             }
         }
-        span
+        range
     }
-    assert_eq!(check(0..=2), Some(span(0..=2)));
-    assert_eq!(check(3..=12), Some(span(3..=12)));
-    assert_eq!(check(0..=63), Some(span(0..=63)));
-    assert_eq!(check(0..=100), Some(span(0..=100)));
-    assert_eq!(check(63..=127), Some(span(63..=127)));
-    assert_eq!(check(63..=200), Some(span(63..=200)));
-    assert_eq!(check(0..=255), Some(span(0..=255)));
-    assert_eq!(check(192..=255), Some(span(192..=255)));
+    assert_eq!(check(0..=2), Some(brange(0..=2)));
+    assert_eq!(check(3..=12), Some(brange(3..=12)));
+    assert_eq!(check(0..=63), Some(brange(0..=63)));
+    assert_eq!(check(0..=100), Some(brange(0..=100)));
+    assert_eq!(check(63..=127), Some(brange(63..=127)));
+    assert_eq!(check(63..=200), Some(brange(63..=200)));
+    assert_eq!(check(0..=255), Some(brange(0..=255)));
+    assert_eq!(check(192..=255), Some(brange(192..=255)));
 }
 
 #[test]
