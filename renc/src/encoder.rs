@@ -1,8 +1,8 @@
 use crate::error::Result;
 use redt::Range;
 
-/// This trait helps convert unicode code points into byte sequeces
-/// corresponding encoding way chosen by user.
+/// This trait helps convert unicode code points into byte sequences
+/// corresponding to the encoding way chosen by the user.
 pub trait Encoder {
     /// Minimum code point that can be encoded by this coder.
     const MIN_CODE_POINT: u32;

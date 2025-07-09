@@ -4,7 +4,7 @@ pub use arena::Arena;
 mod graph;
 pub use graph::{AutomatonKind, Graph};
 
-pub mod node;
+mod node;
 pub use node::Node;
 
 mod ops;

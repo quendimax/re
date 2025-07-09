@@ -1,6 +1,6 @@
 use num_traits::Num;
 
-/// This trait adds some functionality needed by [`regr::Range`] type.
+/// This trait adds some functionality needed by [`crate::Range`] type.
 ///
 /// It could be based on [`std::iter::Step`] trait, but it is unstable yet.
 pub trait Step: Num + Copy {

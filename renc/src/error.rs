@@ -28,7 +28,7 @@ pub enum Error {
     /// (U+0000 to U+10FFFF).
     ///
     /// This error doesn't evolved for surrogate code points. Look at
-    /// [`CodecError::SurrogateUnsupported`] for that.
+    /// [`Error::SurrogateUnsupported`] for that.
     ///
     /// # Parameters
     ///

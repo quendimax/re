@@ -28,7 +28,7 @@ impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
     }
 
     /// Parses a regular expression specified with `pattern` using `start_node`
-    /// as the first node for the builded graph.
+    /// as the first node for the built graph.
     ///
     /// Returns last node of the result graph. This node is not accepable by
     /// default. Make this acceptable by yourself if it is needed.
