@@ -286,13 +286,14 @@ impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
             }
             got => return err::unexpected_token(got, "'}' or ','"),
         };
-        if let Some(second_num) = second_num {
-            if first_num == 0 && second_num == 0 {
-                // `x{0}` and `x{0,0}` are an empty transition. Because of it is
-                // difficult to implement it `perfectly` in current implementation,
-                // I just forbid it.
-                return err::nonsense_value(first_num);
-            }
+        if let Some(second_num) = second_num
+            && first_num == 0
+            && second_num == 0
+        {
+            // `x{0}` and `x{0,0}` are an empty transition. Because of it is
+            // difficult to implement it `perfectly` in current implementation,
+            // I just forbid it.
+            return err::nonsense_value(first_num);
         }
         self.lexer.expect('}')?;
         let (mut start_node, mut end_node) = (item_start, item_end);
@@ -705,11 +706,11 @@ impl<'s> Lexer<'s> {
         if let Some(c) = self.peeked {
             return Some(c);
         }
-        if let Some(iter) = self.iter.as_mut() {
-            if let Some(c) = iter.next() {
-                self.peeked = Some(c);
-                return Some(c);
-            }
+        if let Some(iter) = self.iter.as_mut()
+            && let Some(c) = iter.next()
+        {
+            self.peeked = Some(c);
+            return Some(c);
         }
         None
     }
