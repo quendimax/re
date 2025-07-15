@@ -86,7 +86,7 @@ impl<'a> Codgen {
         tr_table
     }
 
-    pub fn produce(&self) -> TokenStream {
+    pub fn impl_state_machine(&self) -> TokenStream {
         let tr_table_len: usize = self.tr_table.len();
         let mut tr_table_lines = Vec::new();
         for line in &self.tr_table {
@@ -165,6 +165,116 @@ impl<'a> Codgen {
                     } as usize;
 
                     debug_assert!(self.state < Self::STATES_NUM, "invalid new state value {state}");
+                }
+            }
+        }
+    }
+
+    pub fn impl_match(&self) -> TokenStream {
+        quote! {
+            struct Match0<'h> {
+                capture: &'h str,
+                start: usize,
+            }
+
+            impl<'h> Match0<'h> {
+                #[inline]
+                pub fn start(&self) -> usize {
+                    self.start
+                }
+
+                #[inline]
+                fn end(&self) -> usize {
+                    self.start + self.capture.len()
+                }
+
+                #[inline]
+                fn len(&self) -> usize {
+                    self.capture.len()
+                }
+
+                #[inline]
+                fn is_empty(&self) -> bool {
+                    self.capture.is_empty()
+                }
+
+                #[inline]
+                fn range(&self) -> std::ops::Range<usize> {
+                    self.start..self.end()
+                }
+
+                #[inline]
+                fn as_str(&self) -> &'h str {
+                    self.capture
+                }
+
+                #[inline]
+                pub fn as_bytes(&self) -> &'h [u8] {
+                    self.as_str().as_bytes()
+                }
+            }
+
+            impl<'h> MatchBytes<'h> for Match0<'h> {
+                #[inline]
+                fn start(&self) -> usize {
+                    self.start()
+                }
+
+                #[inline]
+                fn end(&self) -> usize {
+                    self.end()
+                }
+
+                #[inline]
+                fn len(&self) -> usize {
+                    self.len()
+                }
+
+                #[inline]
+                fn is_empty(&self) -> bool {
+                    self.is_empty()
+                }
+
+                #[inline]
+                fn range(&self) -> std::ops::Range<usize> {
+                    self.range()
+                }
+
+                #[inline]
+                fn as_bytes(&self) -> &'h [u8] {
+                    self.as_bytes()
+                }
+            }
+
+            impl<'h> MatchStr<'h> for Match0<'h> {
+                #[inline]
+                fn as_str(&self) -> &'h str {
+                    self.as_str()
+                }
+            }
+        }
+    }
+
+    pub fn impl_regex(&self) -> TokenStream {
+        quote! {
+            pub(crate) struct Regex {
+                state_machine: StateMachine,
+            }
+
+            impl Regex {
+                pub(crate) fn new() -> Self {
+                    Self {
+                        state_machine: StateMachine::new(),
+                    }
+                }
+
+                pub fn match_at<'h>(&mut self, haystack: &'h str) -> Option<Match<'h>>{
+                    for byte in haystack.as_bytes().iter() {
+                        self.state_machine.next(byte);
+                        if self.state_machine.is_acceptable() {
+                            Match
+                        }
+                    }
                 }
             }
         }

@@ -40,7 +40,7 @@ fn codgen_produce() {
     let cd = Codgen::new(&gr);
 
     assert_eq!(
-        pretty(cd.produce()),
+        pretty(cd.impl_state_machine()),
         pretty(quote! {
             struct StateMachine {
                 state: usize,

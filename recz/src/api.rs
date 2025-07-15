@@ -3,8 +3,6 @@
 //! place their creation.
 
 pub trait RegexBytes {
-    fn match_to<'h>(&self, haystack: &'h [u8]) -> Option<impl MatchBytes<'h>>;
-
     fn match_at<'h>(&self, haystack: &'h [u8], start: usize) -> Option<impl MatchBytes<'h>>;
 
     fn match_iter<'h>(&self, haystack: &'h [u8]) -> impl Iterator<Item = impl MatchBytes<'h>>;
@@ -24,7 +22,7 @@ pub trait MatchBytes<'h> {
 
     #[inline]
     fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.start() == self.end()
     }
 
     #[inline]
@@ -34,10 +32,6 @@ pub trait MatchBytes<'h> {
 }
 
 pub trait RegexStr {
-    fn is_match(&self, haystack: &str) -> bool;
-
-    fn match_to<'h>(&self, haystack: &'h str) -> Option<impl MatchStr<'h>>;
-
     fn match_at<'h>(&self, haystack: &'h str, start: usize) -> Option<impl MatchStr<'h>>;
 
     fn match_iter<'h>(&self, haystack: &'h str) -> impl Iterator<Item = impl MatchStr<'h>>;
@@ -57,16 +51,49 @@ mod utest {
         let re = {
             use super::*;
 
-            struct MyMatch<'h> {
+            struct Match0<'h> {
                 capture: &'h str,
+                start: usize,
             }
 
-            impl<'h> MatchBytes<'h> for MyMatch<'h> {
+            impl<'h> Match0<'h> {
                 #[inline]
-                fn as_bytes(&self) -> &'h [u8] {
-                    self.as_bytes()
+                pub fn start(&self) -> usize {
+                    self.start
                 }
 
+                #[inline]
+                fn end(&self) -> usize {
+                    self.start + self.capture.len()
+                }
+
+                #[inline]
+                fn len(&self) -> usize {
+                    self.capture.len()
+                }
+
+                #[inline]
+                fn is_empty(&self) -> bool {
+                    self.capture.is_empty()
+                }
+
+                #[inline]
+                fn range(&self) -> std::ops::Range<usize> {
+                    self.start..self.end()
+                }
+
+                #[inline]
+                fn as_str(&self) -> &'h str {
+                    self.capture
+                }
+
+                #[inline]
+                pub fn as_bytes(&self) -> &'h [u8] {
+                    self.as_str().as_bytes()
+                }
+            }
+
+            impl<'h> MatchBytes<'h> for Match0<'h> {
                 #[inline]
                 fn start(&self) -> usize {
                     self.start()
@@ -76,95 +103,76 @@ mod utest {
                 fn end(&self) -> usize {
                     self.end()
                 }
-            }
-
-            impl<'h> MatchStr<'h> for MyMatch<'h> {
-                #[inline]
-                fn as_str(&self) -> &'h str {
-                    self.capture
-                }
-            }
-
-            impl<'h> MyMatch<'h> {
-                #[inline]
-                pub fn as_bytes(&self) -> &'h [u8] {
-                    self.capture.as_bytes()
-                }
-
-                #[inline]
-                pub fn start(&self) -> usize {
-                    0
-                }
-
-                #[inline]
-                fn end(&self) -> usize {
-                    1
-                }
 
                 #[inline]
                 fn len(&self) -> usize {
-                    self.end() - self.start()
+                    self.len()
                 }
 
                 #[inline]
                 fn is_empty(&self) -> bool {
-                    self.len() == 0
+                    self.is_empty()
                 }
 
                 #[inline]
                 fn range(&self) -> std::ops::Range<usize> {
-                    self.start()..self.end()
+                    self.range()
                 }
 
                 #[inline]
-                fn as_str(&self) -> &'h str {
-                    self.capture
+                fn as_bytes(&self) -> &'h [u8] {
+                    self.as_bytes()
                 }
             }
 
-            struct MyRegex;
-
-            impl RegexBytes for MyRegex {
-                fn match_to<'h>(&self, haystack: &'h [u8]) -> Option<impl MatchBytes<'h>> {
-                    self.match_to(haystack)
+            impl<'h> MatchStr<'h> for Match0<'h> {
+                #[inline]
+                fn as_str(&self) -> &'h str {
+                    self.as_str()
                 }
+            }
 
+            struct Regex;
+
+            impl RegexStr for Regex {
                 fn match_at<'h>(
                     &self,
-                    haystack: &'h [u8],
+                    haystack: &'h str,
                     start: usize,
-                ) -> Option<impl MatchBytes<'h>> {
+                ) -> Option<impl MatchStr<'h>> {
                     self.match_at(haystack, start)
                 }
 
                 fn match_iter<'h>(
                     &self,
-                    _haystack: &'h [u8],
-                ) -> impl Iterator<Item = impl MatchBytes<'h>> {
-                    [MyMatch { capture: "" }].into_iter()
+                    haystack: &'h str,
+                ) -> impl Iterator<Item = impl MatchStr<'h>> {
+                    [Match0 {
+                        capture: haystack,
+                        start: 0,
+                    }]
+                    .into_iter()
                 }
             }
 
-            impl MyRegex {
-                fn match_to<'h>(&self, _haystack: &'h [u8]) -> Option<MyMatch<'h>> {
-                    Some(MyMatch { capture: "hello" })
-                }
-
-                fn match_at<'h>(&self, _haystack: &'h [u8], _start: usize) -> Option<MyMatch<'h>> {
-                    Some(MyMatch { capture: "hello" })
+            impl Regex {
+                fn match_at<'h>(&self, haystack: &'h str, _start: usize) -> Option<Match0<'h>> {
+                    Some(Match0 {
+                        capture: &haystack[0..haystack.len()],
+                        start: 0,
+                    })
                 }
             }
 
-            MyRegex
+            Regex
         };
 
-        let m = re.match_to(b"hello").unwrap();
-        let _ = re.match_at(b"hello", 0).unwrap();
+        let m = re.match_at("hello", 0).unwrap();
         assert_eq!(m.start(), 0);
-        assert_eq!(m.end(), 1);
-        assert_eq!(m.len(), 1);
+        assert_eq!(m.end(), 5);
+        assert_eq!(m.len(), 5);
         assert!(!m.is_empty());
-        assert_eq!(m.range(), 0..1);
+        assert_eq!(m.range(), 0..5);
         assert_eq!(m.as_str(), "hello");
         assert_eq!(m.as_bytes(), &[104, 101, 108, 108, 111]);
 
