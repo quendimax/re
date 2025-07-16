@@ -134,6 +134,12 @@ impl<'a> Graph<'a> {
                 }
 
                 let dfa_node = self.dfa.node();
+                for nfa_node in nfa_closure.iter() {
+                    if nfa_node.is_acceptable() {
+                        dfa_node.acceptize();
+                        break;
+                    }
+                }
                 self.convert_map.insert(Rc::clone(&nfa_closure), dfa_node);
 
                 for symbol in u8::MIN..=u8::MAX {

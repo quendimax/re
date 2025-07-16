@@ -40,8 +40,9 @@ fn codgen_produce() {
     let cd = Codgen::new(&gr);
 
     assert_eq!(
-        pretty(cd.impl_state_machine()),
+        pretty(cd.gen_state_machine()),
         pretty(quote! {
+            #[derive(Debug)]
             struct StateMachine {
                 state: usize,
             }
@@ -96,14 +97,23 @@ fn codgen_produce() {
                 }
 
                 #[inline]
+                fn is_invalid(&self) -> bool {
+                    self.state == Self::INVALID_STATE
+                }
+
+                #[inline]
                 fn next(&mut self, byte: u8) {
-                    self.state = unsafe {
+                    self.state = *unsafe {
                         Self::TRANSITION_TABLE
-                            .get_unchecked(state)
+                            .get_unchecked(self.state)
                             .get_unchecked(byte as usize)
                     } as usize;
 
-                    debug_assert!(self.state < Self::STATES_NUM, "invalid new state value {state}");
+                    debug_assert!(
+                        self.state < Self::STATES_NUM,
+                        "invalid new state value {}",
+                        self.state,
+                    );
                 }
             }
         })

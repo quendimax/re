@@ -12,7 +12,11 @@ proc-macro = true
 [dependencies]
 proc-macro2.workspace = true
 quote.workspace = true
+regn = { path = "../regn" }
 regr = { path = "../regr" }
 renc = { path = "../renc" }
 resy = { path = "../resy" }
 syn.workspace = true
+
+[dev-dependencies]
+recz = { path = "../recz" }

@@ -86,7 +86,7 @@ impl<'a> Codgen {
         tr_table
     }
 
-    pub fn impl_state_machine(&self) -> TokenStream {
+    pub fn gen_state_machine(&self) -> TokenStream {
         let tr_table_len: usize = self.tr_table.len();
         let mut tr_table_lines = Vec::new();
         for line in &self.tr_table {
@@ -120,6 +120,7 @@ impl<'a> Codgen {
         let min_accept_state = self.min_accept_id;
 
         quote! {
+            #[derive(Debug)]
             struct StateMachine {
                 state: usize,
             }
@@ -157,27 +158,37 @@ impl<'a> Codgen {
                 }
 
                 #[inline]
+                fn is_invalid(&self) -> bool {
+                    self.state == Self::INVALID_STATE
+                }
+
+                #[inline]
                 fn next(&mut self, byte: u8) {
-                    self.state = unsafe {
+                    self.state = *unsafe {
                         Self::TRANSITION_TABLE
-                            .get_unchecked(state)
+                            .get_unchecked(self.state)
                             .get_unchecked(byte as usize)
                     } as usize;
 
-                    debug_assert!(self.state < Self::STATES_NUM, "invalid new state value {state}");
+                    debug_assert!(
+                        self.state < Self::STATES_NUM,
+                        "invalid new state value {}",
+                        self.state,
+                    );
                 }
             }
         }
     }
 
-    pub fn impl_match(&self) -> TokenStream {
+    pub fn gen_match(&self) -> TokenStream {
         quote! {
-            struct Match0<'h> {
+            #[derive(Debug)]
+            struct Match<'h> {
                 capture: &'h str,
                 start: usize,
             }
 
-            impl<'h> Match0<'h> {
+            impl<'h> Match<'h> {
                 #[inline]
                 pub fn start(&self) -> usize {
                     self.start
@@ -214,7 +225,7 @@ impl<'a> Codgen {
                 }
             }
 
-            impl<'h> MatchBytes<'h> for Match0<'h> {
+            impl<'h> ::recz::MatchBytes<'h> for Match<'h> {
                 #[inline]
                 fn start(&self) -> usize {
                     self.start()
@@ -246,7 +257,7 @@ impl<'a> Codgen {
                 }
             }
 
-            impl<'h> MatchStr<'h> for Match0<'h> {
+            impl<'h> ::recz::MatchStr<'h> for Match<'h> {
                 #[inline]
                 fn as_str(&self) -> &'h str {
                     self.as_str()
@@ -255,9 +266,10 @@ impl<'a> Codgen {
         }
     }
 
-    pub fn impl_regex(&self) -> TokenStream {
+    pub fn gen_regex(&self) -> TokenStream {
         quote! {
-            pub(crate) struct Regex {
+            #[derive(Debug)]
+            pub struct Regex {
                 state_machine: StateMachine,
             }
 
@@ -268,12 +280,32 @@ impl<'a> Codgen {
                     }
                 }
 
-                pub fn match_at<'h>(&mut self, haystack: &'h str) -> Option<Match<'h>>{
-                    for byte in haystack.as_bytes().iter() {
-                        self.state_machine.next(byte);
+                pub fn match_at<'h>(&mut self, haystack: &'h str, start: usize) -> Option<Match<'h>>{
+                    let mut acceptable_index = None;
+                    if self.state_machine.is_acceptable() {
+                        acceptable_index = Some(0);
+                    }
+                    for (i, byte) in haystack[start..].as_bytes().iter().enumerate() {
+                        dbg!("------------------", &self.state_machine);
+                        self.state_machine.next(*byte);
                         if self.state_machine.is_acceptable() {
-                            Match
+                            acceptable_index = Some(i + 1);
                         }
+                        dbg!(&self.state_machine);
+                        if self.state_machine.is_invalid() {
+                            dbg!("is_invalid", &self.state_machine);
+                            acceptable_index = None;
+                            break;
+                        }
+                    }
+                    dbg!("result", &self.state_machine);
+                    if let Some(index) = acceptable_index {
+                        Some(Match {
+                            capture: &haystack[start..start + index],
+                            start,
+                        })
+                    } else {
+                        None
                     }
                 }
             }

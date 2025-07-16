@@ -1,5 +1,6 @@
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
+use regn::Codgen;
 use regr::{Arena, Graph};
 use renc::Utf8Encoder;
 use resy::Parser;
@@ -17,16 +18,32 @@ pub(crate) fn re_impl(input: TokenStream2) -> Result<TokenStream2> {
         ));
     }
 
-    let mut arena = Arena::new();
-    let gr = Graph::nfa_in(&mut arena);
+    let mut nfa_arena = Arena::new();
+    let nfa = Graph::nfa_in(&mut nfa_arena);
 
-    let mut parser = Parser::new(&gr, Utf8Encoder);
+    let mut parser = Parser::new(&nfa, Utf8Encoder);
     let end_node = parser
-        .parse(&lit.value(), gr.start_node())
+        .parse(&lit.value(), nfa.start_node())
         .map_err(|err| syn::Error::new(lit.span(), err))?;
     end_node.acceptize();
 
-    // TODO: generate code for the graph
+    let mut dfa_arena = Arena::new();
+    let dfa = nfa.determine_in(&mut dfa_arena);
 
-    Ok(quote!())
+    let codgen = Codgen::new(&dfa);
+    let state_machine_code = codgen.gen_state_machine();
+    let match_code = codgen.gen_match();
+    let regex_code = codgen.gen_regex();
+
+    Ok(quote!(
+        {
+            #state_machine_code
+
+            #match_code
+
+            #regex_code
+
+            Regex::new()
+        }
+    ))
 }
