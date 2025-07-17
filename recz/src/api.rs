@@ -41,11 +41,9 @@ pub trait MatchStr<'h>: MatchBytes<'h> {
     fn as_str(&self) -> &'h str;
 }
 
-// It is more a playground than a test suite.
+// It is more a playground than a test collection.
 #[cfg(test)]
 mod utest {
-    // #![allow(refining_impl_trait)]
-
     #[test]
     fn test_match() {
         let re = {
