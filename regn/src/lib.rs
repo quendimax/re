@@ -6,14 +6,14 @@ use std::str::FromStr;
 
 type TransitionTable = Vec<[usize; 1 << u8::BITS]>;
 
-pub struct Codgen {
+pub struct CodeGen {
     tr_table: TransitionTable,
     invalid_id: usize,
     start_id: usize,
     min_accept_id: usize,
 }
 
-impl<'a> Codgen {
+impl<'a> CodeGen {
     pub fn new(graph: &Graph<'a>) -> Self {
         assert!(graph.is_dfa(), "only DFA graphs are supported");
         assert!(!graph.is_empty(), "can't generate code for an empty graph");
@@ -21,7 +21,7 @@ impl<'a> Codgen {
         let (id_map, invalid_id, start_id, min_accept_id) = Self::build_id_map(graph);
         let tr_table = Self::build_tr_table(graph, invalid_id, &id_map);
 
-        Codgen {
+        CodeGen {
             tr_table,
             invalid_id,
             start_id,

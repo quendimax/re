@@ -1,7 +1,7 @@
 use pretty_assertions::assert_eq;
 use proc_macro2::TokenStream;
 use quote::quote;
-use regn::Codgen;
+use regn::CodeGen;
 use regr::{Arena, Graph};
 
 fn pretty(tok_stream: TokenStream) -> String {
@@ -13,7 +13,7 @@ fn codegen_new() {
     let mut ar = Arena::new();
     let gr = Graph::dfa_in(&mut ar);
     let _ = gr.node();
-    let _ = Codgen::new(&gr);
+    let _ = CodeGen::new(&gr);
 }
 
 #[test]
@@ -21,7 +21,7 @@ fn codegen_new() {
 fn codgen_new_panics() {
     let mut ar = Arena::new();
     let gr = Graph::nfa_in(&mut ar);
-    let _ = Codgen::new(&gr);
+    let _ = CodeGen::new(&gr);
 }
 
 #[test]
@@ -29,7 +29,7 @@ fn codgen_new_panics() {
 fn codgen_produce_for_empty_graph() {
     let mut ar = Arena::new();
     let gr = Graph::dfa_in(&mut ar);
-    let _ = Codgen::new(&gr);
+    let _ = CodeGen::new(&gr);
 }
 
 #[test]
@@ -37,7 +37,7 @@ fn codgen_produce() {
     let mut ar = Arena::new();
     let gr = Graph::dfa_in(&mut ar);
     let _ = gr.node();
-    let cd = Codgen::new(&gr);
+    let cd = CodeGen::new(&gr);
 
     assert_eq!(
         pretty(cd.gen_state_machine()),

@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use regn::Codgen;
+use regn::CodeGen;
 use regr::{Arena, Graph};
 use renc::Utf8Encoder;
 use resy::Parser;
@@ -30,10 +30,10 @@ pub(crate) fn re_impl(input: TokenStream2) -> Result<TokenStream2> {
     let mut dfa_arena = Arena::new();
     let dfa = nfa.determine_in(&mut dfa_arena);
 
-    let codgen = Codgen::new(&dfa);
-    let state_machine_code = codgen.gen_state_machine();
-    let match_code = codgen.gen_match();
-    let regex_code = codgen.gen_regex();
+    let cogen = CodeGen::new(&dfa);
+    let state_machine_code = cogen.gen_state_machine();
+    let match_code = cogen.gen_match();
+    let regex_code = cogen.gen_regex();
 
     Ok(quote!(
         {
