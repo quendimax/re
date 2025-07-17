@@ -164,7 +164,7 @@ impl<'a> Codgen {
 
                 #[inline]
                 fn next(&mut self, byte: u8) {
-                    debug_assert!(
+                    ::core::debug_assert!(
                         self.state < Self::STATES_NUM,
                         "transition from invalid state {} is not allowed",
                         self.state,
@@ -181,46 +181,47 @@ impl<'a> Codgen {
     }
 
     pub fn gen_match(&self) -> TokenStream {
+        let vis = quote!(pub);
         quote! {
-            #[derive(Debug, PartialEq)]
-            struct Match<'h> {
+            #[derive(Debug, PartialEq, Eq)]
+            #vis struct Match<'h> {
                 capture: &'h str,
                 start: usize,
             }
 
             impl<'h> Match<'h> {
                 #[inline]
-                pub fn start(&self) -> usize {
+                #vis fn start(&self) -> usize {
                     self.start
                 }
 
                 #[inline]
-                fn end(&self) -> usize {
+                #vis fn end(&self) -> usize {
                     self.start + self.capture.len()
                 }
 
                 #[inline]
-                fn len(&self) -> usize {
+                #vis fn len(&self) -> usize {
                     self.capture.len()
                 }
 
                 #[inline]
-                fn is_empty(&self) -> bool {
+                #vis fn is_empty(&self) -> bool {
                     self.capture.is_empty()
                 }
 
                 #[inline]
-                fn range(&self) -> std::ops::Range<usize> {
+                #vis fn range(&self) -> ::core::ops::Range<usize> {
                     self.start..self.end()
                 }
 
                 #[inline]
-                fn as_str(&self) -> &'h str {
+                #vis fn as_str(&self) -> &'h str {
                     self.capture
                 }
 
                 #[inline]
-                pub fn as_bytes(&self) -> &'h [u8] {
+                #vis fn as_bytes(&self) -> &'h [u8] {
                     self.as_str().as_bytes()
                 }
             }
@@ -247,7 +248,7 @@ impl<'a> Codgen {
                 }
 
                 #[inline]
-                fn range(&self) -> std::ops::Range<usize> {
+                fn range(&self) -> ::core::ops::Range<usize> {
                     self.range()
                 }
 
@@ -267,37 +268,33 @@ impl<'a> Codgen {
     }
 
     pub fn gen_regex(&self) -> TokenStream {
+        let vis = quote!(pub);
         quote! {
             #[derive(Debug)]
             pub struct Regex;
 
             impl Regex {
-                pub(crate) fn new() -> Self {
+                #vis fn new() -> Self {
                     Self
                 }
 
-                pub fn match_at<'h>(&mut self, haystack: &'h str, start: usize) -> Option<Match<'h>>{
+                #vis fn match_at<'h>(&mut self, haystack: &'h str, start: usize) -> Option<Match<'h>>{
                     let mut state_machine = StateMachine::new();
 
                     let mut acceptable_index = None;
                     if state_machine.is_acceptable() {
                         acceptable_index = Some(0);
-                        dbg!(&acceptable_index);
                     }
                     for (i, byte) in haystack[start..].as_bytes().iter().enumerate() {
-                        dbg!("------------------", i, &state_machine);
                         state_machine.next(*byte);
                         if state_machine.is_acceptable() {
                             acceptable_index = Some(i + 1);
                             dbg!(&acceptable_index);
                         }
-                        dbg!(&state_machine);
                         if state_machine.is_invalid() {
-                            dbg!("is_invalid", &state_machine);
                             break;
                         }
                     }
-                    dbg!("result", &state_machine);
                     if let Some(index) = acceptable_index {
                         Some(Match {
                             capture: &haystack[start..start + index],

@@ -37,13 +37,15 @@ pub(crate) fn re_impl(input: TokenStream2) -> Result<TokenStream2> {
 
     Ok(quote!(
         {
-            #state_machine_code
+            mod adhoc {
+                #state_machine_code
 
-            #match_code
+                #match_code
 
-            #regex_code
+                #regex_code
+            }
 
-            Regex::new()
+            adhoc::Regex::new()
         }
     ))
 }

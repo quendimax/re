@@ -103,7 +103,7 @@ fn codgen_produce() {
 
                 #[inline]
                 fn next(&mut self, byte: u8) {
-                    debug_assert!(
+                    ::core::debug_assert!(
                         self.state < Self::STATES_NUM,
                         "transition from invalid state {} is not allowed",
                         self.state,
