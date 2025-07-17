@@ -154,7 +154,7 @@ impl<'a> Codgen {
 
                 #[inline]
                 fn is_acceptable(&self) -> bool {
-                    self.state >= Self::MIN_ACCEPT_STATE
+                    self.state >= Self::MIN_ACCEPT_STATE && self.state < Self::INVALID_STATE
                 }
 
                 #[inline]
@@ -164,17 +164,17 @@ impl<'a> Codgen {
 
                 #[inline]
                 fn next(&mut self, byte: u8) {
+                    debug_assert!(
+                        self.state < Self::STATES_NUM,
+                        "transition from invalid state {} is not allowed",
+                        self.state,
+                    );
+
                     self.state = *unsafe {
                         Self::TRANSITION_TABLE
                             .get_unchecked(self.state)
                             .get_unchecked(byte as usize)
                     } as usize;
-
-                    debug_assert!(
-                        self.state < Self::STATES_NUM,
-                        "invalid new state value {}",
-                        self.state,
-                    );
                 }
             }
         }
@@ -182,7 +182,7 @@ impl<'a> Codgen {
 
     pub fn gen_match(&self) -> TokenStream {
         quote! {
-            #[derive(Debug)]
+            #[derive(Debug, PartialEq)]
             struct Match<'h> {
                 capture: &'h str,
                 start: usize,
@@ -269,36 +269,35 @@ impl<'a> Codgen {
     pub fn gen_regex(&self) -> TokenStream {
         quote! {
             #[derive(Debug)]
-            pub struct Regex {
-                state_machine: StateMachine,
-            }
+            pub struct Regex;
 
             impl Regex {
                 pub(crate) fn new() -> Self {
-                    Self {
-                        state_machine: StateMachine::new(),
-                    }
+                    Self
                 }
 
                 pub fn match_at<'h>(&mut self, haystack: &'h str, start: usize) -> Option<Match<'h>>{
+                    let mut state_machine = StateMachine::new();
+
                     let mut acceptable_index = None;
-                    if self.state_machine.is_acceptable() {
+                    if state_machine.is_acceptable() {
                         acceptable_index = Some(0);
+                        dbg!(&acceptable_index);
                     }
                     for (i, byte) in haystack[start..].as_bytes().iter().enumerate() {
-                        dbg!("------------------", &self.state_machine);
-                        self.state_machine.next(*byte);
-                        if self.state_machine.is_acceptable() {
+                        dbg!("------------------", i, &state_machine);
+                        state_machine.next(*byte);
+                        if state_machine.is_acceptable() {
                             acceptable_index = Some(i + 1);
+                            dbg!(&acceptable_index);
                         }
-                        dbg!(&self.state_machine);
-                        if self.state_machine.is_invalid() {
-                            dbg!("is_invalid", &self.state_machine);
-                            acceptable_index = None;
+                        dbg!(&state_machine);
+                        if state_machine.is_invalid() {
+                            dbg!("is_invalid", &state_machine);
                             break;
                         }
                     }
-                    dbg!("result", &self.state_machine);
+                    dbg!("result", &state_machine);
                     if let Some(index) = acceptable_index {
                         Some(Match {
                             capture: &haystack[start..start + index],

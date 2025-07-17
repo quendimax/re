@@ -93,7 +93,7 @@ fn codgen_produce() {
 
                 #[inline]
                 fn is_acceptable(&self) -> bool {
-                    self.state >= Self::MIN_ACCEPT_STATE
+                    self.state >= Self::MIN_ACCEPT_STATE && self.state < Self::INVALID_STATE
                 }
 
                 #[inline]
@@ -103,17 +103,16 @@ fn codgen_produce() {
 
                 #[inline]
                 fn next(&mut self, byte: u8) {
+                    debug_assert!(
+                        self.state < Self::STATES_NUM,
+                        "transition from invalid state {} is not allowed",
+                        self.state,
+                    );
                     self.state = *unsafe {
                         Self::TRANSITION_TABLE
                             .get_unchecked(self.state)
                             .get_unchecked(byte as usize)
                     } as usize;
-
-                    debug_assert!(
-                        self.state < Self::STATES_NUM,
-                        "invalid new state value {}",
-                        self.state,
-                    );
                 }
             }
         })
