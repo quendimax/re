@@ -2,7 +2,7 @@ use arrayvec::ArrayVec;
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use redt::{Range, range};
-use regex_syntax::utf8::Utf8Sequences;
+use regex_syntax::utf8::{Utf8Sequence, Utf8Sequences};
 use renc::{Encoder, Error, Result, Utf8Encoder};
 use std::ops::RangeInclusive;
 
@@ -36,13 +36,38 @@ fn _encode<const N: usize>(start: &[u8; N], end: &[u8; N]) -> Result<Sequences> 
 fn expect_range(range: RangeInclusive<u32>) -> Result<Sequences> {
     let start = char::from_u32(*range.start()).unwrap();
     let end = char::from_u32(*range.end()).unwrap();
-    let seq = Utf8Sequences::new(start, end)
-        .map(|s| {
-            s.into_iter()
-                .map(|r| Range::new(r.start, r.end))
-                .collect::<Sequence>()
-        })
-        .collect::<Sequences>();
+    let mut seq = Sequences::new();
+    Utf8Sequences::new(start, end).for_each(|utf8_seq| {
+        let new_seq = match utf8_seq {
+            Utf8Sequence::One(r) => {
+                let ranges: &[Range<u8>] = &[Range::new(r.start, r.end)];
+                Sequence::try_from(ranges).unwrap()
+            }
+            Utf8Sequence::Two([r1, r2]) => {
+                let ranges: &[Range<u8>] =
+                    &[Range::new(r1.start, r1.end), Range::new(r2.start, r2.end)];
+                Sequence::try_from(ranges).unwrap()
+            }
+            Utf8Sequence::Three([r1, r2, r3]) => {
+                let ranges: &[Range<u8>] = &[
+                    Range::new(r1.start, r1.end),
+                    Range::new(r2.start, r2.end),
+                    Range::new(r3.start, r3.end),
+                ];
+                Sequence::try_from(ranges).unwrap()
+            }
+            Utf8Sequence::Four([r1, r2, r3, r4]) => {
+                let ranges: &[Range<u8>] = &[
+                    Range::new(r1.start, r1.end),
+                    Range::new(r2.start, r2.end),
+                    Range::new(r3.start, r3.end),
+                    Range::new(r4.start, r4.end),
+                ];
+                Sequence::try_from(ranges).unwrap()
+            }
+        };
+        seq.push(new_seq)
+    });
     Ok(seq)
 }
 
