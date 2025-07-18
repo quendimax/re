@@ -43,126 +43,131 @@ pub trait MatchStr<'h>: MatchBytes<'h> {
 
 // It is more a playground than a test collection.
 #[cfg(test)]
-mod utest {
+mod playground {
     #[test]
     fn test_match() {
         let re = {
-            use super::*;
+            mod adhoc {
+                use super::super::*;
 
-            struct Match0<'h> {
-                capture: &'h str,
-                start: usize,
-            }
-
-            impl<'h> Match0<'h> {
-                #[inline]
-                pub fn start(&self) -> usize {
-                    self.start
-                }
-
-                #[inline]
-                fn end(&self) -> usize {
-                    self.start + self.capture.len()
-                }
-
-                #[inline]
-                fn len(&self) -> usize {
-                    self.capture.len()
-                }
-
-                #[inline]
-                fn is_empty(&self) -> bool {
-                    self.capture.is_empty()
-                }
-
-                #[inline]
-                fn range(&self) -> std::ops::Range<usize> {
-                    self.start..self.end()
-                }
-
-                #[inline]
-                fn as_str(&self) -> &'h str {
-                    self.capture
-                }
-
-                #[inline]
-                pub fn as_bytes(&self) -> &'h [u8] {
-                    self.as_str().as_bytes()
-                }
-            }
-
-            impl<'h> MatchBytes<'h> for Match0<'h> {
-                #[inline]
-                fn start(&self) -> usize {
-                    self.start()
-                }
-
-                #[inline]
-                fn end(&self) -> usize {
-                    self.end()
-                }
-
-                #[inline]
-                fn len(&self) -> usize {
-                    self.len()
-                }
-
-                #[inline]
-                fn is_empty(&self) -> bool {
-                    self.is_empty()
-                }
-
-                #[inline]
-                fn range(&self) -> std::ops::Range<usize> {
-                    self.range()
-                }
-
-                #[inline]
-                fn as_bytes(&self) -> &'h [u8] {
-                    self.as_bytes()
-                }
-            }
-
-            impl<'h> MatchStr<'h> for Match0<'h> {
-                #[inline]
-                fn as_str(&self) -> &'h str {
-                    self.as_str()
-                }
-            }
-
-            struct Regex;
-
-            impl RegexStr for Regex {
-                fn match_at<'h>(
-                    &self,
-                    haystack: &'h str,
+                pub(crate) struct Match0<'h> {
+                    capture: &'h str,
                     start: usize,
-                ) -> Option<impl MatchStr<'h>> {
-                    self.match_at(haystack, start)
                 }
 
-                fn match_iter<'h>(
-                    &self,
-                    haystack: &'h str,
-                ) -> impl Iterator<Item = impl MatchStr<'h>> {
-                    [Match0 {
-                        capture: haystack,
-                        start: 0,
-                    }]
-                    .into_iter()
+                impl<'h> Match0<'h> {
+                    #[inline]
+                    pub(crate) fn start(&self) -> usize {
+                        self.start
+                    }
+
+                    #[inline]
+                    pub(crate) fn end(&self) -> usize {
+                        self.start + self.capture.len()
+                    }
+
+                    #[inline]
+                    pub(crate) fn len(&self) -> usize {
+                        self.capture.len()
+                    }
+
+                    #[inline]
+                    pub(crate) fn is_empty(&self) -> bool {
+                        self.capture.is_empty()
+                    }
+
+                    #[inline]
+                    pub(crate) fn range(&self) -> std::ops::Range<usize> {
+                        self.start..self.end()
+                    }
+
+                    #[inline]
+                    pub(crate) fn as_str(&self) -> &'h str {
+                        self.capture
+                    }
+
+                    #[inline]
+                    pub(crate) fn as_bytes(&self) -> &'h [u8] {
+                        self.as_str().as_bytes()
+                    }
+                }
+
+                impl<'h> MatchBytes<'h> for Match0<'h> {
+                    #[inline]
+                    fn start(&self) -> usize {
+                        self.start()
+                    }
+
+                    #[inline]
+                    fn end(&self) -> usize {
+                        self.end()
+                    }
+
+                    #[inline]
+                    fn len(&self) -> usize {
+                        self.len()
+                    }
+
+                    #[inline]
+                    fn is_empty(&self) -> bool {
+                        self.is_empty()
+                    }
+
+                    #[inline]
+                    fn range(&self) -> std::ops::Range<usize> {
+                        self.range()
+                    }
+
+                    #[inline]
+                    fn as_bytes(&self) -> &'h [u8] {
+                        self.as_bytes()
+                    }
+                }
+
+                impl<'h> MatchStr<'h> for Match0<'h> {
+                    #[inline]
+                    fn as_str(&self) -> &'h str {
+                        self.as_str()
+                    }
+                }
+
+                pub(crate) struct Regex;
+
+                impl RegexStr for Regex {
+                    fn match_at<'h>(
+                        &self,
+                        haystack: &'h str,
+                        start: usize,
+                    ) -> Option<impl MatchStr<'h>> {
+                        self.match_at(haystack, start)
+                    }
+
+                    fn match_iter<'h>(
+                        &self,
+                        haystack: &'h str,
+                    ) -> impl Iterator<Item = impl MatchStr<'h>> {
+                        [Match0 {
+                            capture: haystack,
+                            start: 0,
+                        }]
+                        .into_iter()
+                    }
+                }
+
+                impl Regex {
+                    pub(crate) fn match_at<'h>(
+                        &self,
+                        haystack: &'h str,
+                        _start: usize,
+                    ) -> Option<Match0<'h>> {
+                        Some(Match0 {
+                            capture: &haystack[0..haystack.len()],
+                            start: 0,
+                        })
+                    }
                 }
             }
-
-            impl Regex {
-                fn match_at<'h>(&self, haystack: &'h str, _start: usize) -> Option<Match0<'h>> {
-                    Some(Match0 {
-                        capture: &haystack[0..haystack.len()],
-                        start: 0,
-                    })
-                }
-            }
-
-            Regex
+            adhoc::Regex
         };
 
         let m = re.match_at("hello", 0).unwrap();
