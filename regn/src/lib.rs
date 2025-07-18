@@ -10,7 +10,7 @@ pub struct CodeGen {
     tr_table: TransitionTable,
     invalid_id: usize,
     start_id: usize,
-    min_accept_id: usize,
+    first_non_accept_id: usize,
 }
 
 impl<'a> CodeGen {
@@ -18,14 +18,14 @@ impl<'a> CodeGen {
         assert!(graph.is_dfa(), "only DFA graphs are supported");
         assert!(!graph.is_empty(), "can't generate code for an empty graph");
 
-        let (id_map, invalid_id, start_id, min_accept_id) = Self::build_id_map(graph);
+        let (id_map, invalid_id, start_id, first_non_accept_id) = Self::build_id_map(graph);
         let tr_table = Self::build_tr_table(graph, invalid_id, &id_map);
 
         CodeGen {
             tr_table,
             invalid_id,
             start_id,
-            min_accept_id,
+            first_non_accept_id,
         }
     }
 
@@ -51,21 +51,21 @@ impl<'a> CodeGen {
 
         let mut id_map = HashMap::with_capacity(acc_nodes.len() + non_acc_nodes.len());
         let mut id = 0usize;
-        for node in &non_acc_nodes {
+        // push acceptable states to the beginning of the transition table
+        for node in &acc_nodes {
             id_map.insert(node.uid(), id);
             id += 1;
         }
-        // push acceptable states to the end of transition table
-        for node in &acc_nodes {
+        for node in &non_acc_nodes {
             id_map.insert(node.uid(), id);
             id += 1;
         }
 
         let invalid_id = id_map.len();
         let start_id = id_map[&graph.start_node().uid()];
-        let min_accept_id = non_acc_nodes.len();
+        let first_non_accept_id = acc_nodes.len();
 
-        (id_map, invalid_id, start_id, min_accept_id)
+        (id_map, invalid_id, start_id, first_non_accept_id)
     }
 
     fn build_tr_table(
@@ -117,7 +117,7 @@ impl<'a> CodeGen {
 
         let start_state = self.start_id;
         let invalid_state = self.invalid_id;
-        let min_accept_state = self.min_accept_id;
+        let first_non_accept_state = self.first_non_accept_id;
 
         quote! {
             #[derive(Debug)]
@@ -128,7 +128,7 @@ impl<'a> CodeGen {
             impl StateMachine {
                 const START_STATE: usize = #start_state;
                 const INVALID_STATE: usize = #invalid_state;
-                const MIN_ACCEPT_STATE: usize = #min_accept_state;
+                const FIRST_NON_ACCEPT_STATE: usize = #first_non_accept_state;
                 const STATES_NUM: usize = #states_num;
 
                 const TRANSITION_TABLE: [[#state_type; #bytes_num]; Self::STATES_NUM] = [
@@ -143,18 +143,8 @@ impl<'a> CodeGen {
                 }
 
                 #[inline]
-                fn reset(&mut self) {
-                    self.state = Self::START_STATE;
-                }
-
-                #[inline]
-                fn is_start(&self) -> bool {
-                    self.state == Self::START_STATE
-                }
-
-                #[inline]
                 fn is_acceptable(&self) -> bool {
-                    self.state >= Self::MIN_ACCEPT_STATE && self.state < Self::INVALID_STATE
+                    self.state < Self::FIRST_NON_ACCEPT_STATE
                 }
 
                 #[inline]
@@ -225,45 +215,6 @@ impl<'a> CodeGen {
                     self.as_str().as_bytes()
                 }
             }
-
-            impl<'h> ::recz::MatchBytes<'h> for Match<'h> {
-                #[inline]
-                fn start(&self) -> usize {
-                    self.start()
-                }
-
-                #[inline]
-                fn end(&self) -> usize {
-                    self.end()
-                }
-
-                #[inline]
-                fn len(&self) -> usize {
-                    self.len()
-                }
-
-                #[inline]
-                fn is_empty(&self) -> bool {
-                    self.is_empty()
-                }
-
-                #[inline]
-                fn range(&self) -> ::core::ops::Range<usize> {
-                    self.range()
-                }
-
-                #[inline]
-                fn as_bytes(&self) -> &'h [u8] {
-                    self.as_bytes()
-                }
-            }
-
-            impl<'h> ::recz::MatchStr<'h> for Match<'h> {
-                #[inline]
-                fn as_str(&self) -> &'h str {
-                    self.as_str()
-                }
-            }
         }
     }
 
@@ -274,35 +225,30 @@ impl<'a> CodeGen {
             pub struct Regex;
 
             impl Regex {
+                #[inline]
                 #vis fn new() -> Self {
                     Self
                 }
 
                 #vis fn match_at<'h>(&mut self, haystack: &'h str, start: usize) -> Option<Match<'h>>{
                     let mut state_machine = StateMachine::new();
-
-                    let mut acceptable_index = None;
+                    let mut accept_index = None;
                     if state_machine.is_acceptable() {
-                        acceptable_index = Some(0);
+                        accept_index = Some(0);
                     }
                     for (i, byte) in haystack[start..].as_bytes().iter().enumerate() {
                         state_machine.next(*byte);
                         if state_machine.is_acceptable() {
-                            acceptable_index = Some(i + 1);
-                            dbg!(&acceptable_index);
+                            accept_index = Some(i + 1);
                         }
                         if state_machine.is_invalid() {
                             break;
                         }
                     }
-                    if let Some(index) = acceptable_index {
-                        Some(Match {
-                            capture: &haystack[start..start + index],
-                            start,
-                        })
-                    } else {
-                        None
-                    }
+                    accept_index.map(|index| Match {
+                        capture: &haystack[start..start + index],
+                        start,
+                    })
                 }
             }
         }
