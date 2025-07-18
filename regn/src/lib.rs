@@ -100,9 +100,10 @@ impl<'a> CodeGen {
         }
 
         let state_type = {
-            if tr_table_len <= 1 << u8::BITS {
+            // we need to leave one value for the invalid state
+            if tr_table_len < 1 << u8::BITS {
                 quote! { u8 }
-            } else if tr_table_len <= 1 << u16::BITS {
+            } else if tr_table_len < 1 << u16::BITS {
                 quote! { u16 }
             } else {
                 panic!("number of states {tr_table_len} is too big for calculation");
