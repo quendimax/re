@@ -36,3 +36,16 @@ fn klenee_start_regex() {
     assert_eq!(m.as_str(), "hellaoa");
     assert_eq!(m.as_bytes(), b"hellaoa");
 }
+
+#[test]
+fn another_test() {
+    let mut regex = re!("[ab]*a");
+    let m = regex.match_at("ba", 0).unwrap();
+    assert_eq!(m.as_str(), "ba");
+    let m = regex.match_at("baaaaaa", 0).unwrap();
+    assert_eq!(m.as_str(), "baaaaaa");
+    let m = regex.match_at("aaaaab", 0).unwrap();
+    assert_eq!(m.as_str(), "aaaaa");
+    let m = regex.match_at("bbb", 0);
+    assert_eq!(m, None);
+}
