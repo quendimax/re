@@ -50,7 +50,7 @@ fn codgen_produce() {
             impl StateMachine {
                 const START_STATE: usize = 0usize;
                 const INVALID_STATE: usize = 1usize;
-                const FIRST_NON_ACCEPT_STATE: usize = 0usize;
+                const FIRST_NON_FINAL_STATE: usize = 0usize;
                 const STATES_NUM: usize = 1usize;
 
                 const TRANSITION_TABLE: [[u8; 256usize]; Self::STATES_NUM] = [
@@ -82,8 +82,8 @@ fn codgen_produce() {
                 }
 
                 #[inline]
-                fn is_acceptable(&self) -> bool {
-                    self.state < Self::FIRST_NON_ACCEPT_STATE
+                fn is_final(&self) -> bool {
+                    self.state < Self::FIRST_NON_FINAL_STATE
                 }
 
                 #[inline]

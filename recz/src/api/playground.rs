@@ -144,7 +144,7 @@ fn attempt_1() {
             impl StateMachine {
                 const START_STATE: usize = 1usize;
                 const INVALID_STATE: usize = 3usize;
-                const FIRST_NON_ACCEPT_STATE: usize = 1usize;
+                const FIRST_NON_FINAL_STATE: usize = 1usize;
                 const STATES_NUM: usize = 3usize;
                 const TRANSITION_TABLE: [[u8; 256usize]; Self::STATES_NUM] = [
                     [
@@ -194,8 +194,8 @@ fn attempt_1() {
                     }
                 }
 
-                fn is_acceptable(&self) -> bool {
-                    self.state < Self::FIRST_NON_ACCEPT_STATE
+                fn is_final(&self) -> bool {
+                    self.state < Self::FIRST_NON_FINAL_STATE
                 }
 
                 fn is_invalid(&self) -> bool {
@@ -262,21 +262,21 @@ fn attempt_1() {
 
                 pub fn match_at<'h>(&self, haystack: &'h str, start: usize) -> Option<Match<'h>> {
                     let mut state_machine = StateMachine::new();
-                    let mut accept_index = None;
-                    if state_machine.is_acceptable() {
-                        accept_index = Some(0);
+                    let mut final_index = None;
+                    if state_machine.is_final() {
+                        final_index = Some(0);
                     }
                     for (i, byte) in haystack.as_bytes()[start..].iter().enumerate() {
                         dbg!(&state_machine);
                         state_machine.next(*byte);
-                        if state_machine.is_acceptable() {
-                            accept_index = Some(i + 1);
+                        if state_machine.is_final() {
+                            final_index = Some(i + 1);
                         }
                         if state_machine.is_invalid() {
                             break;
                         }
                     }
-                    accept_index.map(|index| Match {
+                    final_index.map(|index| Match {
                         capture: &haystack[start..start + index],
                         start,
                     })

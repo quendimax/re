@@ -15,7 +15,7 @@ pub struct Node<'a>(&'a NodeInner<'a>);
 
 pub(crate) struct NodeInner<'a> {
     uid: u64,
-    accept: Cell<bool>,
+    is_final: Cell<bool>,
     targets: RefCell<Map<Node<'a>, Transition>>,
     variant: NodeVariant,
 }
@@ -69,21 +69,21 @@ impl<'a> Node<'a> {
         matches!(self.0.variant, NfaNode)
     }
 
-    /// Checks if the node is an acceptable N/DFA state.
+    /// Checks if the node is a final N/DFA state.
     #[inline]
-    pub fn is_acceptable(self) -> bool {
-        self.0.accept.get()
+    pub fn is_final(self) -> bool {
+        self.0.is_final.get()
     }
 
-    /// Make the node acceptable.
-    pub fn acceptize(self) -> Self {
-        self.0.accept.set(true);
+    /// Make the node final.
+    pub fn finalize(self) -> Self {
+        self.0.is_final.set(true);
         self
     }
 
-    /// Make the node unacceptable.
-    pub fn disacceptize(self) -> Self {
-        self.0.accept.set(false);
+    /// Make the node non-final.
+    pub fn definalize(self) -> Self {
+        self.0.is_final.set(false);
         self
     }
 
@@ -162,13 +162,13 @@ impl<'a> Node<'a> {
         match graph.kind() {
             AutomatonKind::NFA => NodeInner {
                 uid,
-                accept: Cell::new(false),
+                is_final: Cell::new(false),
                 targets: Default::default(),
                 variant: NfaNode,
             },
             AutomatonKind::DFA => NodeInner {
                 uid,
-                accept: Cell::new(false),
+                is_final: Cell::new(false),
                 targets: Default::default(),
                 variant: DfaNode {
                     occupied_symbols: Default::default(),
@@ -339,13 +339,13 @@ macro_rules! impl_fmt {
     (std::fmt::$trait:ident) => {
         impl std::fmt::$trait for Node<'_> {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                if self.is_acceptable() {
+                if self.is_final() {
                     f.write_str("node((")?;
                 } else {
                     f.write_str("node(")?;
                 }
                 std::fmt::$trait::fmt(&self.nid(), f)?;
-                if self.is_acceptable() {
+                if self.is_final() {
                     f.write_str("))")
                 } else {
                     f.write_char(')')

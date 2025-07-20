@@ -135,8 +135,8 @@ impl<'a> Graph<'a> {
 
                 let dfa_node = self.dfa.node();
                 for nfa_node in nfa_closure.iter() {
-                    if nfa_node.is_acceptable() {
-                        dfa_node.acceptize();
+                    if nfa_node.is_final() {
+                        dfa_node.finalize();
                         break;
                     }
                 }

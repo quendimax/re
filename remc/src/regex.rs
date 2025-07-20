@@ -25,7 +25,7 @@ pub(crate) fn re_impl(input: TokenStream2) -> Result<TokenStream2> {
     let end_node = parser
         .parse(&lit.value(), nfa.start_node())
         .map_err(|err| syn::Error::new(lit.span(), err))?;
-    end_node.acceptize();
+    end_node.finalize();
 
     let mut dfa_arena = Arena::new();
     let dfa = nfa.determine_in(&mut dfa_arena);

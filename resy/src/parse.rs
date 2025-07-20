@@ -30,8 +30,8 @@ impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
     /// Parses a regular expression specified with `pattern` using `start_node`
     /// as the first node for the built graph.
     ///
-    /// Returns last node of the result graph. This node is not accepable by
-    /// default. Make this acceptable by yourself if it is needed.
+    /// Returns last node of the result graph. This node is not final by
+    /// default. Make this final by yourself if it is needed.
     pub fn parse(&mut self, pattern: &'s str, start_node: Node<'n>) -> Result<Node<'n>> {
         assert!(start_node.gid() == self.nfa.gid());
         self.lexer = Lexer::new(pattern);
