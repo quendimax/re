@@ -623,15 +623,15 @@ impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
                 let mut collect = Vec::new();
                 for (target, tr) in node.targets().iter() {
                     if let Some(clone_target) = self.map.get(target) {
-                        collect.push((*clone_target, tr.clone()));
+                        collect.push((*clone_target, *tr));
                     } else {
                         let clone_target = self.nfa.node();
                         self.copy_tail(*target, clone_target);
-                        collect.push((clone_target, tr.clone()));
+                        collect.push((clone_target, *tr));
                     }
                 }
                 for (clone_target, tr) in collect {
-                    clone.connect(clone_target, &tr);
+                    clone.connect(clone_target, tr);
                 }
             }
         }

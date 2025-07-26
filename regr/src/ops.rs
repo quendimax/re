@@ -7,5 +7,5 @@ pub trait IntersectOp<T> {
 }
 
 pub trait MergeOp<T> {
-    fn merge(&mut self, other: T);
+    fn merge(&self, other: T);
 }

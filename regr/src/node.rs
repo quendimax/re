@@ -1,3 +1,4 @@
+use crate::arena::Arena;
 use crate::graph::{AutomatonKind, Graph};
 use crate::symbol::Epsilon;
 use crate::transition::Transition;
@@ -16,14 +17,13 @@ pub struct Node<'a>(&'a NodeInner<'a>);
 pub(crate) struct NodeInner<'a> {
     uid: u64,
     is_final: Cell<bool>,
-    targets: RefCell<Map<Node<'a>, Transition>>,
-    variant: NodeVariant,
+    targets: RefCell<Map<Node<'a>, Transition<'a>>>,
+    arena: &'a Arena,
+    variant: NodeVariant<'a>,
 }
 
-enum NodeVariant {
-    DfaNode {
-        occupied_symbols: RefCell<Transition>,
-    },
+enum NodeVariant<'a> {
+    DfaNode { occupied_symbols: Transition<'a> },
     NfaNode,
 }
 
@@ -120,7 +120,7 @@ impl<'a> Node<'a> {
     ///
     /// This iterator walks over pairs (`Node`, `TransitionRef`).
     #[inline]
-    pub fn targets(self) -> impl Deref<Target = Map<Node<'a>, Transition>> {
+    pub fn targets(self) -> impl Deref<Target = Map<Node<'a>, Transition<'a>>> {
         self.0.targets.borrow()
     }
 
@@ -164,14 +164,16 @@ impl<'a> Node<'a> {
                 uid,
                 is_final: Cell::new(false),
                 targets: Default::default(),
+                arena: graph.arena(),
                 variant: NfaNode,
             },
             AutomatonKind::DFA => NodeInner {
                 uid,
                 is_final: Cell::new(false),
                 targets: Default::default(),
+                arena: graph.arena(),
                 variant: DfaNode {
-                    occupied_symbols: Default::default(),
+                    occupied_symbols: Transition::new_in(graph.arena()),
                 },
             },
         }
@@ -234,7 +236,6 @@ macro_rules! impl_connect {
         impl<'a> ConnectOp<'a, $symty> for Node<'a> {
             fn connect(self, to: Node<'a>, with: $symty) {
                 if let DfaNode { occupied_symbols } = &self.0.variant {
-                    let mut occupied_symbols = occupied_symbols.borrow_mut();
                     if occupied_symbols.contains(with) {
                         panic!("connection {with:?} already exists; DFA node can't have more");
                     }
@@ -246,7 +247,7 @@ macro_rules! impl_connect {
                 if let Some(tr) = targets.get_mut(&to) {
                     tr.merge(with);
                 } else {
-                    let mut tr = Transition::default();
+                    let tr = Transition::new_in(self.0.arena);
                     tr.merge(with);
                     targets.insert(to, tr);
                 }
@@ -259,7 +260,8 @@ impl_connect!(u8);
 impl_connect!(&u8);
 impl_connect!(RangeU8);
 impl_connect!(&RangeU8);
-impl_connect!(&Transition);
+impl_connect!(Transition<'a>);
+impl_connect!(&Transition<'a>);
 
 impl<'a> ConnectOp<'a, std::ops::RangeInclusive<u8>> for Node<'a> {
     #[inline]
@@ -280,7 +282,7 @@ impl<'a> ConnectOp<'a, Epsilon> for Node<'a> {
                 if let Some(tr) = targets.get_mut(&to) {
                     tr.merge(with);
                 } else {
-                    let mut tr = Transition::default();
+                    let tr = Transition::new_in(self.0.arena);
                     tr.merge(with);
                     targets.insert(to, tr);
                 }

@@ -1,4 +1,5 @@
 use crate::node::{Node, NodeInner};
+use crate::transition::TransitionInner;
 use bumpalo::Bump;
 use smallvec::SmallVec;
 use std::cell::Cell;
@@ -9,6 +10,7 @@ pub struct Arena {
     node_bump: Bump,
     nodes_len: Cell<usize>,
     bound_gid: Cell<Option<u64>>,
+    shared_bump: Bump,
 }
 
 /// Public API
@@ -23,6 +25,7 @@ impl Arena {
             node_bump: Bump::with_capacity(capacity * std::mem::size_of::<NodeInner>()),
             nodes_len: Cell::new(0),
             bound_gid: Cell::new(None), // bound graph id
+            shared_bump: Bump::with_capacity(capacity * std::mem::size_of::<TransitionInner>()),
         }
     }
 
@@ -55,6 +58,14 @@ impl Arena {
         assert_eq!(gid, node.gid());
 
         node
+    }
+
+    #[inline]
+    pub(crate) fn alloc_with<F, T>(&self, f: F) -> &'_ mut T
+    where
+        F: FnOnce() -> T,
+    {
+        self.shared_bump.alloc_with(f)
     }
 
     /// Binds this arena with a graph. Should be run by the graph constructor.
