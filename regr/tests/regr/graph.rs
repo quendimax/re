@@ -85,7 +85,7 @@ fn graph_determine_0() {
     let mut arena = Arena::new();
     let nfa = Graph::nfa_in(&mut arena);
     let a = nfa.node();
-    a.connect(a, Epsilon);
+    a.connect(a).merge(Epsilon);
     assert_eq!(
         dsp(&nfa),
         dsp(&"
@@ -108,10 +108,10 @@ fn graph_determine_1() {
     let b = nfa.node();
     let c = nfa.node();
     let d = nfa.node();
-    a.connect(a, 1..=255);
-    a.connect(b, Epsilon);
-    b.connect(c, b'a');
-    c.connect(d, b'b');
+    a.connect(a).merge(1..=255);
+    a.connect(b).merge(Epsilon);
+    b.connect(c).merge(b'a');
+    c.connect(d).merge(b'b');
     assert_eq!(
         dsp(&nfa),
         dsp(&"
@@ -159,11 +159,11 @@ fn graph_determine_klenee_star() {
     let b = nfa.node();
     let c = nfa.node();
     let d = nfa.node();
-    a.connect(b, Epsilon);
-    a.connect(d, Epsilon);
-    b.connect(c, b'a');
-    c.connect(b, Epsilon);
-    c.connect(d, Epsilon);
+    a.connect(b).merge(Epsilon);
+    a.connect(d).merge(Epsilon);
+    b.connect(c).merge(b'a');
+    c.connect(b).merge(Epsilon);
+    c.connect(d).merge(Epsilon);
     assert_eq!(
         dsp(&nfa),
         dsp(&"
@@ -206,14 +206,14 @@ fn graph_for_each_node() {
     let c = graph.node();
     let d = graph.node();
 
-    a.connect(b, RangeU8::new(b'a', u8::MAX));
-    a.connect(b, Epsilon);
-    b.connect(c, Epsilon);
-    c.connect(d, b'c');
-    b.connect(a, Epsilon);
-    d.connect(a, Epsilon);
-    d.connect(b, Epsilon);
-    d.connect(c, Epsilon);
+    a.connect(b).merge(RangeU8::new(b'a', u8::MAX));
+    a.connect(b).merge(Epsilon);
+    b.connect(c).merge(Epsilon);
+    c.connect(d).merge(b'c');
+    b.connect(a).merge(Epsilon);
+    d.connect(a).merge(Epsilon);
+    d.connect(b).merge(Epsilon);
+    d.connect(c).merge(Epsilon);
 
     #[allow(clippy::mutable_key_type)]
     let mut visited = std::collections::HashSet::new();
@@ -232,14 +232,14 @@ fn graph_display_fmt_0() {
     let c = graph.node();
     let d = graph.node();
 
-    a.connect(b, RangeU8::new(b'a', u8::MAX));
-    a.connect(b, Epsilon);
-    b.connect(c, Epsilon);
-    c.connect(d, b'c');
-    b.connect(a, Epsilon);
-    d.connect(a, Epsilon);
-    d.connect(b, Epsilon);
-    d.connect(c, Epsilon);
+    a.connect(b).merge(RangeU8::new(b'a', u8::MAX));
+    a.connect(b).merge(Epsilon);
+    b.connect(c).merge(Epsilon);
+    c.connect(d).merge(b'c');
+    b.connect(a).merge(Epsilon);
+    d.connect(a).merge(Epsilon);
+    d.connect(b).merge(Epsilon);
+    d.connect(c).merge(Epsilon);
     assert_eq!(
         dsp(&graph),
         dsp(&"
@@ -271,13 +271,13 @@ fn graph_display_fmt_1() {
     let n2 = graph.node();
     let n3 = graph.node();
     let n4 = graph.node();
-    n0.connect(n1, RangeU8::from(b'a'..=b'b'));
-    n0.connect(n1, RangeU8::from(b'd'..=b'z'));
-    n1.connect(n2, Epsilon);
-    n1.connect(n4, Epsilon);
-    n2.connect(n3, b'a');
-    n3.connect(n4, Epsilon);
-    n3.connect(n2, Epsilon);
+    n0.connect(n1).merge(RangeU8::from(b'a'..=b'b'));
+    n0.connect(n1).merge(RangeU8::from(b'd'..=b'z'));
+    n1.connect(n2).merge(Epsilon);
+    n1.connect(n4).merge(Epsilon);
+    n2.connect(n3).merge(b'a');
+    n3.connect(n4).merge(Epsilon);
+    n3.connect(n2).merge(Epsilon);
     assert_eq!(
         dsp(&graph),
         dsp(&"
@@ -312,14 +312,14 @@ fn graph_display_fmt_2() {
     let n5 = graph.node();
     let n6 = graph.node();
     let n7 = graph.node();
-    n0.connect(n2, Epsilon);
-    n0.connect(n5, Epsilon);
-    n2.connect(n3, b'a');
-    n3.connect(n4, b'b');
-    n4.connect(n1, Epsilon);
-    n5.connect(n6, b'c');
-    n6.connect(n7, b'd');
-    n7.connect(n1, Epsilon);
+    n0.connect(n2).merge(Epsilon);
+    n0.connect(n5).merge(Epsilon);
+    n2.connect(n3).merge(b'a');
+    n3.connect(n4).merge(b'b');
+    n4.connect(n1).merge(Epsilon);
+    n5.connect(n6).merge(b'c');
+    n6.connect(n7).merge(b'd');
+    n7.connect(n1).merge(Epsilon);
     assert_eq!(
         dsp(&graph),
         dsp(&"
@@ -357,9 +357,9 @@ fn graph_display_fmt_3() {
     let a = graph.node();
     let b = graph.node();
     let c = graph.node();
-    a.connect(b, 1);
-    b.connect(b, 3);
-    b.connect(c, 1);
+    a.connect(b).merge(1);
+    b.connect(b).merge(3);
+    b.connect(c).merge(1);
     assert_eq!(
         dbg(&graph),
         dsp(&"

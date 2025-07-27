@@ -2,7 +2,7 @@ use crate::arena::Arena;
 use crate::graph::{AutomatonKind, Graph};
 use crate::symbol::Epsilon;
 use crate::transition::Transition;
-use redt::{Map, RangeU8};
+use redt::Map;
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeSet;
 use std::fmt::Write;
@@ -23,7 +23,7 @@ pub(crate) struct NodeInner<'a> {
 }
 
 enum NodeVariant<'a> {
-    DfaNode { occupied_symbols: Transition<'a> },
+    DfaNode { _occupied_symbols: Transition<'a> },
     NfaNode,
 }
 
@@ -87,6 +87,12 @@ impl<'a> Node<'a> {
         self
     }
 
+    /// Arena owner of this node.
+    #[inline]
+    pub fn arena(&self) -> &'a Arena {
+        self.0.arena
+    }
+
     /// Connects this node to another node with a specified edge rule.
     /// If a connection to the target node already exists, it merges
     /// the new edge rule with the existing one.
@@ -95,16 +101,20 @@ impl<'a> Node<'a> {
     ///
     /// * `to` - The target node to connect to
     /// * `with` - The edge rule describing valid transitions to the target
-    pub fn connect<T>(self, to: Node<'a>, with: T)
-    where
-        Self: ConnectOp<'a, T>,
-    {
+    pub fn connect(self, to: Node<'a>) -> Transition<'a> {
         assert_eq!(
             self.gid(),
             to.gid(),
             "only nodes of the same graph can be joint"
         );
-        ConnectOp::connect(self, to, with);
+        let mut targets = self.0.targets.borrow_mut();
+        if let Some(tr) = targets.get(&to) {
+            *tr
+        } else {
+            let tr = Transition::new_in(self.arena());
+            targets.insert(to, tr);
+            tr
+        }
     }
 
     #[allow(clippy::mutable_key_type)]
@@ -173,7 +183,7 @@ impl<'a> Node<'a> {
                 targets: Default::default(),
                 arena: graph.arena(),
                 variant: DfaNode {
-                    occupied_symbols: Transition::new_in(graph.arena()),
+                    _occupied_symbols: Transition::new_in(graph.arena()),
                 },
             },
         }
@@ -224,71 +234,6 @@ impl<'a> ClosureOp<'a, Epsilon> for Node<'a> {
         }
         closure_impl(*self, &mut closure);
         closure
-    }
-}
-
-pub trait ConnectOp<'a, T> {
-    fn connect(self, to: Node<'a>, with: T);
-}
-
-macro_rules! impl_connect {
-    ($symty:ty) => {
-        impl<'a> ConnectOp<'a, $symty> for Node<'a> {
-            fn connect(self, to: Node<'a>, with: $symty) {
-                if let DfaNode { occupied_symbols } = &self.0.variant {
-                    if occupied_symbols.contains(with) {
-                        panic!("connection {with:?} already exists; DFA node can't have more");
-                    }
-                    occupied_symbols.merge(with);
-                }
-
-                #[allow(clippy::mutable_key_type)]
-                let mut targets = self.0.targets.borrow_mut();
-                if let Some(tr) = targets.get_mut(&to) {
-                    tr.merge(with);
-                } else {
-                    let tr = Transition::new_in(self.0.arena);
-                    tr.set_connect_flag();
-                    tr.merge(with);
-                    targets.insert(to, tr);
-                }
-            }
-        }
-    };
-}
-
-impl_connect!(u8);
-impl_connect!(&u8);
-impl_connect!(RangeU8);
-impl_connect!(&RangeU8);
-impl_connect!(Transition<'a>);
-impl_connect!(&Transition<'a>);
-
-impl<'a> ConnectOp<'a, std::ops::RangeInclusive<u8>> for Node<'a> {
-    #[inline]
-    fn connect(self, to: Node<'a>, with: std::ops::RangeInclusive<u8>) {
-        ConnectOp::connect(self, to, RangeU8::from(with))
-    }
-}
-
-impl<'a> ConnectOp<'a, Epsilon> for Node<'a> {
-    fn connect(self, to: Node<'a>, with: Epsilon) {
-        match &self.0.variant {
-            DfaNode { .. } => {
-                panic!("NFA nodes can't be connected with Epsilon");
-            }
-            NfaNode => {
-                #[allow(clippy::mutable_key_type)]
-                let mut targets = self.0.targets.borrow_mut();
-                if let Some(tr) = targets.get_mut(&to) {
-                    tr.merge(with);
-                } else {
-                    let tr = Transition::new_in(self.0.arena);
-                    tr.merge(with);
-                    targets.insert(to, tr);
-                }
-            }
-        }
     }
 }
 

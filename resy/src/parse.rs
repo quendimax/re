@@ -76,7 +76,7 @@ impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
             if symbol == '|' {
                 self.lexer.lex().unwrap();
                 let last_node = self.parse_concat(start_node)?;
-                last_node.connect(end_node, Epsilon);
+                last_node.connect(end_node).merge(Epsilon);
             } else {
                 return Ok(end_node);
             }
@@ -103,7 +103,7 @@ impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
         if start_node == end_node {
             // if nothing parsed, it is an Epsilon transition
             end_node = self.nfa.node();
-            start_node.connect(end_node, Epsilon);
+            start_node.connect(end_node).merge(Epsilon);
         }
         Ok(end_node)
     }
@@ -201,9 +201,9 @@ impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
     fn parse_star(&mut self, item_start: Node<'n>, item_end: Node<'n>) -> Result<Node<'n>> {
         self.lexer.expect('*')?;
         let new_end_node = self.nfa.node();
-        item_end.connect(item_start, Epsilon);
-        item_end.connect(new_end_node, Epsilon);
-        item_start.connect(new_end_node, Epsilon);
+        item_end.connect(item_start).merge(Epsilon);
+        item_end.connect(new_end_node).merge(Epsilon);
+        item_start.connect(new_end_node).merge(Epsilon);
         Ok(new_end_node)
     }
 
@@ -224,8 +224,8 @@ impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
     fn parse_plus(&mut self, item_start: Node<'n>, item_end: Node<'n>) -> Result<Node<'n>> {
         self.lexer.expect('+')?;
         let new_end_node = self.nfa.node();
-        item_end.connect(item_start, Epsilon);
-        item_end.connect(new_end_node, Epsilon);
+        item_end.connect(item_start).merge(Epsilon);
+        item_end.connect(new_end_node).merge(Epsilon);
         Ok(new_end_node)
     }
 
@@ -246,8 +246,8 @@ impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
     fn parse_question(&mut self, item_start: Node<'n>, item_end: Node<'n>) -> Result<Node<'n>> {
         self.lexer.expect('?')?;
         let new_end_node = self.nfa.node();
-        item_end.connect(new_end_node, Epsilon);
-        item_start.connect(new_end_node, Epsilon);
+        item_end.connect(new_end_node).merge(Epsilon);
+        item_start.connect(new_end_node).merge(Epsilon);
         Ok(new_end_node)
     }
 
@@ -307,8 +307,8 @@ impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
                     (start_node, end_node) = self.clone_tail(start_node, end_node);
                 }
                 let node = self.nfa.node();
-                start_node.connect(node, Epsilon);
-                end_node.connect(node, Epsilon);
+                start_node.connect(node).merge(Epsilon);
+                end_node.connect(node).merge(Epsilon);
                 end_node = node;
                 for _ in first_num..second_num - 1 {
                     (start_node, end_node) = self.clone_tail(start_node, end_node);
@@ -320,9 +320,9 @@ impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
                 (start_node, end_node) = self.clone_tail(start_node, end_node);
             }
             let node = self.nfa.node();
-            start_node.connect(node, Epsilon);
-            end_node.connect(start_node, Epsilon);
-            end_node.connect(node, Epsilon);
+            start_node.connect(node).merge(Epsilon);
+            end_node.connect(start_node).merge(Epsilon);
+            end_node.connect(node).merge(Epsilon);
             end_node = node;
         }
         Ok(end_node)
@@ -631,7 +631,7 @@ impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
                     }
                 }
                 for (clone_target, tr) in collect {
-                    clone.connect(clone_target, tr);
+                    clone.connect(clone_target).merge(tr);
                 }
             }
         }
@@ -661,7 +661,7 @@ impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
             } else {
                 self.nfa.node()
             };
-            prev_node.connect(new_node, *byte);
+            prev_node.connect(new_node).merge(*byte);
             prev_node = new_node;
         }
         Ok(prev_node)
@@ -676,7 +676,7 @@ impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
             } else {
                 self.nfa.node()
             };
-            prev_node.connect(new_node, range);
+            prev_node.connect(new_node).merge(range);
             prev_node = new_node;
         }
     }

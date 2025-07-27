@@ -58,9 +58,9 @@ fn arena_fmt_display() {
     let mut arena = Arena::new();
     let gr = Graph::nfa_in(&mut arena);
     let a = gr.node();
-    a.connect(a, Epsilon);
+    a.connect(a).merge(Epsilon);
     let b = gr.node();
-    a.connect(b, b'a');
+    a.connect(b).merge(b'a');
 
     assert_eq!(
         format!("{}", gr.arena()),

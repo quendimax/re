@@ -1,7 +1,6 @@
 use crate::arena::Arena;
 use crate::node::{ClosureOp, Node};
 use crate::symbol::Epsilon;
-use crate::transition::Transition;
 use redt::Set;
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
@@ -106,17 +105,14 @@ impl<'a> Graph<'a> {
         self.start_node.get().unwrap_or_else(|| self.node())
     }
 
-    /// Creates a new empty transition
-    pub fn transition(&self) -> Transition<'a> {
-        Transition::new_in(self.arena())
-    }
-
     /// Returns true if the graph is empty.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.start_node.get().is_none()
     }
 
+    /// Arena owner of the graph's nodes and transitions.
+    #[inline]
     pub fn arena(&self) -> &'a Arena {
         self.arena
     }
@@ -152,7 +148,8 @@ impl<'a> Graph<'a> {
                     let symbol_closure = Rc::new(nfa_closure.closure(symbol));
                     if !symbol_closure.is_empty() {
                         let target_dfa_node = self.convert(symbol_closure);
-                        dfa_node.connect(target_dfa_node, symbol);
+                        let tr = dfa_node.connect(target_dfa_node);
+                        tr.merge(symbol);
                     }
                 }
                 dfa_node

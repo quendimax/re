@@ -19,9 +19,6 @@ const FLAGS_CHUNK: usize = 4;
 /// Mask for Epsilon bit in the flags chunk.
 const EPSILON_FLAG: Chunk = 0x01;
 
-/// Mask for of Connect flag in the flags chunk.
-const CONNECT_FLAG: Chunk = 0x02;
-
 /// Transition is a struct that contains symbols that connect two nodes. The
 /// symbols can be bytes and Epsilon.
 ///
@@ -60,16 +57,6 @@ impl<'a> Transition<'a> {
     /// Creates a new transition initialized with Epsilon.
     pub fn epsilon_in(arena: &'a Arena) -> Self {
         Self(arena.alloc_with(TransitionInner::epsilon))
-    }
-
-    /// Sets the Connect Flag;
-    pub(crate) fn set_connect_flag(self) {
-        self.0.chunks.borrow_mut()[FLAGS_CHUNK] |= CONNECT_FLAG;
-    }
-
-    /// If `true`, this transition is used as a connection between two nodes.
-    pub fn is_connected(self) -> bool {
-        self.0.chunks.borrow()[FLAGS_CHUNK] & CONNECT_FLAG != 0
     }
 }
 
