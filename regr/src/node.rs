@@ -248,6 +248,7 @@ macro_rules! impl_connect {
                     tr.merge(with);
                 } else {
                     let tr = Transition::new_in(self.0.arena);
+                    tr.set_connect_flag();
                     tr.merge(with);
                     targets.insert(to, tr);
                 }

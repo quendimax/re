@@ -5,27 +5,35 @@ use redt::{Legible, RangeU8, Step};
 use std::cell::{Ref, RefCell};
 use std::fmt::Write;
 
-/// Quantity of `u64` values in the `chunks` member for symbols' bits.
+type Chunk = u64;
+
+/// Quantity of `Chunk` values in the `chunks` member for symbols' bits.
 const SYM_BITMAP_LEN: usize = 4;
 
-/// Entire quantity of `u64` values in the `chunks` member.
+/// Entire quantity of `Chunk` values in the `chunks` member.
 const BITMAP_LEN: usize = SYM_BITMAP_LEN + 1; // + 1 for Epsilon bit
 
-/// Index of `u64`-item that contains Epsilon bit.
-const EPSILON_CHUNK: usize = 4;
+/// Index of `Chunk`-item that contains flags (epsilon, connected).
+const FLAGS_CHUNK: usize = 4;
+
+/// Mask for Epsilon bit in the flags chunk.
+const EPSILON_FLAG: Chunk = 0x01;
+
+/// Mask for of Connect flag in the flags chunk.
+const CONNECT_FLAG: Chunk = 0x02;
 
 /// Transition is a struct that contains symbols that connect two nodes. The
 /// symbols can be bytes and Epsilon.
 ///
 /// # Implementation
 ///
-/// Symbols are the corresponding bits in `chunks` bitmap from 4x`u64` values.
+/// Symbols are the corresponding bits in `chunks` bitmap from 4x`Chunk` values.
 /// The 256-th bit is for Epsilon.
 pub struct Transition<'a>(&'a TransitionInner);
 
 #[derive(Clone, Default, PartialEq, Eq)]
 pub(crate) struct TransitionInner {
-    chunks: RefCell<[u64; BITMAP_LEN]>,
+    chunks: RefCell<[Chunk; BITMAP_LEN]>,
 }
 
 impl<'a> Transition<'a> {
@@ -35,7 +43,7 @@ impl<'a> Transition<'a> {
     }
 
     /// Creates a new transition initialized with the given symbol bitmap.
-    pub fn from_chunks_in(chunks: &[u64; SYM_BITMAP_LEN], arena: &'a Arena) -> Self {
+    pub fn from_chunks_in(chunks: &[Chunk; SYM_BITMAP_LEN], arena: &'a Arena) -> Self {
         Self(arena.alloc_with(|| TransitionInner::from_chunks(chunks)))
     }
 
@@ -53,16 +61,26 @@ impl<'a> Transition<'a> {
     pub fn epsilon_in(arena: &'a Arena) -> Self {
         Self(arena.alloc_with(TransitionInner::epsilon))
     }
+
+    /// Sets the Connect Flag;
+    pub(crate) fn set_connect_flag(self) {
+        self.0.chunks.borrow_mut()[FLAGS_CHUNK] |= CONNECT_FLAG;
+    }
+
+    /// If `true`, this transition is used as a connection between two nodes.
+    pub fn is_connected(self) -> bool {
+        self.0.chunks.borrow()[FLAGS_CHUNK] & CONNECT_FLAG != 0
+    }
 }
 
 impl TransitionInner {
-    pub fn from_chunks(chunks: &[u64; SYM_BITMAP_LEN]) -> Self {
+    fn from_chunks(chunks: &[Chunk; SYM_BITMAP_LEN]) -> Self {
         Self {
             chunks: RefCell::new([chunks[0], chunks[1], chunks[2], chunks[3], 0]),
         }
     }
 
-    pub fn from_symbols(bytes: &[u8]) -> Self {
+    fn from_symbols(bytes: &[u8]) -> Self {
         let tr = TransitionInner::default();
         for byte in bytes {
             tr.merge(*byte);
@@ -70,7 +88,7 @@ impl TransitionInner {
         tr
     }
 
-    pub fn epsilon() -> Self {
+    fn epsilon() -> Self {
         Self {
             chunks: RefCell::new([0, 0, 0, 0, 1]),
         }
@@ -185,7 +203,7 @@ impl<'a> ContainOp<&'a TransitionInner> for Transition<'a> {
 
 impl ContainOp<Epsilon> for Transition<'_> {
     fn contains(&self, _: Epsilon) -> bool {
-        self.0.chunks.borrow()[EPSILON_CHUNK] & 1 == 1
+        self.0.chunks.borrow()[FLAGS_CHUNK] & EPSILON_FLAG != 0
     }
 }
 
@@ -318,13 +336,13 @@ impl MergeOp<RangeU8> for TransitionInner {
                 }
                 2 => {
                     *chunks.get_unchecked_mut(ls_index) |= ls_mask;
-                    *chunks.get_unchecked_mut(ls_index + 1) |= u64::MAX;
+                    *chunks.get_unchecked_mut(ls_index + 1) |= Chunk::MAX;
                     *chunks.get_unchecked_mut(ls_index + 2) |= ms_mask;
                 }
                 3 => {
                     *chunks.get_unchecked_mut(0) |= ls_mask;
-                    *chunks.get_unchecked_mut(1) |= u64::MAX;
-                    *chunks.get_unchecked_mut(2) |= u64::MAX;
+                    *chunks.get_unchecked_mut(1) |= Chunk::MAX;
+                    *chunks.get_unchecked_mut(2) |= Chunk::MAX;
                     *chunks.get_unchecked_mut(3) |= ms_mask;
                 }
                 _ => std::hint::unreachable_unchecked(),
@@ -386,7 +404,7 @@ impl<'a> MergeOp<&Transition<'a>> for Transition<'a> {
 impl MergeOp<Epsilon> for Transition<'_> {
     #[inline]
     fn merge(&self, _: Epsilon) {
-        self.0.chunks.borrow_mut()[EPSILON_CHUNK] |= 1;
+        self.0.chunks.borrow_mut()[FLAGS_CHUNK] |= 1;
     }
 }
 
@@ -487,13 +505,13 @@ impl_fmt!(std::fmt::LowerHex);
 impl_fmt!(std::fmt::UpperHex);
 
 pub struct SymbolIter<'a> {
-    chunks: Ref<'a, [u64; BITMAP_LEN]>,
-    chunk: u64,
+    chunks: Ref<'a, [Chunk; BITMAP_LEN]>,
+    chunk: Chunk,
     shift: u32,
 }
 
 impl<'a> SymbolIter<'a> {
-    fn new(chunks: Ref<'a, [u64; BITMAP_LEN]>) -> Self {
+    fn new(chunks: Ref<'a, [Chunk; BITMAP_LEN]>) -> Self {
         let chunk = chunks[0];
         Self {
             chunks,
@@ -528,13 +546,13 @@ impl std::iter::Iterator for SymbolIter<'_> {
 }
 
 pub struct RangeIter<'a> {
-    chunks: Ref<'a, [u64; BITMAP_LEN]>,
-    chunk: u64,
+    chunks: Ref<'a, [Chunk; BITMAP_LEN]>,
+    chunk: Chunk,
     shift: u32,
 }
 
 impl<'a> RangeIter<'a> {
-    fn new(chunks: Ref<'a, [u64; BITMAP_LEN]>) -> Self {
+    fn new(chunks: Ref<'a, [Chunk; BITMAP_LEN]>) -> Self {
         let chunk = chunks[0];
         Self {
             chunks,

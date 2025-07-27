@@ -1,6 +1,7 @@
 use crate::arena::Arena;
 use crate::node::{ClosureOp, Node};
 use crate::symbol::Epsilon;
+use crate::transition::Transition;
 use redt::Set;
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
@@ -103,6 +104,11 @@ impl<'a> Graph<'a> {
     #[inline]
     pub fn start_node(&self) -> Node<'a> {
         self.start_node.get().unwrap_or_else(|| self.node())
+    }
+
+    /// Creates a new empty transition
+    pub fn transition(&self) -> Transition<'a> {
+        Transition::new_in(self.arena())
     }
 
     /// Returns true if the graph is empty.
