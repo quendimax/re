@@ -113,6 +113,11 @@ impl<T: Copy + PartialOrd> Range<T> {
     pub fn intersects(&self, other: &Self) -> bool {
         !(self.last() < other.start() || other.last() < self.start())
     }
+
+    /// Checks if `self` range contains `other` range.
+    pub fn contains(&self, other: &Self) -> bool {
+        self.start() <= other.start() && other.last() <= self.last()
+    }
 }
 
 impl<T: Step + Copy + PartialOrd> Range<T> {

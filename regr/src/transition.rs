@@ -1,4 +1,4 @@
-use crate::arena::Arena;
+use crate::node::Node;
 use crate::ops::{ContainOp, IntersectOp, MergeOp};
 use crate::symbol::Epsilon;
 use redt::{Legible, RangeU8, Step};
@@ -26,59 +26,29 @@ const EPSILON_FLAG: Chunk = 0x01;
 ///
 /// Symbols are the corresponding bits in `chunks` bitmap from 4x`Chunk` values.
 /// The 256-th bit is for Epsilon.
-pub struct Transition<'a>(&'a TransitionInner);
+pub struct Transition<'a>(&'a TransitionInner<'a>);
 
-#[derive(Clone, Default, PartialEq, Eq)]
-pub(crate) struct TransitionInner {
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) struct TransitionInner<'a> {
     chunks: RefCell<[Chunk; BITMAP_LEN]>,
+    in_node: Node<'a>,
+    out_node: Node<'a>,
 }
 
 impl<'a> Transition<'a> {
     /// Creates a new empty transition.
-    pub fn new_in(arena: &'a Arena) -> Self {
-        Self(arena.alloc_with(TransitionInner::default))
-    }
-
-    /// Creates a new transition initialized with the given symbol bitmap.
-    pub fn from_chunks_in(chunks: &[Chunk; SYM_BITMAP_LEN], arena: &'a Arena) -> Self {
-        Self(arena.alloc_with(|| TransitionInner::from_chunks(chunks)))
-    }
-
-    /// Creates a new transition parsing the given byte array, and setting a bit
-    /// corresponding to each byte value in the array.
-    pub fn from_symbols_in(bytes: &[u8], arena: &'a Arena) -> Self {
-        Self(arena.alloc_with(|| TransitionInner::from_symbols(bytes)))
-    }
-
-    pub fn from_symbol_in(symbol: u8, arena: &'a Arena) -> Self {
-        Self(arena.alloc_with(|| TransitionInner::from(symbol)))
-    }
-
-    /// Creates a new transition initialized with Epsilon.
-    pub fn epsilon_in(arena: &'a Arena) -> Self {
-        Self(arena.alloc_with(TransitionInner::epsilon))
-    }
-}
-
-impl TransitionInner {
-    fn from_chunks(chunks: &[Chunk; SYM_BITMAP_LEN]) -> Self {
-        Self {
-            chunks: RefCell::new([chunks[0], chunks[1], chunks[2], chunks[3], 0]),
-        }
-    }
-
-    fn from_symbols(bytes: &[u8]) -> Self {
-        let tr = TransitionInner::default();
-        for byte in bytes {
-            tr.merge(*byte);
-        }
-        tr
-    }
-
-    fn epsilon() -> Self {
-        Self {
-            chunks: RefCell::new([0, 0, 0, 0, 1]),
-        }
+    pub(crate) fn new(ingoing_node: Node<'a>, outgoing_node: Node<'a>) -> Self {
+        assert_eq!(
+            ingoing_node.gid(),
+            outgoing_node.gid(),
+            "can't connect two nodes from different graphs"
+        );
+        let arena = ingoing_node.arena();
+        Self(arena.alloc_with(|| TransitionInner {
+            chunks: RefCell::new([0; BITMAP_LEN]),
+            in_node: ingoing_node,
+            out_node: outgoing_node,
+        }))
     }
 }
 
@@ -135,9 +105,40 @@ impl ContainOp<&u8> for Transition<'_> {
 impl ContainOp<RangeU8> for Transition<'_> {
     #[inline]
     fn contains(&self, range: RangeU8) -> bool {
-        let other_tr = TransitionInner::default();
-        other_tr.merge(range);
-        ContainOp::contains(self, &other_tr)
+        let mut ls_mask = 1 << (range.start() & (u8::MAX >> 2));
+        ls_mask = !(ls_mask - 1);
+
+        let mut ms_mask = 1 << (range.last() & (u8::MAX >> 2));
+        ms_mask |= ms_mask - 1;
+
+        let ls_index = (range.start() >> 6) as usize;
+        let ms_index = (range.last() >> 6) as usize;
+
+        let chunks = self.0.chunks.borrow();
+        unsafe {
+            match ms_index - ls_index {
+                0 => {
+                    let mask = ls_mask & ms_mask;
+                    *chunks.get_unchecked(ls_index) & mask == mask
+                }
+                1 => {
+                    *chunks.get_unchecked(ls_index) & ls_mask == ls_mask
+                        && *chunks.get_unchecked(ls_index + 1) & ms_mask == ms_mask
+                }
+                2 => {
+                    *chunks.get_unchecked(ls_index) & ls_mask == ls_mask
+                        && *chunks.get_unchecked(ls_index + 1) == Chunk::MAX
+                        && *chunks.get_unchecked(ls_index + 2) & ms_mask == ms_mask
+                }
+                3 => {
+                    *chunks.get_unchecked(0) & ls_mask == ls_mask
+                        && *chunks.get_unchecked(1) == Chunk::MAX
+                        && *chunks.get_unchecked(2) == Chunk::MAX
+                        && *chunks.get_unchecked(3) & ms_mask == ms_mask
+                }
+                _ => std::hint::unreachable_unchecked(),
+            }
+        }
     }
 }
 
@@ -176,7 +177,7 @@ impl<'a> ContainOp<&Transition<'a>> for Transition<'a> {
     }
 }
 
-impl<'a> ContainOp<&'a TransitionInner> for Transition<'a> {
+impl<'a> ContainOp<&'a TransitionInner<'a>> for Transition<'a> {
     fn contains(&self, other: &'a TransitionInner) -> bool {
         let self_chunks = self.0.chunks.borrow();
         let other_chunks = other.chunks.borrow();
@@ -218,9 +219,40 @@ impl IntersectOp<RangeU8> for Transition<'_> {
 
 impl IntersectOp<&RangeU8> for Transition<'_> {
     fn intersects(&self, range: &RangeU8) -> bool {
-        let other = TransitionInner::default();
-        other.merge(range);
-        IntersectOp::intersects(self, &other)
+        let mut ls_mask = 1 << (range.start() & (u8::MAX >> 2));
+        ls_mask = !(ls_mask - 1);
+
+        let mut ms_mask = 1 << (range.last() & (u8::MAX >> 2));
+        ms_mask |= ms_mask - 1;
+
+        let ls_index = (range.start() >> 6) as usize;
+        let ms_index = (range.last() >> 6) as usize;
+
+        let chunks = self.0.chunks.borrow();
+        unsafe {
+            match ms_index - ls_index {
+                0 => {
+                    let mask = ls_mask & ms_mask;
+                    *chunks.get_unchecked(ls_index) & mask != 0
+                }
+                1 => {
+                    *chunks.get_unchecked(ls_index) & ls_mask != 0
+                        || *chunks.get_unchecked(ls_index + 1) & ms_mask != 0
+                }
+                2 => {
+                    *chunks.get_unchecked(ls_index) & ls_mask != 0
+                        || *chunks.get_unchecked(ls_index + 1) != 0
+                        || *chunks.get_unchecked(ls_index + 2) & ms_mask != 0
+                }
+                3 => {
+                    *chunks.get_unchecked(0) & ls_mask != 0
+                        || *chunks.get_unchecked(1) != 0
+                        || *chunks.get_unchecked(2) != 0
+                        || *chunks.get_unchecked(3) & ms_mask != 0
+                }
+                _ => std::hint::unreachable_unchecked(),
+            }
+        }
     }
 }
 
@@ -250,7 +282,7 @@ impl<'a> IntersectOp<&Transition<'a>> for Transition<'a> {
     }
 }
 
-impl<'a> IntersectOp<&'a TransitionInner> for Transition<'a> {
+impl<'a> IntersectOp<&'a TransitionInner<'a>> for Transition<'a> {
     fn intersects(&self, other: &'a TransitionInner) -> bool {
         let self_chunks = self.0.chunks.borrow();
         let other_chunks = other.chunks.borrow();
@@ -269,7 +301,7 @@ impl MergeOp<u8> for Transition<'_> {
         self.0.merge(symbol)
     }
 }
-impl MergeOp<u8> for TransitionInner {
+impl MergeOp<u8> for TransitionInner<'_> {
     /// Merges a symbol into this transition.
     #[inline]
     fn merge(&self, symbol: u8) {
@@ -285,7 +317,7 @@ impl MergeOp<&u8> for Transition<'_> {
     }
 }
 
-impl MergeOp<&u8> for TransitionInner {
+impl MergeOp<&u8> for TransitionInner<'_> {
     /// Merges a symbol into this transition.
     #[inline]
     fn merge(&self, symbol: &u8) {
@@ -300,7 +332,7 @@ impl MergeOp<RangeU8> for Transition<'_> {
     }
 }
 
-impl MergeOp<RangeU8> for TransitionInner {
+impl MergeOp<RangeU8> for TransitionInner<'_> {
     fn merge(&self, range: RangeU8) {
         let mut ls_mask = 1 << (range.start() & (u8::MAX >> 2));
         ls_mask = !(ls_mask - 1);
@@ -345,7 +377,7 @@ impl MergeOp<&RangeU8> for Transition<'_> {
     }
 }
 
-impl MergeOp<&RangeU8> for TransitionInner {
+impl MergeOp<&RangeU8> for TransitionInner<'_> {
     #[inline]
     fn merge(&self, range: &RangeU8) {
         Self::merge(self, *range)
@@ -407,22 +439,11 @@ impl std::cmp::Eq for Transition<'_> {}
 
 impl std::cmp::PartialEq for Transition<'_> {
     fn eq(&self, other: &Self) -> bool {
-        self.0.eq(other.0)
-    }
-}
-
-impl std::convert::From<u8> for TransitionInner {
-    fn from(value: u8) -> Self {
-        let tr = TransitionInner::default();
-        tr.merge(value);
-        tr
-    }
-}
-
-impl std::convert::From<Epsilon> for TransitionInner {
-    #[inline]
-    fn from(_: Epsilon) -> Self {
-        Self::epsilon()
+        self.0
+            .chunks
+            .borrow()
+            .as_ref()
+            .eq(other.0.chunks.borrow().as_ref())
     }
 }
 

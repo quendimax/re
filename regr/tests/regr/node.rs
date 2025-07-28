@@ -276,11 +276,11 @@ fn node_finalize() {
     let mut arena = Arena::new();
     let graph = Graph::nfa_in(&mut arena);
     let a = graph.node();
-    assert_eq!(format!("{:?}", a), "node(0)");
+    assert_eq!(format!("{a:?}"), "node(0)");
     a.finalize();
-    assert_eq!(format!("{:?}", a), "node((0))");
+    assert_eq!(format!("{a:?}"), "node((0))");
     a.definalize();
-    assert_eq!(format!("{:?}", a), "node(0)");
+    assert_eq!(format!("{a:?}"), "node(0)");
 }
 
 #[test]
@@ -290,7 +290,7 @@ fn node_fmt_debug() {
     let a = graph.node();
     let b = graph.node();
     let c = graph.node().finalize();
-    assert_eq!(format!("{:?}", a), "node(0)");
-    assert_eq!(format!("{:?}", b), "node(1)");
-    assert_eq!(format!("{:?}", c), "node((2))");
+    assert_eq!(format!("{a:?}"), "node(0)");
+    assert_eq!(format!("{b:?}"), "node(1)");
+    assert_eq!(format!("{c:?}"), "node((2))");
 }

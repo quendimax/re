@@ -19,11 +19,11 @@ pub(crate) struct NodeInner<'a> {
     is_final: Cell<bool>,
     targets: RefCell<Map<Node<'a>, Transition<'a>>>,
     arena: &'a Arena,
-    variant: NodeVariant<'a>,
+    variant: NodeVariant,
 }
 
-enum NodeVariant<'a> {
-    DfaNode { _occupied_symbols: Transition<'a> },
+enum NodeVariant {
+    DfaNode,
     NfaNode,
 }
 
@@ -54,14 +54,14 @@ impl<'a> Node<'a> {
 
     pub fn kind(self) -> AutomatonKind {
         match self.0.variant {
-            DfaNode { .. } => AutomatonKind::DFA,
+            DfaNode => AutomatonKind::DFA,
             NfaNode => AutomatonKind::NFA,
         }
     }
 
     /// Checks if the node is an DFA node.
     pub fn is_dfa(self) -> bool {
-        matches!(self.0.variant, DfaNode { .. })
+        matches!(self.0.variant, DfaNode)
     }
 
     /// Checks if the node is an NFA node.
@@ -111,7 +111,7 @@ impl<'a> Node<'a> {
         if let Some(tr) = targets.get(&to) {
             *tr
         } else {
-            let tr = Transition::new_in(self.arena());
+            let tr = Transition::new(self, to);
             targets.insert(to, tr);
             tr
         }
@@ -137,7 +137,7 @@ impl<'a> Node<'a> {
     /// Iterates over epsilon target nodes, i.e. nodes that this node is
     /// connected to with Epsilon transition.
     pub fn for_each_epsilon_target(self, f: impl FnMut(Node<'a>)) {
-        if matches!(self.0.variant, DfaNode { .. }) {
+        if matches!(self.0.variant, DfaNode) {
             panic!("iteration over Epsilon targets is possible for NFA nodes only");
         }
         let mut f = f;
@@ -151,7 +151,7 @@ impl<'a> Node<'a> {
     /// Collects epsilon target nodes, i.e. nodes that this node is
     /// connected to with Epsilon transition.
     pub fn collect_epsilon_targets<B: FromIterator<Node<'a>>>(self) -> B {
-        if matches!(self.0.variant, DfaNode { .. }) {
+        if matches!(self.0.variant, DfaNode) {
             panic!("iteration over Epsilon targets is possible for NFA nodes only");
         }
         let targets = self.0.targets.borrow();
@@ -182,9 +182,7 @@ impl<'a> Node<'a> {
                 is_final: Cell::new(false),
                 targets: Default::default(),
                 arena: graph.arena(),
-                variant: DfaNode {
-                    _occupied_symbols: Transition::new_in(graph.arena()),
-                },
+                variant: DfaNode,
             },
         }
     }
