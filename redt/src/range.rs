@@ -152,16 +152,6 @@ impl<T: Step + Copy + Ord + std::fmt::Debug> Range<T> {
     }
 }
 
-impl<T: Copy> std::convert::From<T> for Range<T> {
-    #[inline]
-    fn from(value: T) -> Self {
-        Self {
-            start: value,
-            last: value,
-        }
-    }
-}
-
 impl<T: Copy + PartialOrd> std::convert::From<std::ops::RangeInclusive<T>> for Range<T> {
     #[inline]
     fn from(value: std::ops::RangeInclusive<T>) -> Self {

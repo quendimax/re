@@ -1,5 +1,6 @@
 /// A special symbol out of the language alphabet that represents automaton's
 /// transition with no real symbol.
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Epsilon;
 
 macro_rules! impl_fmt {

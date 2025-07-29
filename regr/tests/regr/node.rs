@@ -1,4 +1,5 @@
 use pretty_assertions::{assert_eq, assert_ne};
+use redt::range;
 use regr::{Arena, AutomatonKind, Epsilon, Graph};
 use std::collections::BTreeSet;
 
@@ -99,7 +100,6 @@ fn node_connect_dfa() {
 }
 
 #[test]
-#[ignore]
 #[should_panic]
 fn node_connect_dfa_repeat_panics() {
     let mut arena = Arena::new();
@@ -110,8 +110,7 @@ fn node_connect_dfa_repeat_panics() {
 }
 
 #[test]
-#[ignore]
-#[should_panic(expected = "DFA nodes can't be connected with Epsilon")]
+#[should_panic(expected = "DFA node(0) can't be connected with Epsilon")]
 fn node_connect_epsilon_panics() {
     let mut arena = Arena::new();
     let graph = Graph::dfa_in(&mut arena);
@@ -163,7 +162,7 @@ fn node_eclosure() {
     let c = graph.node();
     let d = graph.node();
 
-    a.connect(b).merge(b'a'..=u8::MAX);
+    a.connect(b).merge(range(b'a', u8::MAX));
     a.connect(b).merge(Epsilon);
     b.connect(c).merge(Epsilon);
     c.connect(d).merge(b'c');
@@ -186,7 +185,7 @@ fn node_symbol_targets() {
     let c = graph.node();
     let d = graph.node();
 
-    a.connect(b).merge(b'a'..=u8::MAX);
+    a.connect(b).merge(range(b'a', u8::MAX));
     a.connect(b).merge(Epsilon);
     b.connect(c).merge(Epsilon);
     c.connect(d).merge(b'c');
@@ -200,7 +199,6 @@ fn node_symbol_targets() {
 }
 
 #[test]
-#[ignore]
 #[should_panic]
 fn node_symbol_targets_panic() {
     let mut arena = Arena::new();
@@ -224,7 +222,7 @@ fn node_collect_epsilon_targets() {
     let c = graph.node();
     let d = graph.node();
 
-    a.connect(b).merge(b'a'..=u8::MAX);
+    a.connect(b).merge(range(b'a', u8::MAX));
     a.connect(b).merge(Epsilon);
     b.connect(c).merge(Epsilon);
     c.connect(d).merge(b'c');
@@ -238,7 +236,6 @@ fn node_collect_epsilon_targets() {
 }
 
 #[test]
-#[ignore]
 #[should_panic]
 fn node_iter_and_connect_overlap_panics() {
     let mut arena = Arena::new();

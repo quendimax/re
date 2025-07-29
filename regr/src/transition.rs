@@ -1,3 +1,4 @@
+use crate::arena::Arena;
 use crate::node::Node;
 use crate::ops::{ContainOp, IntersectOp, MergeOp};
 use crate::symbol::Epsilon;
@@ -31,23 +32,30 @@ pub struct Transition<'a>(&'a TransitionInner<'a>);
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct TransitionInner<'a> {
     chunks: RefCell<[Chunk; BITMAP_LEN]>,
-    in_node: Node<'a>,
-    out_node: Node<'a>,
+    source: Option<Node<'a>>,
 }
 
+/// Crate API
 impl<'a> Transition<'a> {
     /// Creates a new empty transition.
-    pub(crate) fn new(ingoing_node: Node<'a>, outgoing_node: Node<'a>) -> Self {
+    pub(crate) fn new(source: Node<'a>, target: Node<'a>) -> Self {
         assert_eq!(
-            ingoing_node.gid(),
-            outgoing_node.gid(),
+            source.gid(),
+            target.gid(),
             "can't connect two nodes from different graphs"
         );
-        let arena = ingoing_node.arena();
+        let arena = source.arena();
         Self(arena.alloc_with(|| TransitionInner {
             chunks: RefCell::new([0; BITMAP_LEN]),
-            in_node: ingoing_node,
-            out_node: outgoing_node,
+            source: Some(source),
+        }))
+    }
+
+    /// Creates a new empty transition without source.
+    pub(crate) fn without_source_in(arena: &'a Arena) -> Self {
+        Self(arena.alloc_with(|| TransitionInner {
+            chunks: RefCell::new([0; BITMAP_LEN]),
+            source: None,
         }))
     }
 }
@@ -68,8 +76,12 @@ impl<'a> Transition<'a> {
     /// Merges the `other` boject into this transition.
     pub fn merge<T>(&self, other: T)
     where
-        Self: MergeOp<T>,
+        T: Copy,
+        Self: MergeOp<T> + IntersectOp<T>,
     {
+        if let Some(source) = self.0.source {
+            source.assert_dfa(other);
+        }
         MergeOp::merge(self, other);
     }
 
@@ -88,17 +100,18 @@ impl<'a> Transition<'a> {
     }
 }
 
-impl ContainOp<u8> for Transition<'_> {
-    #[inline]
-    fn contains(&self, symbol: u8) -> bool {
-        IntersectOp::intersects(self, symbol)
-    }
-}
-
 impl ContainOp<&u8> for Transition<'_> {
     #[inline]
     fn contains(&self, symbol: &u8) -> bool {
-        Self::contains(self, *symbol)
+        let chunks = self.0.chunks.borrow();
+        chunks[*symbol as usize >> 6] & (1 << (symbol & (u8::MAX >> 2))) != 0
+    }
+}
+
+impl ContainOp<u8> for Transition<'_> {
+    #[inline]
+    fn contains(&self, symbol: u8) -> bool {
+        ContainOp::contains(self, &symbol)
     }
 }
 
@@ -149,22 +162,6 @@ impl ContainOp<&RangeU8> for Transition<'_> {
     }
 }
 
-impl ContainOp<std::ops::RangeInclusive<u8>> for Transition<'_> {
-    #[inline]
-    fn contains(&self, range: std::ops::RangeInclusive<u8>) -> bool {
-        let range = RangeU8::from(range);
-        ContainOp::contains(self, range)
-    }
-}
-
-impl ContainOp<&std::ops::RangeInclusive<u8>> for Transition<'_> {
-    #[inline]
-    fn contains(&self, range: &std::ops::RangeInclusive<u8>) -> bool {
-        let range = RangeU8::new(*range.start(), *range.end());
-        ContainOp::contains(self, range)
-    }
-}
-
 impl<'a> ContainOp<Transition<'a>> for Transition<'a> {
     fn contains(&self, other: Transition<'a>) -> bool {
         self.contains(&other)
@@ -173,14 +170,8 @@ impl<'a> ContainOp<Transition<'a>> for Transition<'a> {
 
 impl<'a> ContainOp<&Transition<'a>> for Transition<'a> {
     fn contains(&self, other: &Transition<'a>) -> bool {
-        self.contains(other.0)
-    }
-}
-
-impl<'a> ContainOp<&'a TransitionInner<'a>> for Transition<'a> {
-    fn contains(&self, other: &'a TransitionInner) -> bool {
         let self_chunks = self.0.chunks.borrow();
-        let other_chunks = other.chunks.borrow();
+        let other_chunks = other.0.chunks.borrow();
         self_chunks[0] & other_chunks[0] == other_chunks[0]
             && self_chunks[1] & other_chunks[1] == other_chunks[1]
             && self_chunks[2] & other_chunks[2] == other_chunks[2]
@@ -195,18 +186,18 @@ impl ContainOp<Epsilon> for Transition<'_> {
     }
 }
 
-impl IntersectOp<u8> for Transition<'_> {
-    #[inline]
-    fn intersects(&self, symbol: u8) -> bool {
-        let chunks = self.0.chunks.borrow();
-        chunks[symbol as usize >> 6] & (1 << (symbol & (u8::MAX >> 2))) != 0
-    }
-}
-
 impl IntersectOp<&u8> for Transition<'_> {
     #[inline]
     fn intersects(&self, symbol: &u8) -> bool {
-        Self::intersects(self, *symbol)
+        let chunks = self.0.chunks.borrow();
+        chunks[*symbol as usize >> 6] & (1 << (symbol & (u8::MAX >> 2))) != 0
+    }
+}
+
+impl IntersectOp<u8> for Transition<'_> {
+    #[inline]
+    fn intersects(&self, symbol: u8) -> bool {
+        IntersectOp::intersects(self, &symbol)
     }
 }
 
@@ -256,36 +247,10 @@ impl IntersectOp<&RangeU8> for Transition<'_> {
     }
 }
 
-impl IntersectOp<std::ops::RangeInclusive<u8>> for Transition<'_> {
-    fn intersects(&self, range: std::ops::RangeInclusive<u8>) -> bool {
-        Self::intersects(self, &range)
-    }
-}
-
-impl IntersectOp<&std::ops::RangeInclusive<u8>> for Transition<'_> {
-    fn intersects(&self, range: &std::ops::RangeInclusive<u8>) -> bool {
-        let range = RangeU8::new(*range.start(), *range.end());
-        IntersectOp::intersects(self, range)
-    }
-}
-
-impl<'a> IntersectOp<Transition<'a>> for Transition<'a> {
-    fn intersects(&self, other: Transition<'a>) -> bool {
-        self.intersects(&other)
-    }
-}
-
 impl<'a> IntersectOp<&Transition<'a>> for Transition<'a> {
-    #[inline]
     fn intersects(&self, other: &Transition<'a>) -> bool {
-        self.intersects(other.0)
-    }
-}
-
-impl<'a> IntersectOp<&'a TransitionInner<'a>> for Transition<'a> {
-    fn intersects(&self, other: &'a TransitionInner) -> bool {
         let self_chunks = self.0.chunks.borrow();
-        let other_chunks = other.chunks.borrow();
+        let other_chunks = other.0.chunks.borrow();
         self_chunks[0] & other_chunks[0] != 0
             || self_chunks[1] & other_chunks[1] != 0
             || self_chunks[2] & other_chunks[2] != 0
@@ -294,46 +259,39 @@ impl<'a> IntersectOp<&'a TransitionInner<'a>> for Transition<'a> {
     }
 }
 
-impl MergeOp<u8> for Transition<'_> {
-    /// Merges a symbol into this transition.
+impl<'a> IntersectOp<Transition<'a>> for Transition<'a> {
     #[inline]
-    fn merge(&self, symbol: u8) {
-        self.0.merge(symbol)
+    fn intersects(&self, other: Transition<'a>) -> bool {
+        IntersectOp::intersects(self, &other)
     }
 }
-impl MergeOp<u8> for TransitionInner<'_> {
-    /// Merges a symbol into this transition.
+
+impl<'a> IntersectOp<Epsilon> for Transition<'a> {
     #[inline]
-    fn merge(&self, symbol: u8) {
-        let mut chunks = self.chunks.borrow_mut();
-        chunks[symbol as usize >> 6] |= 1 << (symbol & (u8::MAX >> 2));
+    fn intersects(&self, _: Epsilon) -> bool {
+        self.0.chunks.borrow()[FLAGS_CHUNK] & EPSILON_FLAG != 0
     }
 }
 
 impl MergeOp<&u8> for Transition<'_> {
-    #[inline]
-    fn merge(&self, symbol: &u8) {
-        self.0.merge(*symbol)
-    }
-}
-
-impl MergeOp<&u8> for TransitionInner<'_> {
     /// Merges a symbol into this transition.
     #[inline]
     fn merge(&self, symbol: &u8) {
-        Self::merge(self, *symbol)
+        let mut chunks = self.0.chunks.borrow_mut();
+        chunks[*symbol as usize >> 6] |= 1 << (symbol & (u8::MAX >> 2));
     }
 }
 
-impl MergeOp<RangeU8> for Transition<'_> {
+impl MergeOp<u8> for Transition<'_> {
+    /// Merges a symbol into this transition.
     #[inline]
-    fn merge(&self, range: RangeU8) {
-        self.0.merge(range)
+    fn merge(&self, symbol: u8) {
+        MergeOp::merge(self, &symbol);
     }
 }
 
-impl MergeOp<RangeU8> for TransitionInner<'_> {
-    fn merge(&self, range: RangeU8) {
+impl MergeOp<&RangeU8> for Transition<'_> {
+    fn merge(&self, range: &RangeU8) {
         let mut ls_mask = 1 << (range.start() & (u8::MAX >> 2));
         ls_mask = !(ls_mask - 1);
 
@@ -343,7 +301,7 @@ impl MergeOp<RangeU8> for TransitionInner<'_> {
         let ls_index = (range.start() >> 6) as usize;
         let ms_index = (range.last() >> 6) as usize;
 
-        let mut chunks = self.chunks.borrow_mut();
+        let mut chunks = self.0.chunks.borrow_mut();
         unsafe {
             match ms_index - ls_index {
                 0 => {
@@ -370,40 +328,10 @@ impl MergeOp<RangeU8> for TransitionInner<'_> {
     }
 }
 
-impl MergeOp<&RangeU8> for Transition<'_> {
+impl MergeOp<RangeU8> for Transition<'_> {
     #[inline]
-    fn merge(&self, range: &RangeU8) {
-        self.0.merge(range)
-    }
-}
-
-impl MergeOp<&RangeU8> for TransitionInner<'_> {
-    #[inline]
-    fn merge(&self, range: &RangeU8) {
-        Self::merge(self, *range)
-    }
-}
-
-impl MergeOp<std::ops::RangeInclusive<u8>> for Transition<'_> {
-    #[inline]
-    fn merge(&self, range: std::ops::RangeInclusive<u8>) {
-        let range = RangeU8::from(range);
-        MergeOp::merge(self, range)
-    }
-}
-
-impl MergeOp<&std::ops::RangeInclusive<u8>> for Transition<'_> {
-    #[inline]
-    fn merge(&self, range: &std::ops::RangeInclusive<u8>) {
-        let range = RangeU8::new(*range.start(), *range.end());
-        MergeOp::merge(self, range)
-    }
-}
-
-impl<'a> MergeOp<Transition<'a>> for Transition<'a> {
-    #[inline]
-    fn merge(&self, other: Transition<'a>) {
-        self.merge(&other)
+    fn merge(&self, range: RangeU8) {
+        MergeOp::merge(self, &range);
     }
 }
 
@@ -420,6 +348,13 @@ impl<'a> MergeOp<&Transition<'a>> for Transition<'a> {
     }
 }
 
+impl<'a> MergeOp<Transition<'a>> for Transition<'a> {
+    #[inline]
+    fn merge(&self, other: Transition<'a>) {
+        MergeOp::merge(self, &other);
+    }
+}
+
 impl MergeOp<Epsilon> for Transition<'_> {
     #[inline]
     fn merge(&self, _: Epsilon) {
@@ -430,6 +365,7 @@ impl MergeOp<Epsilon> for Transition<'_> {
 impl Copy for Transition<'_> {}
 
 impl Clone for Transition<'_> {
+    #[inline]
     fn clone(&self) -> Self {
         *self
     }

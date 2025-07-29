@@ -1,5 +1,5 @@
 use pretty_assertions::assert_eq;
-use redt::RangeU8;
+use redt::{RangeU8, range};
 use regr::{Arena, AutomatonKind, Epsilon, Graph};
 
 fn dsp<T: std::fmt::Display>(obj: &T) -> String {
@@ -108,7 +108,7 @@ fn graph_determine_1() {
     let b = nfa.node();
     let c = nfa.node();
     let d = nfa.node();
-    a.connect(a).merge(1..=255);
+    a.connect(a).merge(range(1, 255));
     a.connect(b).merge(Epsilon);
     b.connect(c).merge(b'a');
     c.connect(d).merge(b'b');

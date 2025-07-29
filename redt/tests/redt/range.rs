@@ -10,11 +10,11 @@ fn range_new() {
 
 #[test]
 fn range_from_type() {
-    let r = Range::from(3u8);
+    let r = Range::from(3..=3);
     assert_eq!(r.start(), 3);
     assert_eq!(r.last(), 3);
 
-    let r = Range::from(b'a');
+    let r = Range::from(b'a'..=b'a');
     assert_eq!(r.start(), b'a');
     assert_eq!(r.last(), b'a');
 }
@@ -101,7 +101,7 @@ fn range_is_at_right() {
 
 #[test]
 fn range_intersects() {
-    let r_0 = Range::from(b'0');
+    let r_0 = Range::new(b'0', b'0');
     let r_1_4 = Range::from(b'1'..=b'4');
     let r_2_3 = Range::from(b'2'..=b'3');
     let r_4_5 = Range::from(b'4'..=b'5');
@@ -124,7 +124,7 @@ fn range_adjoins() {
     let r_2_4 = Range::from(b'2'..=b'4');
     let r_3_5 = Range::from(b'3'..=b'5');
     let r_5_7 = Range::from(b'5'..=b'7');
-    let r_6 = Range::from(b'6');
+    let r_6 = Range::new(b'6', b'6');
 
     assert!(r_0_1.adjoins(&r_2_4));
     assert!(!r_0_1.adjoins(&r_3_5));
@@ -146,7 +146,7 @@ fn range_try_merge() {
     let r_2_4 = Range::from(b'2'..=b'4');
     let r_3_5 = Range::from(b'3'..=b'5');
     let r_5_7 = Range::from(b'5'..=b'7');
-    let r_6 = Range::from(b'6');
+    let r_6 = Range::new(b'6', b'6');
 
     assert_eq!(r_0_1.try_merge(&r_2_4), Some((b'0'..=b'4').into()));
     assert_eq!(r_2_4.try_merge(&r_3_5), Some((b'2'..=b'5').into()));
