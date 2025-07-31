@@ -284,12 +284,12 @@ mod prop {
     }
 }
 
+#[cfg(feature = "test-bruteforce-utf8")]
 mod bruteforce {
     use pretty_assertions::assert_eq;
     use test_case::test_matrix;
 
     #[test_matrix(0x0..0x40)]
-    #[cfg_attr(not(feature = "test-bruteforce-utf8"), ignore)]
     fn encode_range(iteration: u32) {
         const ITERATION_LEN: u32 = 0x40; // must be the same as in #[test_matrix]
         const CODEPOINT_NUM: u32 = 0x110000;
