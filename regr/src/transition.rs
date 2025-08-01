@@ -1,6 +1,5 @@
 use crate::arena::Arena;
 use crate::node::Node;
-use crate::ops::{ContainOp, IntersectOp, MergeOp};
 use crate::symbol::Epsilon;
 use redt::{Legible, RangeU8, Step};
 use std::cell::{Ref, RefCell};
@@ -100,6 +99,10 @@ impl<'a> Transition<'a> {
     }
 }
 
+pub trait ContainOp<T> {
+    fn contains(&self, other: T) -> bool;
+}
+
 impl ContainOp<&u8> for Transition<'_> {
     #[inline]
     fn contains(&self, symbol: &u8) -> bool {
@@ -184,6 +187,10 @@ impl ContainOp<Epsilon> for Transition<'_> {
     fn contains(&self, _: Epsilon) -> bool {
         self.0.chunks.borrow()[FLAGS_CHUNK] & EPSILON_FLAG != 0
     }
+}
+
+pub trait IntersectOp<T> {
+    fn intersects(&self, other: T) -> bool;
 }
 
 impl IntersectOp<&u8> for Transition<'_> {
@@ -271,6 +278,10 @@ impl<'a> IntersectOp<Epsilon> for Transition<'a> {
     fn intersects(&self, _: Epsilon) -> bool {
         self.0.chunks.borrow()[FLAGS_CHUNK] & EPSILON_FLAG != 0
     }
+}
+
+pub trait MergeOp<T> {
+    fn merge(&self, other: T);
 }
 
 impl MergeOp<&u8> for Transition<'_> {

@@ -1,8 +1,7 @@
 use crate::arena::Arena;
 use crate::graph::{AutomatonKind, Graph};
-use crate::ops::{IntersectOp, MergeOp};
 use crate::symbol::Epsilon;
-use crate::transition::Transition;
+use crate::transition::{IntersectOp, MergeOp, Transition};
 use redt::Map;
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeSet;

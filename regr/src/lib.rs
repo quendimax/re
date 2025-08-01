@@ -10,8 +10,6 @@ pub use node::Node;
 mod operation;
 pub use operation::Operation;
 
-mod ops;
-
 mod symbol;
 pub use symbol::Epsilon;
 
