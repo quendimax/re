@@ -73,7 +73,7 @@ impl<'a> Transition<'a> {
         RangeIter::new(self.0.chunks.borrow())
     }
 
-    /// Merges the `other` boject into this transition.
+    /// Merges the `other` object into this transition.
     pub fn merge<T>(&self, other: T)
     where
         T: Copy,

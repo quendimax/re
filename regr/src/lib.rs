@@ -7,6 +7,9 @@ pub use graph::{AutomatonKind, Graph};
 mod node;
 pub use node::Node;
 
+mod operation;
+pub use operation::Operation;
+
 mod ops;
 
 mod symbol;
