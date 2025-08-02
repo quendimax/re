@@ -119,6 +119,25 @@ fn range_intersects() {
 }
 
 #[test]
+fn range_contains() {
+    let r_0 = Range::new(b'0', b'0');
+    let r_1_4 = Range::from(b'1'..=b'4');
+    let r_2_3 = Range::from(b'2'..=b'3');
+    let r_4_5 = Range::from(b'4'..=b'5');
+
+    assert!(!r_0.contains(&r_1_4));
+    assert!(r_1_4.contains(&r_2_3));
+    assert!(!r_1_4.contains(&r_4_5));
+    assert!(!r_2_3.contains(&r_4_5));
+
+    // reverted
+    assert!(!r_1_4.contains(&r_0));
+    assert!(!r_2_3.contains(&r_1_4));
+    assert!(!r_4_5.contains(&r_1_4));
+    assert!(!r_4_5.contains(&r_2_3));
+}
+
+#[test]
 fn range_adjoins() {
     let r_0_1 = Range::from(b'0'..=b'1');
     let r_2_4 = Range::from(b'2'..=b'4');
