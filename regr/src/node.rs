@@ -1,7 +1,7 @@
 use crate::arena::Arena;
 use crate::graph::{AutomatonKind, Graph};
 use crate::symbol::Epsilon;
-use crate::transition::{IntersectOp, MergeOp, Transition};
+use crate::transition::{Transition, TransitionOps};
 use redt::Map;
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeSet;
@@ -190,7 +190,7 @@ impl<'a> Node<'a> {
     pub(crate) fn assert_dfa<T>(&self, tr: T)
     where
         T: Copy,
-        Transition<'a>: MergeOp<T> + IntersectOp<T>,
+        Transition<'a>: TransitionOps<T> + TransitionOps<Epsilon>,
     {
         if let DfaNode(tr_mask) = self.0.variant {
             if tr_mask.intersects(tr) {
