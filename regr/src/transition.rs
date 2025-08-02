@@ -207,6 +207,7 @@ impl<'a, 'b> TransitionOps<Transition<'b>> for Transition<'a> {
                 self_ops.push((*other_op, self_symset));
             }
         }
+        self_ops.sort_by(|(l_op, _), (r_op, _)| l_op.cmp(r_op));
     }
 }
 
@@ -352,7 +353,7 @@ impl std::iter::Iterator for OperationForIter<'_> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(index) = self.index_iter.next() {
+        for index in &mut self.index_iter {
             let (_, symset) = &self.ops[index];
             if symset.contains_symbol(self.symbol) {
                 return Some(self.ops[index].0);
