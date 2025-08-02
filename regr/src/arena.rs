@@ -10,7 +10,7 @@ pub struct Arena {
     node_bump: Bump,
     nodes_len: Cell<usize>,
     bound_gid: Cell<Option<u64>>,
-    shared_bump: Bump,
+    pub(crate) shared_bump: Bump,
 }
 
 /// Public API

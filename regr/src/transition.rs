@@ -1,6 +1,8 @@
 use crate::arena::Arena;
 use crate::node::Node;
+use crate::operation::Operation;
 use crate::symbol::Epsilon;
+use bumpalo::collections::Vec as BumpVec;
 use redt::{Legible, RangeU8, Step};
 use std::cell::{Ref, RefCell};
 use std::fmt::Write;
@@ -15,9 +17,10 @@ use std::ops::Deref;
 /// The 256-th bit is for Epsilon.
 pub struct Transition<'a>(&'a TransitionInner<'a>);
 
-#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct TransitionInner<'a> {
     symset: RefCell<SymbolSet>,
+    ops: RefCell<BumpVec<'a, (Operation, &'a mut SymbolSet)>>,
+    arena: &'a Arena,
     source: Option<Node<'a>>,
 }
 
@@ -33,6 +36,8 @@ impl<'a> Transition<'a> {
         let arena = source.arena();
         Self(arena.alloc_with(|| TransitionInner {
             symset: RefCell::new(SymbolSet::default()),
+            ops: RefCell::new(BumpVec::new_in(&arena.shared_bump)),
+            arena,
             source: Some(source),
         }))
     }
@@ -41,6 +46,8 @@ impl<'a> Transition<'a> {
     pub(crate) fn without_source_in(arena: &'a Arena) -> Self {
         Self(arena.alloc_with(|| TransitionInner {
             symset: RefCell::new(SymbolSet::default()),
+            ops: RefCell::new(BumpVec::new_in(&arena.shared_bump)),
+            arena,
             source: None,
         }))
     }
@@ -59,6 +66,10 @@ impl<'a> Transition<'a> {
         RangeIter::new(self.0.symset.borrow())
     }
 
+    pub fn operations(self) -> OperationIter<'a> {
+        OperationIter::new(self.0.ops.borrow())
+    }
+
     /// Merges the `other` object into this transition.
     pub fn merge<T>(&self, other: T)
     where
@@ -69,6 +80,43 @@ impl<'a> Transition<'a> {
             source.assert_dfa(other);
         }
         TransitionOps::merge(self, other);
+    }
+
+    /// Adds the specified operation to the all transition's symbols without sorting.
+    ///
+    /// This method is used internally for optimization purposes. It doesn't
+    /// sort operation array at the end of the method.
+    fn _merge_operation(&self, operation: Operation) -> bool {
+        let symset = self.0.symset.borrow().clone();
+        let mut ops = self.0.ops.borrow_mut();
+        if ops.iter().any(|(op, _)| *op == operation) {
+            false
+        } else {
+            let new_bitmap = self.0.arena.alloc_with(|| symset);
+            ops.push((operation, new_bitmap));
+            true
+        }
+    }
+
+    /// Adds the specified operation to the all transition's symbols.
+    pub fn merge_operation(&self, operation: Operation) {
+        if self._merge_operation(operation) {
+            let mut ops = self.0.ops.borrow_mut();
+            ops.sort_by(|(l_op, _), (r_op, _)| l_op.cmp(r_op));
+        }
+    }
+
+    /// Adds the specified operations to the all transition's symbols.
+    pub fn merge_operations(&self, operations: impl IntoIterator<Item = Operation>) {
+        let iter = operations.into_iter();
+        let mut merged = false;
+        for op in iter {
+            merged |= self._merge_operation(op);
+        }
+        if merged {
+            let mut ops = self.0.ops.borrow_mut();
+            ops.sort_by(|(l_op, _), (r_op, _)| l_op.cmp(r_op));
+        }
     }
 
     pub fn intersects<T>(&self, other: T) -> bool
@@ -121,8 +169,58 @@ impl_transition_ops!(symbol: u8 []);
 impl_transition_ops!(symbol: &u8 [*]);
 impl_transition_ops!(range: RangeU8 []);
 impl_transition_ops!(range: &RangeU8 [*]);
-impl_transition_ops!(transition: Transition<'_> []);
-impl_transition_ops!(transition: &Transition<'_> [*]);
+
+impl<'a, 'b> TransitionOps<Transition<'b>> for Transition<'a> {
+    #[inline]
+    fn contains(&self, other: Transition<'b>) -> bool {
+        self.0
+            .symset
+            .borrow()
+            .contains_symset(other.0.symset.borrow().deref())
+    }
+
+    #[inline]
+    fn intersects(&self, other: Transition<'b>) -> bool {
+        self.0
+            .symset
+            .borrow()
+            .intersects_symset(other.0.symset.borrow().deref())
+    }
+
+    fn merge(&self, other: Transition<'b>) {
+        let other_symset = other.0.symset.borrow();
+        let other_symset = other_symset.deref();
+        self.0.symset.borrow_mut().merge_symset(other_symset);
+
+        let mut self_ops = self.0.ops.borrow_mut();
+        for (other_op, other_symset) in other.0.ops.borrow().iter() {
+            if let Some((_, self_symset)) =
+                self_ops.iter_mut().find(|(self_op, _)| self_op == other_op)
+            {
+                self_symset.merge_symset(other_symset);
+            } else {
+                let self_symset = self.0.arena.alloc_with(|| (*other_symset).clone());
+                self_ops.push((*other_op, self_symset));
+            }
+        }
+    }
+}
+
+impl<'a, 'b> TransitionOps<&Transition<'b>> for Transition<'a> {
+    #[inline]
+    fn contains(&self, other: &Transition<'b>) -> bool {
+        TransitionOps::contains(self, *other)
+    }
+
+    #[inline]
+    fn intersects(&self, other: &Transition<'b>) -> bool {
+        TransitionOps::intersects(self, *other)
+    }
+
+    fn merge(&self, other: &Transition<'b>) {
+        TransitionOps::merge(self, *other);
+    }
+}
 
 impl Copy for Transition<'_> {}
 
@@ -138,6 +236,7 @@ impl std::cmp::Eq for Transition<'_> {}
 impl std::cmp::PartialEq for Transition<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.0.symset.borrow().eq(other.0.symset.borrow().deref())
+            && self.0.ops.borrow().eq(other.0.ops.borrow().deref())
     }
 }
 
@@ -205,6 +304,27 @@ impl_fmt!(std::fmt::Binary);
 impl_fmt!(std::fmt::Octal);
 impl_fmt!(std::fmt::LowerHex);
 impl_fmt!(std::fmt::UpperHex);
+
+pub struct OperationIter<'a> {
+    ops: Ref<'a, BumpVec<'a, (Operation, &'a mut SymbolSet)>>,
+    index_iter: std::ops::Range<usize>,
+}
+
+impl<'a> OperationIter<'a> {
+    fn new(ops: Ref<'a, BumpVec<'a, (Operation, &'a mut SymbolSet)>>) -> Self {
+        let index_iter = 0..ops.len();
+        Self { ops, index_iter }
+    }
+}
+
+impl std::iter::Iterator for OperationIter<'_> {
+    type Item = Operation;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.index_iter.next().map(|index| self.ops[index].0)
+    }
+}
 
 pub struct SymbolIter<'a> {
     symset: Ref<'a, SymbolSet>,
@@ -378,10 +498,6 @@ impl SymbolSet {
             && self.chunks[3] & other.chunks[3] == other.chunks[3]
     }
 
-    fn contains_transition(&self, other: Transition<'_>) -> bool {
-        self.contains_symset(other.0.symset.borrow().deref())
-    }
-
     fn intersects_epsilon(&self, _: Epsilon) -> bool {
         self.epsilon
     }
@@ -427,15 +543,11 @@ impl SymbolSet {
     }
 
     fn intersects_symset(&self, other: &SymbolSet) -> bool {
-        self.epsilon && other.epsilon
+        (self.epsilon && other.epsilon)
             || self.chunks[0] & other.chunks[0] != 0
             || self.chunks[1] & other.chunks[1] != 0
             || self.chunks[2] & other.chunks[2] != 0
             || self.chunks[3] & other.chunks[3] != 0
-    }
-
-    fn intersects_transition(&self, other: Transition<'_>) -> bool {
-        self.intersects_symset(other.0.symset.borrow().deref())
     }
 
     fn merge_epsilon(&mut self, _: Epsilon) {
@@ -487,9 +599,5 @@ impl SymbolSet {
         self.chunks[2] |= other.chunks[2];
         self.chunks[3] |= other.chunks[3];
         self.epsilon |= other.epsilon;
-    }
-
-    fn merge_transition(&mut self, other: Transition<'_>) {
-        self.merge_symset(other.0.symset.borrow().deref());
     }
 }

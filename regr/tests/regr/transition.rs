@@ -1,6 +1,8 @@
 use pretty_assertions::assert_eq;
 use redt::{RangeU8, range};
-use regr::{Arena, Epsilon, Graph, Transition};
+use regr::{Arena, Epsilon, Graph, Operation, Transition};
+
+type Chunk = u64;
 
 fn single(sym: u8) -> RangeU8 {
     range(sym, sym)
@@ -62,8 +64,18 @@ where
 }
 
 #[test]
+#[should_panic]
 fn transition_new() {
-    handle_tr(|tr| assert_eq!(tr.symbols().collect::<Vec<_>>(), vec![]));
+    let mut arena_1 = Arena::new();
+    let mut arena_2 = Arena::new();
+    let gr_1 = Graph::nfa_in(&mut arena_1);
+    let gr_2 = Graph::nfa_in(&mut arena_2);
+    gr_1.node().connect(gr_2.node());
+}
+
+#[test]
+fn transition_clone() {
+    handle_tr(|tr| assert_eq!(tr, tr.clone()));
 }
 
 #[test]
@@ -166,16 +178,23 @@ fn transition_contains_range() {
         assert!(!tr.contains(&range(2, 4)));
         assert!(!tr.contains(single(254)));
     });
+
+    handle_tr_from_chunks(&[Chunk::MAX, Chunk::MAX, Chunk::MAX, Chunk::MAX], |tr| {
+        assert!(tr.contains(range(0, 100)));
+        assert!(tr.contains(range(0, 160)));
+        assert!(tr.contains(range(0, 255)));
+    });
 }
 
 #[test]
 fn transition_contains_transition() {
     let mut arena = Arena::new();
-    let gr = Graph::dfa_in(&mut arena);
+    let gr = Graph::nfa_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
     tr_a.merge(b'a');
     tr_a.merge(b'c');
     tr_a.merge(b'e');
+    tr_a.merge(Epsilon);
     let tr_b = gr.node().connect(gr.node());
     tr_b.merge(b'b');
     tr_b.merge(b'd');
@@ -188,6 +207,7 @@ fn transition_contains_transition() {
     tr_c.merge(b'e');
     tr_c.merge(b'f');
     tr_c.merge(b'g');
+    tr_c.merge(Epsilon);
     assert!(tr_a.contains(&tr_a));
     assert!(tr_b.contains(&tr_b));
     assert!(tr_c.contains(&tr_c));
@@ -230,16 +250,29 @@ fn transition_intersects_range() {
         assert_eq!(tr.intersects(&range(102, 254)), false);
         assert_eq!(tr.intersects(254), false);
     });
+
+    handle_tr_from_symbols(&[60], |tr| assert!(tr.intersects(range(0, 120))));
+    handle_tr_from_symbols(&[100], |tr| assert!(tr.intersects(range(0, 120))));
+
+    handle_tr_from_symbols(&[60], |tr| assert!(tr.intersects(range(0, 180))));
+    handle_tr_from_symbols(&[100], |tr| assert!(tr.intersects(range(0, 180))));
+    handle_tr_from_symbols(&[170], |tr| assert!(tr.intersects(range(0, 180))));
+
+    handle_tr_from_symbols(&[60], |tr| assert!(tr.intersects(range(0, 255))));
+    handle_tr_from_symbols(&[100], |tr| assert!(tr.intersects(range(0, 255))));
+    handle_tr_from_symbols(&[170], |tr| assert!(tr.intersects(range(0, 255))));
+    handle_tr_from_symbols(&[230], |tr| assert!(tr.intersects(range(0, 255))));
 }
 
 #[test]
 fn transition_intersects_transition() {
     let mut arena = Arena::new();
-    let gr = Graph::dfa_in(&mut arena);
+    let gr = Graph::nfa_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
     tr_a.merge(b'a');
     tr_a.merge(b'c');
     tr_a.merge(b'e');
+    tr_a.merge(Epsilon);
     let tr_b = gr.node().connect(gr.node());
     tr_b.merge(b'b');
     tr_b.merge(b'd');
@@ -251,33 +284,10 @@ fn transition_intersects_transition() {
     tr_c.merge(b'd');
     tr_c.merge(b'e');
     tr_c.merge(b'f');
+    tr_c.merge(Epsilon);
     assert_eq!(tr_a.intersects(&tr_b), false);
     assert_eq!(tr_a.intersects(&tr_c), true);
     assert_eq!(tr_b.intersects(&tr_c), true);
-}
-
-#[test]
-fn transition_merge_transition() {
-    let mut arena = Arena::new();
-    let gr = Graph::nfa_in(&mut arena);
-    let tr_a = gr.node().connect(gr.node());
-    tr_a.merge(b'a');
-    tr_a.merge(b'b');
-    tr_a.merge(b'c');
-    let tr_b = gr.node().connect(gr.node());
-    tr_b.merge(b'b');
-    tr_b.merge(b'c');
-    tr_b.merge(b'd');
-    tr_b.merge(b'e');
-    let tr_c = gr.node().connect(gr.node());
-    tr_c.merge(b'a');
-    tr_c.merge(b'b');
-    tr_c.merge(b'c');
-    tr_c.merge(b'd');
-    tr_c.merge(b'e');
-
-    tr_a.merge(tr_b);
-    assert_eq!(tr_a, tr_c);
 }
 
 #[test]
@@ -320,6 +330,108 @@ fn transition_merge_range() {
     assert_eq!(check(63..=200), Some(range(63, 200)));
     assert_eq!(check(0..=255), Some(range(0, 255)));
     assert_eq!(check(192..=255), Some(range(192, 255)));
+}
+
+#[test]
+fn transition_merge_transition() {
+    let mut arena = Arena::new();
+    let gr = Graph::nfa_in(&mut arena);
+    let tr_a = gr.node().connect(gr.node());
+    tr_a.merge(b'a');
+    tr_a.merge(b'b');
+    tr_a.merge(b'c');
+    let tr_b = gr.node().connect(gr.node());
+    tr_b.merge(b'b');
+    tr_b.merge(b'c');
+    tr_b.merge(b'd');
+    tr_b.merge(b'e');
+    let tr_c = gr.node().connect(gr.node());
+    tr_c.merge(b'a');
+    tr_c.merge(b'b');
+    tr_c.merge(b'c');
+    tr_c.merge(b'd');
+    tr_c.merge(b'e');
+    #[allow(clippy::needless_borrows_for_generic_args)]
+    tr_a.merge(&tr_b);
+    assert_eq!(tr_a, tr_c);
+
+    tr_a.merge_operations([Operation::StorePos(0), Operation::StorePos(1)]);
+    let tr_d = gr.node().connect(gr.node());
+    tr_d.merge_operation(Operation::StorePos(0));
+    tr_d.merge(tr_a);
+    assert_eq!(tr_a, tr_d);
+}
+
+#[test]
+fn transition_merge_operation() {
+    let mut arena = Arena::new();
+    let gr = Graph::nfa_in(&mut arena);
+    let tr_a = gr.node().connect(gr.node());
+    tr_a.merge(b'a');
+    tr_a.merge(b'b');
+    tr_a.merge(b'c');
+    tr_a.merge_operation(Operation::StorePos(0));
+    tr_a.merge_operation(Operation::StorePos(1));
+    tr_a.merge(b'e');
+    assert_eq!(
+        tr_a.operations().collect::<Vec<_>>(),
+        &[Operation::StorePos(0), Operation::StorePos(1)]
+    );
+
+    let tr_b = gr.node().connect(gr.node());
+    tr_b.merge(b'b');
+    tr_b.merge(b'c');
+    tr_b.merge(b'd');
+    tr_b.merge(b'e');
+    tr_b.merge_operation(Operation::StorePos(0));
+    tr_b.merge_operation(Operation::StorePos(0));
+    tr_b.merge_operation(Operation::StorePos(1));
+    assert_eq!(
+        tr_b.operations().collect::<Vec<_>>(),
+        &[Operation::StorePos(0), Operation::StorePos(1)]
+    );
+    assert_eq!(
+        tr_a.operations().collect::<Vec<_>>(),
+        tr_b.operations().collect::<Vec<_>>(),
+    );
+    assert_ne!(tr_a, tr_b);
+}
+
+#[test]
+fn transition_merge_operations() {
+    let mut arena = Arena::new();
+    let gr = Graph::nfa_in(&mut arena);
+    let tr_a = gr.node().connect(gr.node());
+    tr_a.merge(b'a');
+    tr_a.merge(b'b');
+    tr_a.merge(b'c');
+    tr_a.merge_operations([Operation::StorePos(0), Operation::StorePos(1)]);
+    tr_a.merge_operations([Operation::StorePos(0), Operation::StorePos(1)]);
+    tr_a.merge(b'e');
+    assert_eq!(
+        tr_a.operations().collect::<Vec<_>>(),
+        &[Operation::StorePos(0), Operation::StorePos(1)]
+    );
+
+    let tr_b = gr.node().connect(gr.node());
+    tr_b.merge(b'b');
+    tr_b.merge(b'c');
+    tr_b.merge(b'd');
+    tr_b.merge(b'e');
+    tr_b.merge_operations([
+        Operation::StorePos(0),
+        Operation::StorePos(0),
+        Operation::StorePos(1),
+    ]);
+    assert_eq!(
+        tr_b.operations().collect::<Vec<_>>(),
+        &[Operation::StorePos(0), Operation::StorePos(1)]
+    );
+    assert_eq!(
+        tr_a.operations().collect::<Vec<_>>(),
+        tr_b.operations().collect::<Vec<_>>(),
+    );
+    assert_ne!(tr_a, tr_b);
 }
 
 #[test]

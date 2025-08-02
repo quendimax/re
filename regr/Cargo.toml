@@ -7,7 +7,7 @@ edition.workspace = true
 repository.workspace = true
 
 [dependencies]
-bumpalo.workspace = true
+bumpalo = { workspace = true, features = ["collections"] }
 cfg-if.workspace = true
 linked-hash-map = { workspace = true, optional = true }
 linked_hash_set = { workspace = true, optional = true }

@@ -1,5 +1,5 @@
 /// Operations represent the actions that can be performed during a transition.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Operation {
     /// Store the current position to the specified register
     StorePos(u32),
