@@ -637,3 +637,20 @@ impl SymbolSet {
         self.epsilon |= other.epsilon;
     }
 }
+
+#[cfg(test)]
+mod utest {
+    use crate::Graph;
+
+    use super::*;
+
+    #[test]
+    #[should_panic]
+    fn transition_new() {
+        let mut arena_a = Arena::new();
+        let mut arena_b = Arena::new();
+        let gr_a = Graph::nfa_in(&mut arena_a);
+        let gr_b = Graph::nfa_in(&mut arena_b);
+        let _ = Transition::new(gr_a.node(), gr_b.node());
+    }
+}
