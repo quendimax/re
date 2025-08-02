@@ -56,18 +56,22 @@ impl<'a> Transition<'a> {
 impl<'a> Transition<'a> {
     /// Returns iterator over all symbols in this trasition instance in
     /// ascendent order.
-    pub fn symbols(self) -> SymbolIter<'a> {
+    pub fn symbols(self) -> impl Iterator<Item = u8> {
         SymbolIter::new(self.0.symset.borrow())
     }
 
     /// Returns iterator over all symbol ranges in this trasition instance in
     /// ascendent order.
-    pub fn ranges(self) -> RangeIter<'a> {
+    pub fn ranges(self) -> impl Iterator<Item = RangeU8> {
         RangeIter::new(self.0.symset.borrow())
     }
 
-    pub fn operations(self) -> OperationIter<'a> {
+    pub fn operations(self) -> impl Iterator<Item = Operation> {
         OperationIter::new(self.0.ops.borrow())
+    }
+
+    pub fn operations_for(&self, symbol: u8) -> impl Iterator<Item = Operation> {
+        OperationForIter::new(self.0.ops.borrow(), symbol)
     }
 
     /// Merges the `other` object into this transition.
@@ -305,7 +309,7 @@ impl_fmt!(std::fmt::Octal);
 impl_fmt!(std::fmt::LowerHex);
 impl_fmt!(std::fmt::UpperHex);
 
-pub struct OperationIter<'a> {
+struct OperationIter<'a> {
     ops: Ref<'a, BumpVec<'a, (Operation, &'a mut SymbolSet)>>,
     index_iter: std::ops::Range<usize>,
 }
@@ -326,7 +330,39 @@ impl std::iter::Iterator for OperationIter<'_> {
     }
 }
 
-pub struct SymbolIter<'a> {
+struct OperationForIter<'a> {
+    ops: Ref<'a, BumpVec<'a, (Operation, &'a mut SymbolSet)>>,
+    index_iter: std::ops::Range<usize>,
+    symbol: u8,
+}
+
+impl<'a> OperationForIter<'a> {
+    fn new(ops: Ref<'a, BumpVec<'a, (Operation, &'a mut SymbolSet)>>, symbol: u8) -> Self {
+        let index_iter = 0..ops.len();
+        Self {
+            ops,
+            index_iter,
+            symbol,
+        }
+    }
+}
+
+impl std::iter::Iterator for OperationForIter<'_> {
+    type Item = Operation;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(index) = self.index_iter.next() {
+            let (_, symset) = &self.ops[index];
+            if symset.contains_symbol(self.symbol) {
+                return Some(self.ops[index].0);
+            }
+        }
+        None
+    }
+}
+
+struct SymbolIter<'a> {
     symset: Ref<'a, SymbolSet>,
     chunk: Chunk,
     shift: u32,
@@ -367,7 +403,7 @@ impl std::iter::Iterator for SymbolIter<'_> {
     }
 }
 
-pub struct RangeIter<'a> {
+struct RangeIter<'a> {
     symset: Ref<'a, SymbolSet>,
     chunk: Chunk,
     shift: u32,

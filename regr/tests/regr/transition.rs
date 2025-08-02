@@ -156,6 +156,33 @@ fn transition_ranges() {
 }
 
 #[test]
+fn transition_operations_for() {
+    let mut arena = Arena::new();
+    let gr = Graph::nfa_in(&mut arena);
+    let tr_a = gr.node().connect(gr.node());
+    tr_a.merge(0);
+    tr_a.merge_operation(Operation::Invalidate(0));
+
+    let tr_b = gr.node().connect(gr.node());
+    tr_b.merge(1);
+    tr_b.merge_operation(Operation::StorePos(0));
+    tr_b.merge(tr_a);
+
+    assert_eq!(
+        tr_b.operations_for(0).collect::<Vec<_>>(),
+        &[Operation::Invalidate(0)]
+    );
+    assert_eq!(
+        tr_b.operations_for(1).collect::<Vec<_>>(),
+        &[Operation::StorePos(0)]
+    );
+    assert_eq!(
+        tr_b.operations().collect::<Vec<_>>(),
+        &[Operation::StorePos(0), Operation::Invalidate(0)]
+    );
+}
+
+#[test]
 fn transition_contains_symbol() {
     handle_tr_from_symbols(b"\x00bcde\xFF", |tr| {
         assert_eq!(tr.contains(0), true);
