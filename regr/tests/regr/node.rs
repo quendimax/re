@@ -262,7 +262,7 @@ fn node_collect_epsilon_targets_panics() {
 
 #[test]
 #[should_panic(expected = "iteration over Epsilon targets is possible for NFA nodes only")]
-fn node_epsilon_for_each_epsilon_targets_panics() {
+fn node_for_each_epsilon_targets_panics() {
     let mut arena = Arena::new();
     let graph = Graph::dfa_in(&mut arena);
     graph.node().for_each_epsilon_target(|_| {});
