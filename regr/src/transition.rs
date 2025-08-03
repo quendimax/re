@@ -1,6 +1,6 @@
 use crate::arena::Arena;
+use crate::instruct::Inst;
 use crate::node::Node;
-use crate::operation::Operation;
 use crate::symbol::Epsilon;
 use bumpalo::collections::Vec as BumpVec;
 use redt::{Legible, RangeU8, Step};
@@ -19,7 +19,7 @@ pub struct Transition<'a>(&'a TransitionInner<'a>);
 
 pub(crate) struct TransitionInner<'a> {
     symset: RefCell<SymbolSet>,
-    ops: RefCell<BumpVec<'a, (Operation, &'a mut SymbolSet)>>,
+    insts: RefCell<BumpVec<'a, (Inst, &'a mut SymbolSet)>>,
     arena: &'a Arena,
     source: Option<Node<'a>>,
 }
@@ -36,17 +36,21 @@ impl<'a> Transition<'a> {
         let arena = source.arena();
         Self(arena.alloc_with(|| TransitionInner {
             symset: RefCell::new(SymbolSet::default()),
-            ops: RefCell::new(BumpVec::new_in(&arena.shared_bump)),
+            insts: RefCell::new(BumpVec::new_in(&arena.shared_bump)),
             arena,
             source: Some(source),
         }))
     }
 
     /// Creates a new empty transition without source.
+    ///
+    /// This constructor is needed for DFA graph only. A transition without
+    /// source node is used as mask of already used symbols in the transition by
+    /// a DFA source node.
     pub(crate) fn without_source_in(arena: &'a Arena) -> Self {
         Self(arena.alloc_with(|| TransitionInner {
             symset: RefCell::new(SymbolSet::default()),
-            ops: RefCell::new(BumpVec::new_in(&arena.shared_bump)),
+            insts: RefCell::new(BumpVec::new_in(&arena.shared_bump)),
             arena,
             source: None,
         }))
@@ -66,12 +70,12 @@ impl<'a> Transition<'a> {
         RangeIter::new(self.0.symset.borrow())
     }
 
-    pub fn operations(self) -> impl Iterator<Item = Operation> {
-        OperationIter::new(self.0.ops.borrow())
+    pub fn instructs(self) -> impl Iterator<Item = Inst> {
+        InstructIter::new(self.0.insts.borrow())
     }
 
-    pub fn operations_for(&self, symbol: u8) -> impl Iterator<Item = Operation> {
-        OperationForIter::new(self.0.ops.borrow(), symbol)
+    pub fn instructs_for(&self, symbol: u8) -> impl Iterator<Item = Inst> {
+        InstructForIter::new(self.0.insts.borrow(), symbol)
     }
 
     /// Merges the `other` object into this transition.
@@ -86,40 +90,41 @@ impl<'a> Transition<'a> {
         TransitionOps::merge(self, other);
     }
 
-    /// Adds the specified operation to the all transition's symbols without sorting.
+    /// Adds the specified instruction to the all transition's symbols without
+    /// sorting.
     ///
     /// This method is used internally for optimization purposes. It doesn't
-    /// sort operation array at the end of the method.
-    fn _merge_operation(&self, operation: Operation) -> bool {
+    /// sort the instruction array at the end of the method.
+    fn merge_inst_wo_sort(&self, instruct: Inst) -> bool {
         let symset = self.0.symset.borrow().clone();
-        let mut ops = self.0.ops.borrow_mut();
-        if ops.iter().any(|(op, _)| *op == operation) {
+        let mut insts = self.0.insts.borrow_mut();
+        if insts.iter().any(|(inst, _)| *inst == instruct) {
             false
         } else {
             let new_bitmap = self.0.arena.alloc_with(|| symset);
-            ops.push((operation, new_bitmap));
+            insts.push((instruct, new_bitmap));
             true
         }
     }
 
-    /// Adds the specified operation to the all transition's symbols.
-    pub fn merge_operation(&self, operation: Operation) {
-        if self._merge_operation(operation) {
-            let mut ops = self.0.ops.borrow_mut();
-            ops.sort_by(|(l_op, _), (r_op, _)| l_op.cmp(r_op));
+    /// Adds the specified instruction to the all transition's symbols.
+    pub fn merge_instruct(&self, instruct: Inst) {
+        if self.merge_inst_wo_sort(instruct) {
+            let mut insts = self.0.insts.borrow_mut();
+            insts.sort_by(|(l_inst, _), (r_inst, _)| l_inst.cmp(r_inst));
         }
     }
 
     /// Adds the specified operations to the all transition's symbols.
-    pub fn merge_operations(&self, operations: impl IntoIterator<Item = Operation>) {
-        let iter = operations.into_iter();
+    pub fn merge_instructs(&self, instructs: impl IntoIterator<Item = Inst>) {
+        let iter = instructs.into_iter();
         let mut merged = false;
-        for op in iter {
-            merged |= self._merge_operation(op);
+        for inst in iter {
+            merged |= self.merge_inst_wo_sort(inst);
         }
         if merged {
-            let mut ops = self.0.ops.borrow_mut();
-            ops.sort_by(|(l_op, _), (r_op, _)| l_op.cmp(r_op));
+            let mut insts = self.0.insts.borrow_mut();
+            insts.sort_by(|(l_inst, _), (r_inst, _)| l_inst.cmp(r_inst));
         }
     }
 
@@ -196,18 +201,19 @@ impl<'a, 'b> TransitionOps<Transition<'b>> for Transition<'a> {
         let other_symset = other_symset.deref();
         self.0.symset.borrow_mut().merge_symset(other_symset);
 
-        let mut self_ops = self.0.ops.borrow_mut();
-        for (other_op, other_symset) in other.0.ops.borrow().iter() {
-            if let Some((_, self_symset)) =
-                self_ops.iter_mut().find(|(self_op, _)| self_op == other_op)
+        let mut self_insts = self.0.insts.borrow_mut();
+        for (other_insts, other_symset) in other.0.insts.borrow().iter() {
+            if let Some((_, self_symset)) = self_insts
+                .iter_mut()
+                .find(|(self_inst, _)| self_inst == other_insts)
             {
                 self_symset.merge_symset(other_symset);
             } else {
                 let self_symset = self.0.arena.alloc_with(|| (*other_symset).clone());
-                self_ops.push((*other_op, self_symset));
+                self_insts.push((*other_insts, self_symset));
             }
         }
-        self_ops.sort_by(|(l_op, _), (r_op, _)| l_op.cmp(r_op));
+        self_insts.sort_by(|(l_inst, _), (r_inst, _)| l_inst.cmp(r_inst));
     }
 }
 
@@ -241,7 +247,7 @@ impl std::cmp::Eq for Transition<'_> {}
 impl std::cmp::PartialEq for Transition<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.0.symset.borrow().eq(other.0.symset.borrow().deref())
-            && self.0.ops.borrow().eq(other.0.ops.borrow().deref())
+            && self.0.insts.borrow().eq(other.0.insts.borrow().deref())
     }
 }
 
@@ -310,53 +316,53 @@ impl_fmt!(std::fmt::Octal);
 impl_fmt!(std::fmt::LowerHex);
 impl_fmt!(std::fmt::UpperHex);
 
-struct OperationIter<'a> {
-    ops: Ref<'a, BumpVec<'a, (Operation, &'a mut SymbolSet)>>,
+struct InstructIter<'a> {
+    insts: Ref<'a, BumpVec<'a, (Inst, &'a mut SymbolSet)>>,
     index_iter: std::ops::Range<usize>,
 }
 
-impl<'a> OperationIter<'a> {
-    fn new(ops: Ref<'a, BumpVec<'a, (Operation, &'a mut SymbolSet)>>) -> Self {
-        let index_iter = 0..ops.len();
-        Self { ops, index_iter }
+impl<'a> InstructIter<'a> {
+    fn new(insts: Ref<'a, BumpVec<'a, (Inst, &'a mut SymbolSet)>>) -> Self {
+        let index_iter = 0..insts.len();
+        Self { insts, index_iter }
     }
 }
 
-impl std::iter::Iterator for OperationIter<'_> {
-    type Item = Operation;
+impl std::iter::Iterator for InstructIter<'_> {
+    type Item = Inst;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.index_iter.next().map(|index| self.ops[index].0)
+        self.index_iter.next().map(|index| self.insts[index].0)
     }
 }
 
-struct OperationForIter<'a> {
-    ops: Ref<'a, BumpVec<'a, (Operation, &'a mut SymbolSet)>>,
+struct InstructForIter<'a> {
+    insts: Ref<'a, BumpVec<'a, (Inst, &'a mut SymbolSet)>>,
     index_iter: std::ops::Range<usize>,
     symbol: u8,
 }
 
-impl<'a> OperationForIter<'a> {
-    fn new(ops: Ref<'a, BumpVec<'a, (Operation, &'a mut SymbolSet)>>, symbol: u8) -> Self {
-        let index_iter = 0..ops.len();
+impl<'a> InstructForIter<'a> {
+    fn new(insts: Ref<'a, BumpVec<'a, (Inst, &'a mut SymbolSet)>>, symbol: u8) -> Self {
+        let index_iter = 0..insts.len();
         Self {
-            ops,
+            insts,
             index_iter,
             symbol,
         }
     }
 }
 
-impl std::iter::Iterator for OperationForIter<'_> {
-    type Item = Operation;
+impl std::iter::Iterator for InstructForIter<'_> {
+    type Item = Inst;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         for index in &mut self.index_iter {
-            let (_, symset) = &self.ops[index];
+            let (_, symset) = &self.insts[index];
             if symset.contains_symbol(self.symbol) {
-                return Some(self.ops[index].0);
+                return Some(self.insts[index].0);
             }
         }
         None

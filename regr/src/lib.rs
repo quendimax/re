@@ -4,11 +4,11 @@ pub use arena::Arena;
 mod graph;
 pub use graph::{AutomatonKind, Graph};
 
+mod instruct;
+pub use instruct::Inst;
+
 mod node;
 pub use node::Node;
-
-mod operation;
-pub use operation::Operation;
 
 mod symbol;
 pub use symbol::Epsilon;
