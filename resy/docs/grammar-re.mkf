@@ -1,0 +1,94 @@
+re
+    disjunct
+
+disjunct
+    concat
+    concat '|' disjunct
+
+concat
+    ""
+    item
+    item concat
+
+item
+    term
+    class
+    '(' disjunct ')'
+    item postfix
+
+postfix
+    '*'
+    '+'
+    '?'
+    '{' decimal '}'
+    '{' decimal ',' '}'
+    '{' decimal ',' decimal '}'
+
+class               ; class corresponds to a subset of unicode code points
+    '.'
+    "[" elements "]"
+    "[^" elements "]"
+
+elements
+    element
+    element elements
+
+element
+    term
+    term '-' term
+
+term                ; terminals correspond to one unicode code point
+    char
+    escape
+
+char
+    '0000' . '10FFFF' - '\' - '.' - '*' - '+' - '-' - '^' - '?' - '|' - '(' - ')' - '[' - ']' - '{' - '}'
+
+escape
+    ascii_escape
+    unicode_escape
+
+ascii_escape
+    '\' '"'
+    "\."
+    "\*"
+    "\+"
+    "\-"
+    "\^"
+    "\?"
+    "\\"
+    "\|"
+    "\("
+    "\)"
+    "\["
+    "\]"
+    "\{"
+    "\}"
+    "\0"
+    "\n"
+    "\r"
+    "\t"
+    "\x" oct hex
+
+unicode_escape
+    "\u{" hex "}"
+    "\u{" hex hex "}"
+    "\u{" hex hex hex "}"
+    "\u{" hex hex hex hex "}"
+    "\u{" hex hex hex hex hex "}"
+    "\u{" hex hex hex hex hex hex "}"
+
+decimal
+    dec
+    dec decimal
+
+oct
+    '0' . '7'
+
+dec
+    '0' . '9'
+
+hex
+    '0' . '9'
+    'a' . 'f'
+    'A' . 'F'
