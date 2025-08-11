@@ -1,0 +1,48 @@
+rs_str_lit
+    '"' rs_str_lit_content '"'
+    '"' rs_str_lit_content '"' rs_suffix
+
+rs_str_lit_content
+    '0000' . '10FFFF' - '"' - '\' - '000D'
+    rs_quote_escape
+    rs_ascii_escape
+    rs_unicode_escape
+    rs_str_continue
+
+rs_quote_escape
+    "\'"
+    '\' '"'
+
+rs_ascii_escape
+    "\x" rs_oct rs_hex
+    "\n"
+    "\r"
+    "\t"
+    "\\"
+    "\0"
+
+rs_unicode_escape
+    "\u" '{' rs_hex '}'
+    "\u" '{' rs_hex rs_hex '}'
+    "\u" '{' rs_hex rs_hex rs_hex '}'
+    "\u" '{' rs_hex rs_hex rs_hex rs_hex '}'
+    "\u" '{' rs_hex rs_hex rs_hex rs_hex rs_hex '}'
+    "\u" '{' rs_hex rs_hex rs_hex rs_hex rs_hex rs_hex '}'
+
+rs_str_continue
+    '\' '000A'
+
+rs_suffix
+    rs_identifier
+
+rs_hex
+    hex
+    rs_hex '_'
+
+hex
+    '0' . '9'
+    'A' . 'F'
+    'a' . 'f'
+
+rs_oct
+    '0' . '7'
