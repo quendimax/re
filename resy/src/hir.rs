@@ -1,4 +1,4 @@
-use redt::RangeU8;
+use redt::SetU8;
 
 /// HirKind represents a high-level intermediate representation of a regular
 /// expression, that contains already encoded into bytes unicode code points,
@@ -7,7 +7,7 @@ pub enum Hir {
     Disjunct(DisjunctHir),
     Concat(ConcatHir),
     Repeat(RepeatHir),
-    Range(RangeU8),
+    Class(SetU8),
     Literal(Vec<u8>),
 }
 
@@ -65,8 +65,8 @@ impl Hir {
         })
     }
 
-    pub fn new_range(start: u8, last: u8) -> Hir {
-        Hir::Range(RangeU8::new(start, last))
+    pub fn new_class(set: SetU8) -> Hir {
+        Hir::Class(set)
     }
 
     pub fn new_literal(bytes: &[u8]) -> Hir {
@@ -88,7 +88,7 @@ impl Hir {
                     (hir.min * min_len, None)
                 }
             }
-            Hir::Range(_) => (1, Some(1)),
+            Hir::Class(_) => (1, Some(1)),
             Hir::Literal(bytes) => (bytes.len(), Some(bytes.len())),
         }
     }
