@@ -11,7 +11,7 @@ mod node;
 pub use node::Node;
 
 mod symbol;
-pub use symbol::{Epsilon, SymbolSet};
+pub use symbol::Epsilon;
 
 mod transition;
 pub use transition::Transition;

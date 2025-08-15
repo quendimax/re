@@ -1,9 +1,9 @@
 use crate::arena::Arena;
 use crate::instruct::Inst;
 use crate::node::Node;
-use crate::symbol::{Epsilon, RangeIter, SymbolIter, SymbolSet};
+use crate::symbol::{Epsilon, SymbolSet};
 use bumpalo::collections::Vec as BumpVec;
-use redt::{Legible, RangeU8, Step};
+use redt::{ByteIter, Legible, RangeIter, RangeU8, Step};
 use std::cell::{Ref, RefCell};
 use std::fmt::Write;
 use std::ops::Deref;
@@ -61,13 +61,17 @@ impl<'a> Transition<'a> {
     /// Returns iterator over all symbols in this trasition instance in
     /// ascendent order.
     pub fn symbols(self) -> impl Iterator<Item = u8> {
-        SymbolIter::new(self.0.symset.borrow())
+        let borrow = self.0.symset.borrow();
+        let borrow = Ref::map(borrow, |set| set.deref());
+        ByteIter::new(borrow)
     }
 
     /// Returns iterator over all symbol ranges in this trasition instance in
     /// ascendent order.
     pub fn ranges(self) -> impl Iterator<Item = RangeU8> {
-        RangeIter::new(self.0.symset.borrow())
+        let borrow = self.0.symset.borrow();
+        let borrow = Ref::map(borrow, |set| set.deref());
+        RangeIter::new(borrow)
     }
 
     pub fn instructs(self) -> impl Iterator<Item = Inst> {
