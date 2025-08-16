@@ -1,8 +1,8 @@
 use redt::{Legible, SetU8};
 use std::fmt::Write;
 
-/// HirKind represents a high-level intermediate representation of a regular
-/// expression, that contains already encoded into bytes unicode code points,
+/// Hir represents a high-level intermediate representation of a regular
+/// expression, that contains bytes already encoded from unicode code points,
 /// and can be used to build a graph of the corresponding finite automaton.
 pub enum Hir {
     Disjunct(DisjunctHir),
@@ -13,7 +13,8 @@ pub enum Hir {
 }
 
 impl Hir {
-    pub fn new_disjunct(alters: Vec<Hir>) -> Hir {
+    /// Creates a new disjunciton hir instance.
+    pub fn disjunct(alters: Vec<Hir>) -> Hir {
         let mut min_len = usize::MAX;
         let mut max_len = Some(0);
         for alter in &alters {
@@ -37,7 +38,8 @@ impl Hir {
         })
     }
 
-    pub fn new_concat(items: Vec<Hir>) -> Hir {
+    /// Creates a new concatenation hir instance.
+    pub fn concat(items: Vec<Hir>) -> Hir {
         let mut min_len = 0;
         let mut max_len = Some(0);
         for item in &items {
@@ -58,19 +60,22 @@ impl Hir {
         })
     }
 
-    pub fn new_repeat(item: Hir, min: usize, max: Option<usize>) -> Hir {
+    /// Creates a new repeat hir instance.
+    pub fn repeat(item: Hir, min: usize, max: Option<usize>) -> Hir {
         Hir::Repeat(RepeatHir {
-            min,
-            max,
+            lower: min,
+            upper: max,
             item: Box::new(item),
         })
     }
 
-    pub fn new_class(set: SetU8) -> Hir {
+    /// Creates a new class hir instance, i.e. a choice between possible single bytes.
+    pub fn class(set: SetU8) -> Hir {
         Hir::Class(set)
     }
 
-    pub fn new_literal(bytes: &[u8]) -> Hir {
+    /// Creates a new literal hir instance, i.e. a sequence of bytes
+    pub fn literal(bytes: &[u8]) -> Hir {
         Hir::Literal(bytes.to_vec())
     }
 
@@ -101,12 +106,12 @@ impl Hir {
             Hir::Concat(hir) => (hir.min_len, hir.max_len),
             Hir::Repeat(hir) => {
                 let (min_len, max_len) = hir.item.len_hint();
-                if let Some(max) = hir.max
+                if let Some(max) = hir.upper
                     && let Some(max_len) = max_len
                 {
-                    (hir.min * min_len, Some(max * max_len))
+                    (hir.lower * min_len, Some(max * max_len))
                 } else {
-                    (hir.min * min_len, None)
+                    (hir.lower * min_len, None)
                 }
             }
             Hir::Class(_) => (1, Some(1)),
@@ -123,21 +128,29 @@ impl Hir {
 }
 
 pub struct DisjunctHir {
-    pub alters: Vec<Hir>,
+    alters: Vec<Hir>,
     min_len: usize,
     max_len: Option<usize>,
 }
 
 pub struct ConcatHir {
-    pub items: Vec<Hir>,
+    items: Vec<Hir>,
     min_len: usize,
     max_len: Option<usize>,
 }
 
 pub struct RepeatHir {
-    pub min: usize,
-    pub max: Option<usize>,
-    pub item: Box<Hir>,
+    lower: usize,
+    upper: Option<usize>,
+    item: Box<Hir>,
+}
+
+impl RepeatHir {
+    /// Lower and upper bounds of possible number of iterations. `None` means infinite.
+    #[inline]
+    pub fn iter_hint(&self) -> (usize, Option<usize>) {
+        (self.lower, self.upper)
+    }
 }
 
 impl std::fmt::Display for Hir {
@@ -166,7 +179,7 @@ impl std::fmt::Display for Hir {
                 if needs_parens {
                     f.write_char(')')?;
                 }
-                match (repeat.min, repeat.max) {
+                match (repeat.lower, repeat.upper) {
                     (0, None) => f.write_char('*')?,
                     (1, None) => f.write_char('+')?,
                     (0, Some(1)) => f.write_char('?')?,
