@@ -18,7 +18,11 @@ pub struct ByteLegible(u8);
 impl std::fmt::Display for ByteLegible {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if 0x20 <= self.0 && self.0 <= 0x7e {
-            write!(f, "'{}'", char::from(self.0))
+            match self.0 {
+                b'\'' => write!(f, "'\\''"),
+                b'\\' => write!(f, "'\\\\'"),
+                c => write!(f, "'{}'", char::from(c)),
+            }
         } else {
             write!(f, "{:02X}h", self.0)
         }
@@ -45,7 +49,11 @@ impl std::fmt::Display for ByteArrayLegible<'_> {
         f.write_char('"')?;
         for byte in self.0 {
             if 0x20 <= *byte && *byte <= 0x7e {
-                write!(f, "{}", char::from(*byte))?;
+                match *byte {
+                    b'"' => write!(f, r#"\""#)?,
+                    b'\\' => write!(f, r#"\\"#)?,
+                    c => write!(f, "{}", char::from(c))?,
+                }
             } else {
                 write!(f, "\\x{byte:02X}")?;
             }

@@ -444,7 +444,7 @@ fn parse_escape() {
     assert_eq!(parse(r"\+"), expect(&["'+'"]));
     assert_eq!(parse(r"\-"), expect(&["'-'"]));
     assert_eq!(parse(r"\?"), expect(&["'?'"]));
-    assert_eq!(parse(r"\\"), expect(&["'\\'"]));
+    assert_eq!(parse(r"\\"), expect(&["'\\\\'"]));
     assert_eq!(parse(r"\|"), expect(&["'|'"]));
     assert_eq!(parse(r"\("), expect(&["'('"]));
     assert_eq!(parse(r"\)"), expect(&["')'"]));
