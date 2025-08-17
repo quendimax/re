@@ -1,6 +1,6 @@
+use crate::{Legible, RangeU8, Step};
+use std::fmt::Write;
 use std::ops::Deref;
-
-use crate::RangeU8;
 
 type Chunk = u64;
 
@@ -177,6 +177,30 @@ impl SetU8 {
 
     pub fn ranges(&self) -> impl Iterator<Item = RangeU8> {
         RangeIter::new(self)
+    }
+}
+
+impl std::fmt::Display for SetU8 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_char('[')?;
+        let mut iter = self.ranges();
+        let mut range = iter.next();
+        while let Some(cur_range) = range {
+            if let Some(next_range) = iter.next() {
+                if cur_range.last().steps_between(next_range.start()) == 1 {
+                    range = Some(RangeU8::new(cur_range.start(), next_range.last()));
+                    continue;
+                } else {
+                    std::fmt::Display::fmt(&cur_range.display(), f)?;
+                    f.write_str(" | ")?;
+                    range = Some(next_range);
+                }
+            } else {
+                std::fmt::Display::fmt(&cur_range.display(), f)?;
+                break;
+            }
+        }
+        f.write_char(']')
     }
 }
 
