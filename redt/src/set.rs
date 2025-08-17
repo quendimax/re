@@ -30,6 +30,30 @@ impl std::default::Default for SetU8 {
     }
 }
 
+impl std::convert::From<u8> for SetU8 {
+    fn from(value: u8) -> Self {
+        let mut set = Self::default();
+        set.merge_byte(value);
+        set
+    }
+}
+
+impl std::convert::From<&[u8]> for SetU8 {
+    fn from(value: &[u8]) -> Self {
+        let mut set = Self::default();
+        for byte in value {
+            set.merge_byte(*byte);
+        }
+        set
+    }
+}
+
+impl<const N: usize> std::convert::From<&[u8; N]> for SetU8 {
+    fn from(value: &[u8; N]) -> Self {
+        std::convert::From::<&[u8]>::from(&value[..])
+    }
+}
+
 impl SetU8 {
     pub fn contains_byte(&self, byte: u8) -> bool {
         self.chunks[byte as usize >> 6] & (1 << (byte & (u8::MAX >> 2))) != 0

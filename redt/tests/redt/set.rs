@@ -6,6 +6,12 @@ fn setu8_new() {
     let a = SetU8::new();
     let b = SetU8::default();
     assert_eq!(a, b);
+
+    let a = SetU8::from(&[1, 2, 3]);
+    let mut b = SetU8::from(2);
+    b.merge_byte(1);
+    b.merge_byte(3);
+    assert_eq!(a, b);
 }
 
 #[test]
