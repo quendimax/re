@@ -61,40 +61,50 @@ impl Hir {
     }
 
     /// Creates a new repeat hir instance.
-    pub fn repeat(item: Hir, min: usize, max: Option<usize>) -> Hir {
+    pub fn repeat(item: Hir, lower: usize, upper: Option<usize>) -> Hir {
+        if let Some(upper) = upper {
+            assert!(lower <= upper);
+        }
         Hir::Repeat(RepeatHir {
-            lower: min,
-            upper: max,
+            lower,
+            upper,
             item: Box::new(item),
         })
     }
 
     /// Creates a new class hir instance, i.e. a choice between possible single bytes.
+    #[inline]
     pub fn class(set: SetU8) -> Hir {
         Hir::Class(set)
     }
 
     /// Creates a new literal hir instance, i.e. a sequence of bytes
+    #[inline]
     pub fn literal(bytes: &[u8]) -> Hir {
         Hir::Literal(bytes.to_vec())
     }
 
+    #[inline]
     pub fn is_disjunct(&self) -> bool {
         matches!(self, Hir::Disjunct(..))
     }
 
+    #[inline]
     pub fn is_concat(&self) -> bool {
         matches!(self, Hir::Concat(..))
     }
 
+    #[inline]
     pub fn is_repeat(&self) -> bool {
         matches!(self, Hir::Repeat(..))
     }
 
+    #[inline]
     pub fn is_class(&self) -> bool {
         matches!(self, Hir::Class(..))
     }
 
+    #[inline]
     pub fn is_literal(&self) -> bool {
         matches!(self, Hir::Literal(..))
     }
@@ -124,6 +134,46 @@ impl Hir {
     pub fn exact_len(&self) -> Option<usize> {
         let (lower, upper) = self.len_hint();
         if Some(lower) == upper { upper } else { None }
+    }
+
+    /// Unwraps the Hir into a DisjunctHir, panicking if it is not a repeat.
+    pub fn unwrap_disjunct(self) -> DisjunctHir {
+        match self {
+            Hir::Disjunct(hir) => hir,
+            _ => panic!("unwrap_disjunct called on non-disjunct hir"),
+        }
+    }
+
+    /// Unwraps the Hir into a ConcatHir, panicking if it is not a repeat.
+    pub fn unwrap_concat(self) -> ConcatHir {
+        match self {
+            Hir::Concat(hir) => hir,
+            _ => panic!("unwrap_concat called on non-concat hir"),
+        }
+    }
+
+    /// Unwraps the Hir into a RepeatHir, panicking if it is not a repeat.
+    pub fn unwrap_repeat(self) -> RepeatHir {
+        match self {
+            Hir::Repeat(hir) => hir,
+            _ => panic!("unwrap_repeat called on non-repeat hir"),
+        }
+    }
+
+    /// Unwraps the Hir into a byte set, panicking if it is not a literal.
+    pub fn unwrap_class(self) -> SetU8 {
+        match self {
+            Hir::Class(hir) => hir,
+            _ => panic!("unwrap_class called on non-class hir"),
+        }
+    }
+
+    /// Unwraps the Hir into a byte array, panicking if it is not a literal.
+    pub fn unwrap_literal(self) -> Vec<u8> {
+        match self {
+            Hir::Literal(hir) => hir,
+            _ => panic!("unwrap_literal called on non-literal hir"),
+        }
     }
 }
 
@@ -157,21 +207,14 @@ impl std::fmt::Display for Hir {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Hir::Literal(bytes) => {
-                for byte in bytes {
-                    std::fmt::Display::fmt(&byte.display(), f)?;
-                }
+                std::fmt::Display::fmt(&bytes.display(), f)?;
             }
             Hir::Class(set) => {
-                f.write_char('[')?;
-                for range in set.ranges() {
-                    std::fmt::Display::fmt(&range.display(), f)?;
-                }
-                f.write_char(']')?;
+                std::fmt::Display::fmt(&set, f)?;
             }
             Hir::Repeat(repeat) => {
                 let item = &repeat.item;
-                let needs_parens =
-                    !item.is_class() && !item.is_repeat() && item.exact_len() != Some(1);
+                let needs_parens = item.is_concat() || item.is_disjunct();
                 if needs_parens {
                     f.write_char('(')?;
                 }
@@ -184,21 +227,38 @@ impl std::fmt::Display for Hir {
                     (1, None) => f.write_char('+')?,
                     (0, Some(1)) => f.write_char('?')?,
                     (lower, None) => write!(f, "{{{lower},}}")?,
+                    (lower, Some(upper)) if lower == upper => write!(f, "{{{lower}}}")?,
                     (lower, Some(upper)) => write!(f, "{{{lower},{upper}}}")?,
                 }
             }
             Hir::Concat(concat) => {
-                for item in &concat.items {
-                    std::fmt::Display::fmt(item, f)?;
+                let items = &concat.items;
+                for i in 0..items.len() {
+                    if items[i].is_disjunct() {
+                        f.write_char('(')?;
+                    }
+                    std::fmt::Display::fmt(&items[i], f)?;
+                    if items[i].is_disjunct() {
+                        f.write_char(')')?;
+                    }
+                    if i + 1 < items.len() {
+                        f.write_str(" & ")?;
+                    }
                 }
             }
             Hir::Disjunct(disjunct) => {
                 let alters = &disjunct.alters;
                 for i in 0..alters.len() {
-                    if i + 1 < alters.len() {
-                        f.write_char('|')?;
+                    if alters[i].is_concat() {
+                        f.write_char('(')?;
                     }
                     std::fmt::Display::fmt(&alters[i], f)?;
+                    if alters[i].is_concat() {
+                        f.write_char(')')?;
+                    }
+                    if i + 1 < alters.len() {
+                        f.write_str(" | ")?;
+                    }
                 }
             }
         }
