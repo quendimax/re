@@ -53,6 +53,9 @@ pub enum TokenKind {
 
     /// sequence of not special characters
     literal,
+
+    /// end of input
+    eof,
 }
 
 /// A helper module containing token kinds.
@@ -93,7 +96,7 @@ impl Token {
 pub struct Lexer<'s> {
     source: &'s str,
     iter: std::iter::Peekable<std::str::Chars<'s>>,
-    span: std::ops::Range<usize>, // current token's span
+    end: usize, // current token's  end position
     peeked: Option<Token>,
 }
 
@@ -104,30 +107,28 @@ impl<'s> Lexer<'s> {
         Lexer {
             source,
             iter: source.chars().peekable(),
-            span: 0..0,
+            end: 0,
             peeked: None,
         }
     }
 
     /// Returns and consumes the next token if exists including the peeked one.
     /// Otherwise returns `None`.
-    pub fn lex(&mut self) -> Option<Token> {
-        if let Some(token) = self.consume_peeked() {
-            self.span = token.span();
-            Some(token)
-        } else if let Some(token) = self.lex_internal() {
-            self.span = token.span();
-            Some(token)
+    pub fn lex(&mut self) -> Token {
+        let token = if let Some(token) = self.peeked.take() {
+            token
         } else {
-            None
-        }
+            self.lex_internal()
+        };
+        self.end = token.span().end;
+        token
     }
 
     /// Returns the next token if exists, otherwise `None`.
     ///
     /// This method doesn't update the lexer's span.
-    fn lex_internal(&mut self) -> Option<Token> {
-        let start = self.span.start;
+    fn lex_internal(&mut self) -> Token {
+        let start = self.end;
         if let Some(c) = self.iter.next() {
             let mut end = start + c.len_utf8();
             let kind = match c {
@@ -166,22 +167,20 @@ impl<'s> Lexer<'s> {
                     tok::literal
                 }
             };
-            Some(Token::new(kind, start, end))
+            Token::new(kind, start, end)
         } else {
-            None
+            Token::new(tok::eof, start, start)
         }
     }
 
     /// Returns the next token without consuming it.
-    pub fn peek(&mut self) -> Option<Token> {
+    pub fn peek(&mut self) -> Token {
         if let Some(token) = self.peeked {
-            return Some(token);
-        }
-        if let Some(token) = self.lex_internal() {
-            self.peeked = Some(token);
-            Some(token)
+            token
         } else {
-            None
+            let token = self.lex_internal();
+            self.peeked = Some(token);
+            token
         }
     }
 
@@ -189,25 +188,16 @@ impl<'s> Lexer<'s> {
     ///
     /// It moves the inner span to the peeked token.
     #[inline]
-    pub fn consume_peeked(&mut self) -> Option<Token> {
+    pub fn consume_peeked(&mut self) {
         if let Some(token) = self.peeked.take() {
-            self.span = token.span();
-            Some(token)
-        } else {
-            None
+            self.end = token.span().end;
         }
-    }
-
-    /// Returns the span of the last token lexed.
-    #[inline]
-    pub fn span(&self) -> std::ops::Range<usize> {
-        self.span.clone()
     }
 
     /// Returns the slice of the last token lexed.
     #[inline]
-    pub fn slice(&self) -> &'s str {
-        &self.source[self.span.clone()]
+    pub fn slice(&self, token: Token) -> &'s str {
+        &self.source[token.span()]
     }
 }
 
