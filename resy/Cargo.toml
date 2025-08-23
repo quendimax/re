@@ -11,6 +11,7 @@ redt = { path = "../redt" }
 regr = { path = "../regr" }
 renc = { path = "../renc" }
 smallvec.workspace = true
+static_assertions.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
