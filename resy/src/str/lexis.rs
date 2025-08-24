@@ -52,7 +52,7 @@ pub enum TokenKind {
     escape_char(char),
 
     /// sequence of not special characters
-    literal,
+    char(char),
 
     /// end of input
     eof,
@@ -160,12 +160,7 @@ impl<'s> Lexer<'s> {
                 ']' => tok::r_square,
                 '{' => tok::l_brace,
                 '}' => tok::r_brace,
-                _ => {
-                    while let Some(c) = self.iter.next_if(|c| is_not_special(*c)) {
-                        end += c.len_utf8();
-                    }
-                    tok::literal
-                }
+                c => tok::char(c),
             };
             Token::new(kind, start, end)
         } else {
@@ -199,11 +194,4 @@ impl<'s> Lexer<'s> {
     pub fn slice(&self, token: Token) -> &'s str {
         &self.source[token.span()]
     }
-}
-
-fn is_not_special(c: char) -> bool {
-    !matches!(
-        c,
-        '\\' | '.' | '*' | '+' | '-' | '^' | '?' | '|' | '(' | ')' | '[' | ']' | '{' | '}'
-    )
 }
