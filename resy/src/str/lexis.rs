@@ -1,3 +1,6 @@
+use std::fmt::Write;
+
+use crate::str::error::{Result, err};
 use static_assertions::const_assert;
 
 #[allow(non_camel_case_types)]
@@ -63,6 +66,31 @@ pub mod tok {
     pub use super::TokenKind::*;
 }
 
+impl std::fmt::Display for TokenKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            tok::l_square => f.write_char('['),
+            tok::l_square_caret => f.write_str("[^"),
+            tok::r_square => f.write_char(']'),
+            tok::l_brace => f.write_char('{'),
+            tok::r_brace => f.write_char('}'),
+            tok::l_paren => f.write_char('('),
+            tok::r_paren => f.write_char(')'),
+            tok::pipe => f.write_char('|'),
+            tok::star => f.write_char('*'),
+            tok::plus => f.write_char('+'),
+            tok::question => f.write_char('?'),
+            tok::minus => f.write_char('-'),
+            tok::dot => f.write_char('.'),
+            tok::caret => f.write_char('^'),
+            tok::escape => f.write_char('\\'),
+            tok::escape_char(c) => write!(f, "\\{}", c),
+            tok::char(c) => f.write_char(*c),
+            tok::eof => f.write_str("EOF"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
     kind: TokenKind,
@@ -96,7 +124,7 @@ impl Token {
 pub struct Lexer<'s> {
     source: &'s str,
     iter: std::iter::Peekable<std::str::Chars<'s>>,
-    end: usize, // current token's  end position
+    pos: usize,
     peeked: Option<Token>,
 }
 
@@ -107,9 +135,15 @@ impl<'s> Lexer<'s> {
         Lexer {
             source,
             iter: source.chars().peekable(),
-            end: 0,
+            pos: 0,
             peeked: None,
         }
+    }
+
+    /// Returns the slice of the last token lexed.
+    #[inline]
+    pub fn slice(&self, token: Token) -> &'s str {
+        &self.source[token.span()]
     }
 
     /// Returns and consumes the next token if exists including the peeked one.
@@ -120,15 +154,45 @@ impl<'s> Lexer<'s> {
         } else {
             self.lex_internal()
         };
-        self.end = token.span().end;
+        self.pos = token.span().end;
         token
+    }
+
+    pub fn expect(&mut self, expected: TokenKind) -> Result<Token> {
+        let token = self.lex();
+        if token.kind() != expected {
+            err::unexpected_token(expected.to_string(), self.slice(token), token)
+        } else {
+            Ok(token)
+        }
+    }
+
+    /// Returns the next token without consuming it.
+    pub fn peek(&mut self) -> Token {
+        if let Some(token) = self.peeked {
+            token
+        } else {
+            let token = self.lex_internal();
+            self.peeked = Some(token);
+            token
+        }
+    }
+
+    /// Consumes the peeked token if it exists.
+    ///
+    /// It moves the inner span to the peeked token.
+    #[inline]
+    pub fn consume_peeked(&mut self) {
+        if let Some(token) = self.peeked.take() {
+            self.pos = token.span().end;
+        }
     }
 
     /// Returns the next token if exists, otherwise `None`.
     ///
     /// This method doesn't update the lexer's span.
     fn lex_internal(&mut self) -> Token {
-        let start = self.end;
+        let start = self.pos;
         if let Some(c) = self.iter.next() {
             let mut end = start + c.len_utf8();
             let kind = match c {
@@ -166,32 +230,5 @@ impl<'s> Lexer<'s> {
         } else {
             Token::new(tok::eof, start, start)
         }
-    }
-
-    /// Returns the next token without consuming it.
-    pub fn peek(&mut self) -> Token {
-        if let Some(token) = self.peeked {
-            token
-        } else {
-            let token = self.lex_internal();
-            self.peeked = Some(token);
-            token
-        }
-    }
-
-    /// Consumes the peeked token if it exists.
-    ///
-    /// It moves the inner span to the peeked token.
-    #[inline]
-    pub fn consume_peeked(&mut self) {
-        if let Some(token) = self.peeked.take() {
-            self.end = token.span().end;
-        }
-    }
-
-    /// Returns the slice of the last token lexed.
-    #[inline]
-    pub fn slice(&self, token: Token) -> &'s str {
-        &self.source[token.span()]
     }
 }
