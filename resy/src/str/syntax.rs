@@ -1,5 +1,5 @@
 use crate::hir::Hir;
-use crate::str::error::Result;
+use crate::str::error::{Result, err};
 use crate::str::lexis::{Lexer, tok};
 use renc::Encoder;
 
@@ -85,27 +85,64 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
     /// item
     ///     term
     ///     class
-    ///     '(' disjunct ')'
+    ///     group
     ///     item postfix
     /// ```
     fn parse_item(&mut self) -> Result<Option<Hir>> {
         let token = self.lexer.peek();
         let hir = match token.kind() {
-            tok::l_paren => self.parse_parens()?,
+            tok::l_paren => self.parse_group()?,
+            tok::l_paren_question => self.parse_named_group()?,
             tok::dot | tok::l_square | tok::l_square_caret => self.parse_class()?,
             _ => todo!(),
         };
         Ok(Some(hir))
     }
 
-    fn parse_parens(&mut self) -> Result<Hir> {
+    fn parse_group(&mut self) -> Result<Hir> {
         self.lexer.expect(tok::l_paren)?;
         let hir = self.parse_disjunct()?;
         self.lexer.expect(tok::r_paren)?;
         Ok(hir)
     }
 
+    fn parse_named_group(&mut self) -> Result<Hir> {
+        self.lexer.expect(tok::l_paren_question)?;
+        self.lexer.expect(tok::char('<'))?;
+        if let Some(num) = self.parse_decimal() {
+            self.lexer.expect(tok::char('>'))?;
+            let hir = self.parse_disjunct()?;
+            self.lexer.expect(tok::r_paren)?;
+            Ok(Hir::group(num, hir))
+        } else {
+            let next_token = self.lexer.peek();
+            err::unexpected_token(
+                "decimal".to_string(),
+                self.lexer.slice(next_token).to_string(),
+                next_token,
+            )
+        }
+    }
+
     fn parse_class(&mut self) -> Result<Hir> {
         todo!()
+    }
+
+    /// Parses decimal secquence into `u32` value. If there wasn't found any
+    /// dicamal characters, returns `None`.
+    fn parse_decimal(&mut self) -> Option<u32> {
+        let mut num: Option<u32> = None;
+        loop {
+            if let tok::char(sym) = self.lexer.peek().kind()
+                && sym.is_ascii_digit()
+            {
+                self.lexer.consume_peeked();
+                let prev_num = num.unwrap_or(0);
+                num = Some(prev_num + (sym as u32 - '0' as u32));
+            } else {
+                break;
+            }
+        }
+        num
     }
 }
