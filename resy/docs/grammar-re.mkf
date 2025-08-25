@@ -49,7 +49,7 @@ term                ; terminals correspond to one unicode code point
     escape
 
 char
-    '0000' . '10FFFF' - '\' - '.' - '*' - '+' - '-' - '^' - '?' - '|' - '(' - ')' - '[' - ']' - '{' - '}'
+    '0000' . '10FFFF' - '\' - '.' - '*' - '+' - '-' - '?' - '|' - '(' - ')' - '[' - ']' - '{' - '}'
 
 escape
     ascii_escape
@@ -61,7 +61,6 @@ ascii_escape
     "\*"
     "\+"
     "\-"
-    "\^"
     "\?"
     "\|"
     "\("

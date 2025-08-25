@@ -27,7 +27,7 @@ fn lexer_lex() {
     assert_eq!(lexer.slice(token), "[^");
 
     let token = lexer.lex();
-    assert_eq!(token.kind(), tok::caret);
+    assert_eq!(token.kind(), tok::char('^'));
     assert_eq!(token.span(), 4..5);
     assert_eq!(lexer.slice(token), "^");
 

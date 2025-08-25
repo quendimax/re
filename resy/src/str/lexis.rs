@@ -48,9 +48,6 @@ pub enum TokenKind {
     /// `.`
     dot,
 
-    /// `^`
-    caret,
-
     /// `\`. It can be got only at the end of a string.
     escape,
 
@@ -86,7 +83,6 @@ impl std::fmt::Display for TokenKind {
             tok::question => f.write_char('?'),
             tok::minus => f.write_char('-'),
             tok::dot => f.write_char('.'),
-            tok::caret => f.write_char('^'),
             tok::escape => f.write_char('\\'),
             tok::escape_char(c) => write!(f, "\\{}", c),
             tok::char(c) => f.write_char(*c),
@@ -216,7 +212,6 @@ impl<'s> Lexer<'s> {
                 '*' => tok::star,
                 '+' => tok::plus,
                 '-' => tok::minus,
-                '^' => tok::caret,
                 '?' => tok::question,
                 '|' => tok::pipe,
                 '(' => {
@@ -239,7 +234,7 @@ impl<'s> Lexer<'s> {
                 ']' => tok::r_square,
                 '{' => tok::l_brace,
                 '}' => tok::r_brace,
-                c => tok::char(c),
+                sym => tok::char(sym),
             };
             Token::new(kind, start, end)
         } else {
