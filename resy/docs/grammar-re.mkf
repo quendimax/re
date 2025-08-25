@@ -13,7 +13,7 @@ concat
 item
     term
     class
-    '(' disjunct ')'
+    group
     item postfix
 
 postfix
@@ -23,6 +23,13 @@ postfix
     '{' decimal '}'
     '{' decimal ',' '}'
     '{' decimal ',' decimal '}'
+
+group
+    "(" disjunct ")"
+    "(?" label disjunct ")"
+
+label
+    '<' decimal '>'
 
 class               ; class corresponds to a subset of unicode code points
     '.'

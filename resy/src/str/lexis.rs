@@ -24,6 +24,9 @@ pub enum TokenKind {
     /// `(`
     l_paren,
 
+    /// `(?`
+    l_paren_question,
+
     /// `)`
     r_paren,
 
@@ -75,6 +78,7 @@ impl std::fmt::Display for TokenKind {
             tok::l_brace => f.write_char('{'),
             tok::r_brace => f.write_char('}'),
             tok::l_paren => f.write_char('('),
+            tok::l_paren_question => f.write_str("(?"),
             tok::r_paren => f.write_char(')'),
             tok::pipe => f.write_char('|'),
             tok::star => f.write_char('*'),
@@ -91,7 +95,7 @@ impl std::fmt::Display for TokenKind {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Token {
     kind: TokenKind,
     span: (u32, u32),
@@ -161,7 +165,11 @@ impl<'s> Lexer<'s> {
     pub fn expect(&mut self, expected: TokenKind) -> Result<Token> {
         let token = self.lex();
         if token.kind() != expected {
-            err::unexpected_token(expected.to_string(), self.slice(token), token)
+            err::unexpected_token(
+                format!("'{expected}'"),
+                format!("'{}'", self.slice(token)),
+                token,
+            )
         } else {
             Ok(token)
         }
@@ -211,7 +219,14 @@ impl<'s> Lexer<'s> {
                 '^' => tok::caret,
                 '?' => tok::question,
                 '|' => tok::pipe,
-                '(' => tok::l_paren,
+                '(' => {
+                    if self.iter.next_if(|c| *c == '?').is_some() {
+                        end += '?'.len_utf8();
+                        tok::l_paren_question
+                    } else {
+                        tok::l_paren
+                    }
+                }
                 ')' => tok::r_paren,
                 '[' => {
                     if self.iter.next_if(|c| *c == '^').is_some() {

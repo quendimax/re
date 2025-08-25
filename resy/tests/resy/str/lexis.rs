@@ -102,12 +102,51 @@ fn lexer_consume_peeked() {
 }
 
 #[test]
+fn lexer_expect() {
+    let mut lexer = Lexer::new("a?");
+    assert_eq!(
+        lexer.expect(tok::char('a')).map(|t| t.kind()),
+        Ok(tok::char('a'))
+    );
+    assert_eq!(
+        lexer.expect(tok::dot).unwrap_err().to_string(),
+        "expected '.', but found '?'"
+    );
+}
+
+#[test]
 fn lexer_lex_all_tokens() {
-    let mut lexer = Lexer::new("\\a.*+-^?|()[]{}\\");
+    let mut lexer = Lexer::new("\\a.*+-^?|()[]{}(?[^\\");
     loop {
         let token = lexer.lex();
         if token.kind() == tok::eof {
             break;
         }
     }
+}
+
+#[test]
+fn token_display_fmt() {
+    let mut lexer = Lexer::new("[[^]{}((?)|*+?-.^\\aa\\");
+    let mut next = || format!("{}", lexer.lex().kind());
+    assert_eq!(next(), "[");
+    assert_eq!(next(), "[^");
+    assert_eq!(next(), "]");
+    assert_eq!(next(), "{");
+    assert_eq!(next(), "}");
+    assert_eq!(next(), "(");
+    assert_eq!(next(), "(?");
+    assert_eq!(next(), ")");
+    assert_eq!(next(), "|");
+    assert_eq!(next(), "*");
+    assert_eq!(next(), "+");
+    assert_eq!(next(), "?");
+    assert_eq!(next(), "-");
+    assert_eq!(next(), ".");
+    assert_eq!(next(), "^");
+    assert_eq!(next(), "\\a");
+    assert_eq!(next(), "a");
+    assert_eq!(next(), "\\");
+    assert_eq!(next(), "EOF");
+    assert_eq!(next(), "EOF");
 }

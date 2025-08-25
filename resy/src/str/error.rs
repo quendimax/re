@@ -4,9 +4,9 @@ use thiserror::Error;
 pub type Result<T> = std::result::Result<T, Error>;
 pub type Error = Box<ErrorKind>;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum ErrorKind {
-    #[error("expected {expected}, but got '{found}'")]
+    #[error("expected {expected}, but found {found}")]
     UnexpectedTokenError {
         expected: String,
         found: String,
@@ -29,12 +29,12 @@ pub(crate) mod err {
 
     pub(crate) fn unexpected_token<T>(
         expected: String,
-        found_spell: &str,
+        found_spell: String,
         found_token: Token,
     ) -> Result<T> {
         Err(Box::new(ErrorKind::UnexpectedTokenError {
             expected,
-            found: found_spell.to_string(),
+            found: found_spell,
             found_token,
         }))
     }
