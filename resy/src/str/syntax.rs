@@ -94,11 +94,41 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
             tok::l_paren => self.parse_group()?,
             tok::l_paren_question => self.parse_named_group()?,
             tok::dot | tok::l_square | tok::l_square_caret => self.parse_class()?,
-            _ => todo!(),
+            _ => {
+                let mut literal = vec![];
+                while let Some(c) = self.parse_term()? {
+                    if self.lexer.peek().is_term() {
+                        let len = literal.len();
+                        literal.resize(len + 4, 0);
+                        match self.encoder.encode_char(c, &mut literal[len..len + 4]) {
+                            Ok(bytes_num) => literal.resize(len + bytes_num, 0),
+                            Err(error) => return err::encoder_error(error, token),
+                        }
+                    }
+                }
+                todo!()
+            }
         };
-        Ok(Some(hir))
+        if let Some((iter_min, iter_max)) = self.parse_postfix()? {
+            let repeat_hir = Hir::repeat(hir, iter_min, iter_max);
+            Ok(Some(repeat_hir))
+        } else {
+            Ok(Some(hir))
+        }
     }
 
+    fn parse_postfix(&mut self) -> Result<Option<(usize, Option<usize>)>> {
+        todo!()
+    }
+
+    /// Parses a group expression.
+    ///
+    /// # Syntax
+    ///
+    /// ```mkf
+    /// group
+    ///     "(" disjunct ")"
+    /// ```
     fn parse_group(&mut self) -> Result<Hir> {
         self.lexer.expect(tok::l_paren)?;
         let hir = self.parse_disjunct()?;
@@ -106,6 +136,17 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
         Ok(hir)
     }
 
+    /// Parses a named group expression.
+    ///
+    /// # Syntax
+    ///
+    /// ```mkf
+    /// group
+    ///     "(?" label disjunct ")"
+    ///
+    /// label
+    ///     '<' decimal '>'
+    /// ```
     fn parse_named_group(&mut self) -> Result<Hir> {
         self.lexer.expect(tok::l_paren_question)?;
         self.lexer.expect(tok::char('<'))?;
@@ -115,21 +156,79 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
             self.lexer.expect(tok::r_paren)?;
             Ok(Hir::group(num, hir))
         } else {
-            let next_token = self.lexer.peek();
+            let unexpected_tok = self.lexer.peek();
             err::unexpected_token(
                 "decimal".to_string(),
-                self.lexer.slice(next_token).to_string(),
-                next_token,
+                self.lexer.slice(unexpected_tok).to_string(),
+                unexpected_tok,
             )
         }
     }
 
+    /// Parses a class expression.
+    ///
+    /// # Syntax
+    ///
+    /// ```mkf
+    /// class
+    ///     '.'
+    ///     "[" elements "]"
+    ///     "[^" elements "]"
+    ///
+    /// elements
+    ///     element
+    ///     element elements
+    ///
+    /// element
+    ///     term
+    ///     term '-' term
+    /// ```
     fn parse_class(&mut self) -> Result<Hir> {
         todo!()
     }
 
+    fn parse_term(&mut self) -> Result<Option<char>> {
+        match self.lexer.lex().kind() {
+            tok::char(c) => Ok(Some(c)),
+            tok::escape_char(c) => match c {
+                '\\' => Ok(Some('\\')),
+                '.' => Ok(Some('.')),
+                '*' => Ok(Some('*')),
+                '+' => Ok(Some('+')),
+                '-' => Ok(Some('-')),
+                '?' => Ok(Some('?')),
+                '|' => Ok(Some('|')),
+                '(' => Ok(Some('(')),
+                ')' => Ok(Some(')')),
+                '[' => Ok(Some('[')),
+                ']' => Ok(Some(']')),
+                '{' => Ok(Some('{')),
+                '}' => Ok(Some('}')),
+                '0' => Ok(Some('\0')),
+                'n' => Ok(Some('\n')),
+                'r' => Ok(Some('\r')),
+                't' => Ok(Some('\t')),
+                'x' => todo!(),
+                'u' => todo!(),
+                _ => panic!("unsupported escape sequence"),
+            },
+            _ => panic!("unexpected token"),
+        }
+    }
+
     /// Parses decimal secquence into `u32` value. If there wasn't found any
     /// dicamal characters, returns `None`.
+    ///
+    /// # Syntax
+    ///
+    /// ```mkf
+    /// decimal
+    ///     dec
+    ///     dec decimal
+    ///
+    /// dec
+    ///     '0' . '9'
+    /// ```
     fn parse_decimal(&mut self) -> Option<u32> {
         let mut num: Option<u32> = None;
         loop {

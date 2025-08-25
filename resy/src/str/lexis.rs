@@ -118,6 +118,12 @@ impl Token {
     pub fn span(&self) -> std::ops::Range<usize> {
         self.span.0 as usize..self.span.1 as usize
     }
+
+    /// Returns `true` if the token is a terminal token, i.e. a character or an
+    /// escape character.
+    pub fn is_term(&self) -> bool {
+        matches!(self.kind, tok::char(_) | tok::escape_char(_))
+    }
 }
 
 /// Lexer for regular expression parsers.
