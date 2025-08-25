@@ -33,6 +33,17 @@ fn hir_class() {
 }
 
 #[test]
+fn hir_group() {
+    let lit = Hir::literal(b"hello");
+    let group = Hir::group(2, lit);
+    assert!(group.is_group());
+    assert!(!group.is_class());
+    assert_eq!(group.len_hint(), (5, Some(5)));
+    assert_eq!(group.exact_len(), Some(5));
+    assert_str_eq!(group.to_string(), r#"(?<2> "hello" )"#);
+}
+
+#[test]
 fn hir_repeat() {
     let lit = Hir::literal(b"a");
     let repeat = Hir::repeat(lit, 0, None);
@@ -164,6 +175,11 @@ fn hir_unwrap() {
 
     assert_panics!({
         let class = Hir::class(Default::default());
+        _ = class.unwrap_group();
+    });
+
+    assert_panics!({
+        let class = Hir::group(1, Hir::literal(b"a"));
         _ = class.unwrap_repeat();
     });
 

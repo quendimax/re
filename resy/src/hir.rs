@@ -8,6 +8,7 @@ pub enum Hir {
     Disjunct(DisjunctHir),
     Concat(ConcatHir),
     Repeat(RepeatHir),
+    Group(GroupHir),
     Class(SetU8),
     Literal(Vec<u8>),
 }
@@ -72,6 +73,13 @@ impl Hir {
         })
     }
 
+    pub fn group(label: u32, item: Hir) -> Hir {
+        Hir::Group(GroupHir {
+            label,
+            item: Box::new(item),
+        })
+    }
+
     /// Creates a new class hir instance, i.e. a choice between possible single bytes.
     #[inline]
     pub fn class(set: SetU8) -> Hir {
@@ -100,6 +108,11 @@ impl Hir {
     }
 
     #[inline]
+    pub fn is_group(&self) -> bool {
+        matches!(self, Hir::Group(..))
+    }
+
+    #[inline]
     pub fn is_class(&self) -> bool {
         matches!(self, Hir::Class(..))
     }
@@ -124,6 +137,7 @@ impl Hir {
                     (hir.lower * min_len, None)
                 }
             }
+            Hir::Group(hir) => hir.item.len_hint(),
             Hir::Class(_) => (1, Some(1)),
             Hir::Literal(bytes) => (bytes.len(), Some(bytes.len())),
         }
@@ -157,6 +171,14 @@ impl Hir {
         match self {
             Hir::Repeat(hir) => hir,
             _ => panic!("unwrap_repeat called on non-repeat hir"),
+        }
+    }
+
+    /// Unwraps the Hir into a GroupHir, panicking if it is not a repeat.
+    pub fn unwrap_group(self) -> GroupHir {
+        match self {
+            Hir::Group(hir) => hir,
+            _ => panic!("unwrap_group called on non-group hir"),
         }
     }
 
@@ -203,6 +225,11 @@ impl RepeatHir {
     }
 }
 
+pub struct GroupHir {
+    label: u32,
+    item: Box<Hir>,
+}
+
 impl std::fmt::Display for Hir {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -211,6 +238,9 @@ impl std::fmt::Display for Hir {
             }
             Hir::Class(set) => {
                 std::fmt::Display::fmt(&set, f)?;
+            }
+            Hir::Group(group) => {
+                write!(f, "(?<{}> {} )", group.label, group.item)?;
             }
             Hir::Repeat(repeat) => {
                 let item = &repeat.item;
