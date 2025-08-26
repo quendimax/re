@@ -1,14 +1,11 @@
+use crate::encoding::Encoding;
 use crate::error::Result;
 use redt::Range;
 
 /// This trait helps convert unicode code points into byte sequences
 /// corresponding to the encoding way chosen by the user.
 pub trait Encoder {
-    /// Minimum code point that can be encoded by this coder.
-    const MIN_CODE_POINT: u32;
-
-    /// Maximum code point that can be encoded by this coder.
-    const MAX_CODE_POINT: u32;
+    fn encoding(&self) -> Encoding;
 
     /// Encode unicode code point into a byte sequence
     fn encode_ucp(&self, codepoint: u32, buffer: &mut [u8]) -> Result<usize>;

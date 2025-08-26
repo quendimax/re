@@ -1,3 +1,4 @@
+use crate::encoding::Encoding;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -14,8 +15,8 @@ pub enum Error {
     /// # Parameters
     ///
     /// - `codec_name`: The encoding that encountered the surrogate code point.
-    #[error("surrogate code points are not supported by {standard}")]
-    SurrogateUnsupported { standard: &'static str },
+    #[error("surrogate code points are not supported by {}", encoding.name())]
+    SurrogateUnsupported { encoding: Encoding },
 
     /// Error returned when the provided output buffer is too small to hold the
     /// encoded byte sequence.
@@ -27,12 +28,12 @@ pub enum Error {
     /// This error occurs when a code point is outside the valid Unicode range
     /// (U+0000 to U+10FFFF).
     ///
-    /// This error doesn't evolved for surrogate code points. Look at
+    /// This error isn't evolved for surrogate code points. Look at
     /// [`Error::SurrogateUnsupported`] for that.
     ///
     /// # Parameters
     ///
     /// - `0`: The invalid code point value.
-    #[error("invalid unicode code point '\\x{0:X}'")]
-    InvalidCodePoint(u32),
+    #[error("invalid unicode code point '\\x{codepoint:X}' for {} encoding", encoding.name())]
+    InvalidCodePoint { codepoint: u32, encoding: Encoding },
 }

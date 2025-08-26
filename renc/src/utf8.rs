@@ -1,14 +1,18 @@
 use crate::encoder::Encoder;
+use crate::encoding::Encoding;
 use crate::error::{Error::*, Result};
 use arrayvec::ArrayVec;
 use redt::Range;
 
+const ENCODING: Encoding = Encoding::Utf8;
+
 pub struct Utf8Encoder;
 
 impl Encoder for Utf8Encoder {
-    const MIN_CODE_POINT: u32 = char::MIN as u32;
-
-    const MAX_CODE_POINT: u32 = char::MAX as u32;
+    #[inline]
+    fn encoding(&self) -> Encoding {
+        ENCODING
+    }
 
     fn encode_char(&self, c: char, buffer: &mut [u8]) -> Result<usize> {
         let expected_len = c.len_utf8();
@@ -50,7 +54,7 @@ impl Encoder for Utf8Encoder {
     where
         F: FnMut(&[Range<u8>]),
     {
-        self.encode_range(Self::MIN_CODE_POINT, Self::MAX_CODE_POINT, handler)
+        self.encode_range(ENCODING.min_codepoint(), ENCODING.max_codepoint(), handler)
     }
 }
 
@@ -186,9 +190,12 @@ fn char_try_from(codepoint: u32) -> Result<char> {
     if let Ok(c) = char::try_from(codepoint) {
         Ok(c)
     } else if codepoint <= 0x10FFFF {
-        Err(SurrogateUnsupported { standard: "UTF-8" })
+        Err(SurrogateUnsupported { encoding: ENCODING })
     } else {
-        Err(InvalidCodePoint(codepoint))
+        Err(InvalidCodePoint {
+            codepoint,
+            encoding: ENCODING,
+        })
     }
 }
 

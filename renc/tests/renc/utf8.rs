@@ -122,9 +122,12 @@ fn encode_ucp_fails() {
         CODER.encode_ucp('𐌰' as u32, &mut buffer),
         Err(Error::SmallBuffer)
     );
-    assert_eq!(
+    assert_matches!(
         CODER.encode_ucp(0x110000, &mut buffer),
-        Err(Error::InvalidCodePoint(0x110000))
+        Err(Error::InvalidCodePoint {
+            codepoint: 0x110000,
+            ..
+        })
     );
     assert_matches!(
         CODER.encode_ucp(0xD811, &mut buffer),
@@ -233,13 +236,19 @@ fn encode_four_byte_ranges() {
 
 #[test]
 fn encode_out_ranges() {
-    assert_eq!(
+    assert_matches!(
         CODER.encode_range(0x800, 0x11FFFF, |_| {}),
-        Err(Error::InvalidCodePoint(0x11FFFF))
+        Err(Error::InvalidCodePoint {
+            codepoint: 0x11FFFF,
+            ..
+        })
     );
-    assert_eq!(
+    assert_matches!(
         CODER.encode_range(0x118000, 0x11FFFF, |_| {}),
-        Err(Error::InvalidCodePoint(0x118000))
+        Err(Error::InvalidCodePoint {
+            codepoint: 0x118000,
+            ..
+        })
     );
 }
 

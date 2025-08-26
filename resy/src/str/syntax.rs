@@ -15,7 +15,7 @@ impl<C: Encoder> Parser<C> {
     pub fn parse(&self, pattern: &str) -> Result<Hir> {
         let mut parser = ParserImpl {
             lexer: Lexer::new(pattern),
-            encoder: &self.encoder,
+            coder: &self.encoder,
         };
         parser.parse()
     }
@@ -23,7 +23,7 @@ impl<C: Encoder> Parser<C> {
 
 struct ParserImpl<'s, 'c, C: Encoder> {
     lexer: Lexer<'s>,
-    encoder: &'c C,
+    coder: &'c C,
 }
 
 impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
@@ -100,7 +100,7 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
                     if self.lexer.peek().is_term() {
                         let len = literal.len();
                         literal.resize(len + 4, 0);
-                        match self.encoder.encode_char(c, &mut literal[len..len + 4]) {
+                        match self.coder.encode_char(c, &mut literal[len..len + 4]) {
                             Ok(bytes_num) => literal.resize(len + bytes_num, 0),
                             Err(error) => return err::encoder_error(error, token),
                         }

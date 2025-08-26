@@ -501,7 +501,7 @@ fn parse_escape_fails() {
     assert_eq!(parse(r"\u{0000000}"), "expected '}', but got '0'");
     assert_matches!(
         try_parse(r"\u{110000}"),
-        Err(EncoderError(InvalidCodePoint(..)))
+        Err(EncoderError(InvalidCodePoint { .. }))
     );
     assert_matches!(
         try_parse(r"\u{D800}"),
@@ -513,7 +513,7 @@ fn parse_escape_fails() {
     assert_matches!(try_parse(r"\u{0000000}"), Err(UnexpectedToken { .. }));
     assert_matches!(
         try_parse(r"\u{110000}"),
-        Err(EncoderError(InvalidCodePoint(..)))
+        Err(EncoderError(InvalidCodePoint { .. }))
     );
     assert_matches!(
         try_parse(r"\u{D800}"),
