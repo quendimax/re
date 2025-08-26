@@ -78,6 +78,13 @@ fn _expect<const N: usize>(start: &[u8; N], end: &[u8; N]) -> Result<Sequences> 
 }
 
 #[test]
+fn encoding() {
+    let coder = Utf8Encoder;
+    let encoding = coder.encoding();
+    assert_eq!(encoding.name(), "UTF-8");
+}
+
+#[test]
 fn encode_char() {
     let mut buffer = [0u8; 4];
     assert_eq!(CODER.encode_char('a', &mut buffer), Ok(1));

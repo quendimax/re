@@ -7,6 +7,7 @@ use resy::Hir;
 fn hir_literal() {
     let lit = Hir::literal(b"hello");
     assert!(lit.is_literal());
+    assert!(!lit.is_group());
     assert_eq!(lit.len_hint(), (5, Some(5)));
     assert_eq!(lit.exact_len(), Some(5));
     assert_str_eq!(lit.to_string(), "\"hello\"");
@@ -158,6 +159,9 @@ fn hir_unwrap() {
 
     let class = Hir::class(Default::default());
     assert_eq!(class.unwrap_class(), Default::default());
+
+    let repeat = Hir::group(1, Hir::literal(b"a"));
+    _ = repeat.unwrap_group();
 
     let repeat = Hir::repeat(Hir::literal(b"a"), 0, None);
     _ = repeat.unwrap_repeat();
