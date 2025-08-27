@@ -148,8 +148,8 @@ impl<'s> Lexer<'s> {
 
     /// Returns the slice of the last token lexed.
     #[inline]
-    pub fn slice(&self, token: Token) -> &'s str {
-        &self.source[token.span()]
+    pub fn slice(&self, span: std::ops::Range<usize>) -> &'s str {
+        &self.source[span]
     }
 
     /// Returns and consumes the next token if exists including the peeked one.
@@ -169,7 +169,7 @@ impl<'s> Lexer<'s> {
         if token.kind() != expected {
             err::unexpected_token(
                 format!("'{expected}'"),
-                format!("'{}'", self.slice(token)),
+                format!("'{}'", self.slice(token.span())),
                 token,
             )
         } else {

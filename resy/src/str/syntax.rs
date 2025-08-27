@@ -13,10 +13,7 @@ impl<C: Encoder> Parser<C> {
     }
 
     pub fn parse(&self, pattern: &str) -> Result<Hir> {
-        let mut parser = ParserImpl {
-            lexer: Lexer::new(pattern),
-            coder: &self.encoder,
-        };
+        let mut parser = ParserImpl::new(Lexer::new(pattern), &self.encoder);
         parser.parse()
     }
 }
@@ -27,6 +24,10 @@ struct ParserImpl<'s, 'c, C: Encoder> {
 }
 
 impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
+    fn new(lexer: Lexer<'s>, coder: &'c C) -> Self {
+        ParserImpl { lexer, coder }
+    }
+
     fn parse(&mut self) -> Result<Hir> {
         _ = self.lexer.lex();
         let hir = self.parse_disjunct()?;
@@ -150,7 +151,7 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
     fn parse_named_group(&mut self) -> Result<Hir> {
         self.lexer.expect(tok::l_paren_question)?;
         self.lexer.expect(tok::char('<'))?;
-        if let Some(num) = self.parse_decimal() {
+        if let Some(num) = self.parse_decimal()? {
             self.lexer.expect(tok::char('>'))?;
             let hir = self.parse_disjunct()?;
             self.lexer.expect(tok::r_paren)?;
@@ -159,7 +160,7 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
             let unexpected_tok = self.lexer.peek();
             err::unexpected_token(
                 "decimal".to_string(),
-                self.lexer.slice(unexpected_tok).to_string(),
+                self.lexer.slice(unexpected_tok.span()).to_string(),
                 unexpected_tok,
             )
         }
@@ -216,8 +217,11 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
         }
     }
 
-    /// Parses decimal secquence into `u32` value. If there wasn't found any
-    /// dicamal characters, returns `None`.
+    /// Parses decimal secquence into `u32` value.
+    ///
+    /// If successfully parsed, returns `Ok(Some(value))`. If there wasn't found
+    /// any decimal characters, returns `Ok(None)`. If the found value is out of
+    /// range of `u32`, returns `Err(Error::Overflow)`.
     ///
     /// # Syntax
     ///
@@ -229,19 +233,34 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
     /// dec
     ///     '0' . '9'
     /// ```
-    fn parse_decimal(&mut self) -> Option<u32> {
-        let mut num: Option<u32> = None;
-        loop {
-            if let tok::char(sym) = self.lexer.peek().kind()
-                && sym.is_ascii_digit()
-            {
-                self.lexer.consume_peeked();
-                let prev_num = num.unwrap_or(0);
-                num = Some(prev_num + (sym as u32 - '0' as u32));
-            } else {
-                break;
-            }
+    fn parse_decimal(&mut self) -> Result<Option<u32>> {
+        let mut num: Option<u32> = Some(0);
+        let mut token = self.lexer.peek();
+        if let tok::char(sym) = token.kind()
+            && sym.is_ascii_digit()
+        {
+        } else {
+            return Ok(None);
         }
-        num
+
+        let start = token.span().start;
+        while let tok::char(sym) = self.lexer.peek().kind()
+            && sym.is_ascii_digit()
+        {
+            token = self.lexer.lex();
+            let next_digit = sym as u32 - '0' as u32;
+            num = num
+                .and_then(|num| num.checked_mul(10))
+                .and_then(|num| num.checked_add(next_digit));
+        }
+        if let Some(num) = num {
+            Ok(Some(num))
+        } else {
+            let span = start..token.span().end;
+            err::int_overflow(self.lexer.slice(span.clone()).to_owned(), span)
+        }
     }
 }
+
+#[cfg(test)]
+mod utest;

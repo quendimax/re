@@ -4,6 +4,7 @@ use std::fmt::Write;
 /// Hir represents a high-level intermediate representation of a regular
 /// expression, that contains bytes already encoded from unicode code points,
 /// and can be used to build a graph of the corresponding finite automaton.
+#[derive(Debug, Clone, PartialEq)]
 pub enum Hir {
     Disjunct(DisjunctHir),
     Concat(ConcatHir),
@@ -199,18 +200,21 @@ impl Hir {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct DisjunctHir {
     alters: Vec<Hir>,
     min_len: usize,
     max_len: Option<usize>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ConcatHir {
     items: Vec<Hir>,
     min_len: usize,
     max_len: Option<usize>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct RepeatHir {
     lower: usize,
     upper: Option<usize>,
@@ -225,6 +229,7 @@ impl RepeatHir {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct GroupHir {
     label: u32,
     item: Box<Hir>,
