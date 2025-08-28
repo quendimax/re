@@ -185,7 +185,8 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
         todo!()
     }
 
-    /// Parses a single character as is, and as an escape sequence.
+    /// Parses a sequence corresponding to one code point, i.e. either a single
+    /// character or an escape sequence. If there is no one, returns `None`.
     ///
     /// # Syntax
     ///
@@ -219,18 +220,10 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
     ///     "\n"
     ///     "\r"
     ///     "\t"
-    ///     "\x" oct hex
-    ///
-    /// unicode_escape
-    ///     "\u{" hex "}"
-    ///     "\u{" hex hex "}"
-    ///     "\u{" hex hex hex "}"
-    ///     "\u{" hex hex hex hex "}"
-    ///     "\u{" hex hex hex hex hex "}"
-    ///     "\u{" hex hex hex hex hex hex "}"
     /// ```
     fn parse_term(&mut self) -> Result<Option<u32>> {
-        match self.lexer.lex().kind() {
+        let token = self.lexer.lex();
+        match token.kind() {
             tok::char(c) => Ok(Some(c as u32)),
             tok::escape_char(c) => match c {
                 '\\' => Ok(Some('\\' as u32)),
@@ -252,7 +245,10 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
                 't' => Ok(Some('\t' as u32)),
                 'x' => Ok(Some(self.parse_hex_escape()?)),
                 'u' => Ok(Some(self.parse_unicode_escape()?)),
-                _ => panic!("unsupported escape sequence"),
+                _ => {
+                    let spell = self.lexer.slice(token.span());
+                    err::unsupported_escape(spell, token.span())
+                }
             },
             _ => Ok(None),
         }
@@ -337,16 +333,13 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
                         codepoint |= (c as u32).wrapping_sub('0' as u32);
                     }
                 }
-                tok::eof => {
+                _ => {
+                    let spell = self.lexer.slice(token.span());
                     return err::unexpected(
-                        "end of pattern",
+                        spell,
                         token.span(),
                         "either a hexadecimal digit or a closing brace",
                     );
-                }
-                _ => {
-                    let spell = self.lexer.slice(token.span());
-                    return err::unexpected(spell, token.span(), "a hexadecimal digit");
                 }
             }
         }

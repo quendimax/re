@@ -15,20 +15,26 @@ pub enum ErrorKind {
 
     #[error("expected {expected}, but found `{found_spell}`")]
     Unexpected {
-        found_spell: String,
+        found_spell: Box<str>,
         found_span: Range<usize>,
-        expected: String,
+        expected: Box<str>,
     },
 
     #[error("value `{value}` is out of {range}")]
     OutOfRange {
-        value: String,
+        value: Box<str>,
         span: Range<usize>,
-        range: String,
+        range: Box<str>,
     },
 
     #[error("empty escape expression is not allowed")]
     EmptyEscape { span: Range<usize> },
+
+    #[error("unsupported escape sequence `{sequence}`")]
+    UnsupportedEscape {
+        sequence: Box<str>,
+        span: Range<usize>,
+    },
 }
 
 impl ErrorKind {
@@ -39,6 +45,7 @@ impl ErrorKind {
             Unexpected { found_span, .. } => found_span.clone(),
             OutOfRange { span, .. } => span.clone(),
             EmptyEscape { span } => span.clone(),
+            UnsupportedEscape { span, .. } => span.clone(),
         }
     }
 }
@@ -52,9 +59,9 @@ pub(crate) mod err {
     }
 
     pub(crate) fn unexpected<T>(
-        found_spell: impl Into<String>,
+        found_spell: impl Into<Box<str>>,
         found_span: Range<usize>,
-        expected: impl Into<String>,
+        expected: impl Into<Box<str>>,
     ) -> Result<T> {
         Err(Box::new(ErrorKind::Unexpected {
             found_spell: found_spell.into(),
@@ -64,9 +71,9 @@ pub(crate) mod err {
     }
 
     pub(crate) fn out_of_range<T>(
-        value: impl Into<String>,
+        value: impl Into<Box<str>>,
         span: Range<usize>,
-        range: impl Into<String>,
+        range: impl Into<Box<str>>,
     ) -> Result<T> {
         Err(Box::new(ErrorKind::OutOfRange {
             value: value.into(),
@@ -77,5 +84,15 @@ pub(crate) mod err {
 
     pub(crate) fn empty_escape<T>(span: Range<usize>) -> Result<T> {
         Err(Box::new(ErrorKind::EmptyEscape { span }))
+    }
+
+    pub(crate) fn unsupported_escape<T, S>(sequence: S, span: Range<usize>) -> Result<T>
+    where
+        S: Into<Box<str>>,
+    {
+        Err(Box::new(ErrorKind::UnsupportedEscape {
+            sequence: sequence.into(),
+            span,
+        }))
     }
 }

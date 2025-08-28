@@ -30,6 +30,11 @@ fn parse_ascii_escape() {
     assert_eq!(parse_term(r"\n"), Ok(Some('\n' as u32)));
     assert_eq!(parse_term(r"\r"), Ok(Some('\r' as u32)));
     assert_eq!(parse_term(r"\t"), Ok(Some('\t' as u32)));
+    // Unsupported escape sequences
+    assert_eq!(parse_term(r"\a"), err::unsupported_escape(r"\a", 0..2));
+    assert_eq!(parse_term(r"\U"), err::unsupported_escape(r"\U", 0..2));
+    assert_eq!(parse_term(r"\Ў"), err::unsupported_escape(r"\Ў", 0..3));
+
     // \x escape sequences (ASCII only, 0-127)
     assert_eq!(parse_term(r"\x00"), Ok(Some('\0' as u32)));
     assert_eq!(parse_term(r"\x20"), Ok(Some(' ' as u32)));
@@ -105,25 +110,21 @@ fn parse_unicode_escape() {
     // Invalid hex digits
     assert_eq!(
         parse_term(r"\u{G}"),
-        err::unexpected("G", 3..4, "a hexadecimal digit")
+        err::unexpected("G", 3..4, "either a hexadecimal digit or a closing brace")
     );
     assert_eq!(
         parse_term(r"\u{1Z}"),
-        err::unexpected("Z", 4..5, "a hexadecimal digit")
+        err::unexpected("Z", 4..5, "either a hexadecimal digit or a closing brace")
     );
     assert_eq!(
         parse_term(r"\u{XYZ}"),
-        err::unexpected("X", 3..4, "a hexadecimal digit")
+        err::unexpected("X", 3..4, "either a hexadecimal digit or a closing brace")
     );
 
     // Missing closing brace
     assert_eq!(
         parse_term(r"\u{123"),
-        err::unexpected(
-            "end of pattern",
-            6..6,
-            "either a hexadecimal digit or a closing brace"
-        )
+        err::unexpected("", 6..6, "either a hexadecimal digit or a closing brace")
     );
     assert_eq!(parse_term(r"\u{10ffff"), err::unexpected("", 9..9, "`}`"));
 }
