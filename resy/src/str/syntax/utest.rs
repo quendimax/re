@@ -5,7 +5,7 @@ use pretty_assertions::assert_eq;
 use renc::Utf8Encoder;
 
 #[test]
-fn parse_term() {
+fn parse_ascii_escape() {
     let parse_term = |pattern: &str| {
         let lexer = Lexer::new(pattern);
         let mut parser = ParserImpl::new(lexer, &Utf8Encoder);
@@ -64,6 +64,68 @@ fn parse_term() {
         parse_term(r"\x1"),
         err::unexpected("", 3..3, "a hexadecimal digit")
     );
+}
+
+#[test]
+fn parse_unicode_escape() {
+    let parse_term = |pattern: &str| {
+        let lexer = Lexer::new(pattern);
+        let mut parser = ParserImpl::new(lexer, &Utf8Encoder);
+        parser.parse_term()
+    };
+
+    // \u{...} escape sequences (Unicode)
+    // Basic ASCII characters
+    assert_eq!(parse_term(r"\u{0}"), Ok(Some(0x0)));
+    assert_eq!(parse_term(r"\u{41}"), Ok(Some('A' as u32)));
+    assert_eq!(parse_term(r"\u{61}"), Ok(Some('a' as u32)));
+    assert_eq!(parse_term(r"\u{7F}"), Ok(Some(0x7F)));
+
+    // Multi-digit hex values
+    assert_eq!(parse_term(r"\u{20}"), Ok(Some(' ' as u32)));
+    assert_eq!(parse_term(r"\u{1F4}"), Ok(Some(0x1F4)));
+    assert_eq!(parse_term(r"\u{1234}"), Ok(Some(0x1234)));
+    assert_eq!(parse_term(r"\u{12345}"), Ok(Some(0x12345)));
+    assert_eq!(parse_term(r"\u{123456}"), Ok(Some(0x123456)));
+
+    // Case insensitive hex digits
+    assert_eq!(parse_term(r"\u{aB}"), Ok(Some(0xAB)));
+    assert_eq!(parse_term(r"\u{Cd}"), Ok(Some(0xCD)));
+    assert_eq!(parse_term(r"\u{EF}"), Ok(Some(0xEF)));
+    assert_eq!(parse_term(r"\u{abcdef}"), Ok(Some(0xABCDEF)));
+
+    // Unicode characters
+    assert_eq!(parse_term(r"\u{A9}"), Ok(Some('©' as u32))); // Copyright symbol
+    assert_eq!(parse_term(r"\u{1F600}"), Ok(Some(0x1F600))); // Emoji
+    assert_eq!(parse_term(r"\u{10FFFF}"), Ok(Some(0x10FFFF))); // Max Unicode
+
+    // Empty escape sequence
+    assert_eq!(parse_term(r"\u{}"), err::empty_escape(0..4));
+
+    // Invalid hex digits
+    assert_eq!(
+        parse_term(r"\u{G}"),
+        err::unexpected("G", 3..4, "a hexadecimal digit")
+    );
+    assert_eq!(
+        parse_term(r"\u{1Z}"),
+        err::unexpected("Z", 4..5, "a hexadecimal digit")
+    );
+    assert_eq!(
+        parse_term(r"\u{XYZ}"),
+        err::unexpected("X", 3..4, "a hexadecimal digit")
+    );
+
+    // Missing closing brace
+    assert_eq!(
+        parse_term(r"\u{123"),
+        err::unexpected(
+            "end of pattern",
+            6..6,
+            "either a hexadecimal digit or a closing brace"
+        )
+    );
+    assert_eq!(parse_term(r"\u{10ffff"), err::unexpected("", 9..9, "`}`"));
 }
 
 #[test]

@@ -251,7 +251,7 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
                 'r' => Ok(Some('\r' as u32)),
                 't' => Ok(Some('\t' as u32)),
                 'x' => Ok(Some(self.parse_hex_escape()?)),
-                'u' => todo!(),
+                'u' => Ok(Some(self.parse_unicode_escape()?)),
                 _ => panic!("unsupported escape sequence"),
             },
             _ => Ok(None),
@@ -298,6 +298,59 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
 
         // for 7 bit codepoint must always be a correct unicode codepoint
         debug_assert!(char::from_u32(codepoint).is_some());
+        Ok(codepoint)
+    }
+
+    /// Parses a unicode escape sequence.
+    ///
+    /// # Syntax
+    ///
+    /// ```mkf
+    /// unicode_escape
+    ///     "\u{" hex "}"
+    ///     "\u{" hex hex "}"
+    ///     "\u{" hex hex hex "}"
+    ///     "\u{" hex hex hex hex "}"
+    ///     "\u{" hex hex hex hex hex "}"
+    ///     "\u{" hex hex hex hex hex hex "}"
+    /// ```
+    fn parse_unicode_escape(&mut self) -> Result<u32> {
+        let l_brace = self.lexer.expect(tok::l_brace)?;
+        let start = l_brace.span().start - 2;
+        let mut codepoint = 0u32;
+        for i in 0..6 {
+            let token = self.lexer.lex();
+            match token.kind() {
+                tok::r_brace => {
+                    if i == 0 {
+                        return err::empty_escape(start..token.span().end);
+                    } else {
+                        return Ok(codepoint);
+                    }
+                }
+                tok::char(c) if c.is_ascii_hexdigit() => {
+                    codepoint <<= 4;
+                    if c > '9' {
+                        const UPPERCASE_MASK: u32 = !0b0010_0000;
+                        codepoint |= ((c as u32 - 'A' as u32) & UPPERCASE_MASK) + 10;
+                    } else {
+                        codepoint |= (c as u32).wrapping_sub('0' as u32);
+                    }
+                }
+                tok::eof => {
+                    return err::unexpected(
+                        "end of pattern",
+                        token.span(),
+                        "either a hexadecimal digit or a closing brace",
+                    );
+                }
+                _ => {
+                    let spell = self.lexer.slice(token.span());
+                    return err::unexpected(spell, token.span(), "a hexadecimal digit");
+                }
+            }
+        }
+        self.lexer.expect(tok::r_brace)?;
         Ok(codepoint)
     }
 

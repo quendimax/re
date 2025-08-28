@@ -26,6 +26,9 @@ pub enum ErrorKind {
         span: Range<usize>,
         range: String,
     },
+
+    #[error("empty escape expression is not allowed")]
+    EmptyEscape { span: Range<usize> },
 }
 
 impl ErrorKind {
@@ -35,6 +38,7 @@ impl ErrorKind {
             EncoderError { span, .. } => span.clone(),
             Unexpected { found_span, .. } => found_span.clone(),
             OutOfRange { span, .. } => span.clone(),
+            EmptyEscape { span } => span.clone(),
         }
     }
 }
@@ -69,5 +73,9 @@ pub(crate) mod err {
             span,
             range: range.into(),
         }))
+    }
+
+    pub(crate) fn empty_escape<T>(span: Range<usize>) -> Result<T> {
+        Err(Box::new(ErrorKind::EmptyEscape { span }))
     }
 }
