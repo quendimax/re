@@ -117,7 +117,7 @@ fn lexer_expect() {
     );
     assert_eq!(
         lexer.expect(tok::dot).unwrap_err().to_string(),
-        "expected '.', but found '?'"
+        "expected `.`, but found `?`"
     );
 }
 

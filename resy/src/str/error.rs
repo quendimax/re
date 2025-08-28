@@ -1,4 +1,4 @@
-use crate::str::lexis::Token;
+use std::ops::Range;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -10,30 +10,31 @@ pub enum ErrorKind {
     EncoderError {
         #[source]
         cause: renc::Error,
-        bad_token: Token,
+        span: Range<usize>,
     },
 
-    #[error("expected {expected}, but found {found}")]
-    UnexpectedToken {
+    #[error("expected {expected}, but found `{found_spell}`")]
+    Unexpected {
+        found_spell: String,
+        found_span: Range<usize>,
         expected: String,
-        found: String,
-        found_token: Token,
     },
 
-    #[error("integer `{found_int}` is out of range of `u32`")]
-    IntOverflow {
-        found_int: String,
-        span: std::ops::Range<usize>,
+    #[error("value `{value}` is out of {range}")]
+    OutOfRange {
+        value: String,
+        span: Range<usize>,
+        range: String,
     },
 }
 
 impl ErrorKind {
-    pub fn error_span(&self) -> std::ops::Range<usize> {
+    pub fn error_span(&self) -> Range<usize> {
         use ErrorKind::*;
         match self {
-            EncoderError { bad_token, .. } => bad_token.span(),
-            UnexpectedToken { found_token, .. } => found_token.span(),
-            IntOverflow { span, .. } => span.clone(),
+            EncoderError { span, .. } => span.clone(),
+            Unexpected { found_span, .. } => found_span.clone(),
+            OutOfRange { span, .. } => span.clone(),
         }
     }
 }
@@ -42,23 +43,31 @@ impl ErrorKind {
 pub(crate) mod err {
     use super::*;
 
-    pub(crate) fn encoder_error<T>(cause: renc::Error, bad_token: Token) -> Result<T> {
-        Err(Box::new(ErrorKind::EncoderError { cause, bad_token }))
+    pub(crate) fn encoder_error<T>(cause: renc::Error, span: Range<usize>) -> Result<T> {
+        Err(Box::new(ErrorKind::EncoderError { cause, span }))
     }
 
-    pub(crate) fn unexpected_token<T>(
-        expected: String,
-        found_spell: String,
-        found_token: Token,
+    pub(crate) fn unexpected<T>(
+        found_spell: impl Into<String>,
+        found_span: Range<usize>,
+        expected: impl Into<String>,
     ) -> Result<T> {
-        Err(Box::new(ErrorKind::UnexpectedToken {
-            expected,
-            found: found_spell,
-            found_token,
+        Err(Box::new(ErrorKind::Unexpected {
+            found_spell: found_spell.into(),
+            found_span,
+            expected: expected.into(),
         }))
     }
 
-    pub(crate) fn int_overflow<T>(found_int: String, span: std::ops::Range<usize>) -> Result<T> {
-        Err(Box::new(ErrorKind::IntOverflow { found_int, span }))
+    pub(crate) fn out_of_range<T>(
+        value: impl Into<String>,
+        span: Range<usize>,
+        range: impl Into<String>,
+    ) -> Result<T> {
+        Err(Box::new(ErrorKind::OutOfRange {
+            value: value.into(),
+            span,
+            range: range.into(),
+        }))
     }
 }

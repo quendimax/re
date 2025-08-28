@@ -121,8 +121,15 @@ impl Token {
 
     /// Returns `true` if the token is a terminal token, i.e. a character or an
     /// escape character.
+    #[inline]
     pub fn is_term(&self) -> bool {
         matches!(self.kind, tok::char(_) | tok::escape_char(_))
+    }
+
+    /// Returns `true` if the token corresponds to the end of file.
+    #[inline]
+    pub fn is_eof(&self) -> bool {
+        self.kind() == tok::eof
     }
 }
 
@@ -167,11 +174,8 @@ impl<'s> Lexer<'s> {
     pub fn expect(&mut self, expected: TokenKind) -> Result<Token> {
         let token = self.lex();
         if token.kind() != expected {
-            err::unexpected_token(
-                format!("'{expected}'"),
-                format!("'{}'", self.slice(token.span())),
-                token,
-            )
+            let token_spell = self.slice(token.span());
+            err::unexpected(token_spell, token.span(), format!("`{expected}`"))
         } else {
             Ok(token)
         }

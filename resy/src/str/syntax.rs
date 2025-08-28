@@ -101,9 +101,9 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
                     if self.lexer.peek().is_term() {
                         let len = literal.len();
                         literal.resize(len + 4, 0);
-                        match self.coder.encode_char(c, &mut literal[len..len + 4]) {
+                        match self.coder.encode_ucp(c, &mut literal[len..len + 4]) {
                             Ok(bytes_num) => literal.resize(len + bytes_num, 0),
-                            Err(error) => return err::encoder_error(error, token),
+                            Err(error) => return err::encoder_error(error, token.span()),
                         }
                     }
                 }
@@ -157,12 +157,9 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
             self.lexer.expect(tok::r_paren)?;
             Ok(Hir::group(num, hir))
         } else {
-            let unexpected_tok = self.lexer.peek();
-            err::unexpected_token(
-                "decimal".to_string(),
-                self.lexer.slice(unexpected_tok.span()).to_string(),
-                unexpected_tok,
-            )
+            let unexpected_token = self.lexer.peek();
+            let slice = self.lexer.slice(unexpected_token.span());
+            err::unexpected(slice, unexpected_token.span(), "decimal")
         }
     }
 
@@ -188,33 +185,120 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
         todo!()
     }
 
-    fn parse_term(&mut self) -> Result<Option<char>> {
+    /// Parses a single character as is, and as an escape sequence.
+    ///
+    /// # Syntax
+    ///
+    /// ```mkf
+    /// term
+    ///     char
+    ///     escape
+    ///
+    /// char
+    ///     '0000' . '10FFFF' - '\' - '.' - '*' - '+' - '-' - '?' - '|' - '(' - ')' - '[' - ']' - '{' - '}'
+    ///
+    /// escape
+    ///     ascii_escape
+    ///     unicode_escape
+    ///
+    /// ascii_escape
+    ///     "\\"
+    ///     "\."
+    ///     "\*"
+    ///     "\+"
+    ///     "\-"
+    ///     "\?"
+    ///     "\|"
+    ///     "\("
+    ///     "\)"
+    ///     "\["
+    ///     "\]"
+    ///     "\{"
+    ///     "\}"
+    ///     "\0"
+    ///     "\n"
+    ///     "\r"
+    ///     "\t"
+    ///     "\x" oct hex
+    ///
+    /// unicode_escape
+    ///     "\u{" hex "}"
+    ///     "\u{" hex hex "}"
+    ///     "\u{" hex hex hex "}"
+    ///     "\u{" hex hex hex hex "}"
+    ///     "\u{" hex hex hex hex hex "}"
+    ///     "\u{" hex hex hex hex hex hex "}"
+    /// ```
+    fn parse_term(&mut self) -> Result<Option<u32>> {
         match self.lexer.lex().kind() {
-            tok::char(c) => Ok(Some(c)),
+            tok::char(c) => Ok(Some(c as u32)),
             tok::escape_char(c) => match c {
-                '\\' => Ok(Some('\\')),
-                '.' => Ok(Some('.')),
-                '*' => Ok(Some('*')),
-                '+' => Ok(Some('+')),
-                '-' => Ok(Some('-')),
-                '?' => Ok(Some('?')),
-                '|' => Ok(Some('|')),
-                '(' => Ok(Some('(')),
-                ')' => Ok(Some(')')),
-                '[' => Ok(Some('[')),
-                ']' => Ok(Some(']')),
-                '{' => Ok(Some('{')),
-                '}' => Ok(Some('}')),
-                '0' => Ok(Some('\0')),
-                'n' => Ok(Some('\n')),
-                'r' => Ok(Some('\r')),
-                't' => Ok(Some('\t')),
-                'x' => todo!(),
+                '\\' => Ok(Some('\\' as u32)),
+                '.' => Ok(Some('.' as u32)),
+                '*' => Ok(Some('*' as u32)),
+                '+' => Ok(Some('+' as u32)),
+                '-' => Ok(Some('-' as u32)),
+                '?' => Ok(Some('?' as u32)),
+                '|' => Ok(Some('|' as u32)),
+                '(' => Ok(Some('(' as u32)),
+                ')' => Ok(Some(')' as u32)),
+                '[' => Ok(Some('[' as u32)),
+                ']' => Ok(Some(']' as u32)),
+                '{' => Ok(Some('{' as u32)),
+                '}' => Ok(Some('}' as u32)),
+                '0' => Ok(Some('\0' as u32)),
+                'n' => Ok(Some('\n' as u32)),
+                'r' => Ok(Some('\r' as u32)),
+                't' => Ok(Some('\t' as u32)),
+                'x' => Ok(Some(self.parse_hex_escape()?)),
                 'u' => todo!(),
                 _ => panic!("unsupported escape sequence"),
             },
-            _ => panic!("unexpected token"),
+            _ => Ok(None),
         }
+    }
+
+    /// Parses a hexadecimal escape sequence `\xOH` where O is an octal digit
+    /// and H is a hex digit. Returns the value of corresponding ASCII character
+    /// (0-127).
+    ///
+    /// # Syntax
+    ///
+    /// ```mkf
+    ///     "\x" oct hex
+    /// ```
+    fn parse_hex_escape(&mut self) -> Result<u32> {
+        let first_token = self.lexer.lex();
+        let tok::char(first_digit) = first_token.kind() else {
+            let slice = self.lexer.slice(first_token.span());
+            return err::unexpected(slice, first_token.span(), "a hexadecimal digit");
+        };
+        let second_token = self.lexer.lex();
+        let tok::char(second_digit) = second_token.kind() else {
+            let slice = self.lexer.slice(second_token.span());
+            return err::unexpected(slice, second_token.span(), "a hexadecimal digit");
+        };
+        if !first_digit.is_ascii_hexdigit() || !second_digit.is_ascii_hexdigit() {
+            let span = first_token.span().start..second_token.span().end;
+            let slice = self.lexer.slice(span.clone());
+            return err::unexpected(slice, span, "two hexadecimal digits");
+        }
+        if first_digit > '7' {
+            let span = first_token.span().start - 2..second_token.span().end;
+            let slice = self.lexer.slice(span.clone());
+            return err::out_of_range(format!("`{slice}`"), span, "ASCII range");
+        }
+        let mut codepoint = (first_digit as u32 - '0' as u32) << 4;
+        if second_digit > '9' {
+            const UPPERCASE_MASK: u32 = !0b0010_0000;
+            codepoint |= ((second_digit as u32 - 'A' as u32) & UPPERCASE_MASK) + 10;
+        } else {
+            codepoint |= (second_digit as u32).wrapping_sub('0' as u32);
+        }
+
+        // for 7 bit codepoint must always be a correct unicode codepoint
+        debug_assert!(char::from_u32(codepoint).is_some());
+        Ok(codepoint)
     }
 
     /// Parses decimal secquence into `u32` value.
@@ -234,7 +318,6 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
     ///     '0' . '9'
     /// ```
     fn parse_decimal(&mut self) -> Result<Option<u32>> {
-        let mut num: Option<u32> = Some(0);
         let mut token = self.lexer.peek();
         if let tok::char(sym) = token.kind()
             && sym.is_ascii_digit()
@@ -243,6 +326,7 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
             return Ok(None);
         }
 
+        let mut num: Option<u32> = Some(0);
         let start = token.span().start;
         while let tok::char(sym) = self.lexer.peek().kind()
             && sym.is_ascii_digit()
@@ -257,7 +341,8 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
             Ok(Some(num))
         } else {
             let span = start..token.span().end;
-            err::int_overflow(self.lexer.slice(span.clone()).to_owned(), span)
+            let slice = self.lexer.slice(span.clone());
+            err::out_of_range(slice, span, "`u32` range")
         }
     }
 }
