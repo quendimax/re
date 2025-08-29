@@ -13,17 +13,17 @@ impl<C: Encoder> Parser<C> {
     }
 
     pub fn parse(&self, pattern: &str) -> Result<Hir> {
-        let mut parser = ParserImpl::new(Lexer::new(pattern), &self.encoder);
+        let mut parser = ParserImpl::<C>::new(Lexer::new(pattern), &self.encoder);
         parser.parse()
     }
 }
 
-struct ParserImpl<'s, 'c, C: Encoder> {
+struct ParserImpl<'s, 'c, C: Encoder, const UNICODE: bool = true> {
     lexer: Lexer<'s>,
     coder: &'c C,
 }
 
-impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
+impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     fn new(lexer: Lexer<'s>, coder: &'c C) -> Self {
         ParserImpl { lexer, coder }
     }
@@ -244,7 +244,7 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
                 'r' => Ok(Some('\r' as u32)),
                 't' => Ok(Some('\t' as u32)),
                 'x' => Ok(Some(self.parse_hex_escape()?)),
-                'u' => Ok(Some(self.parse_unicode_escape()?)),
+                'u' if UNICODE => Ok(Some(self.parse_unicode_escape()?)),
                 _ => {
                     let spell = self.lexer.slice(token.span());
                     err::unsupported_escape(spell, token.span())
@@ -279,7 +279,7 @@ impl<'s, 'c, C: Encoder> ParserImpl<'s, 'c, C> {
             let slice = self.lexer.slice(span.clone());
             return err::unexpected(slice, span, "two hexadecimal digits");
         }
-        if first_digit > '7' {
+        if UNICODE && first_digit > '7' {
             let span = first_token.span().start - 2..second_token.span().end;
             let slice = self.lexer.slice(span.clone());
             return err::out_of_range(format!("`{slice}`"), span, "ASCII range");

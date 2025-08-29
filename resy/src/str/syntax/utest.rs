@@ -8,7 +8,7 @@ use renc::Utf8Encoder;
 fn parse_ascii_escape() {
     let parse_term = |pattern: &str| {
         let lexer = Lexer::new(pattern);
-        let mut parser = ParserImpl::new(lexer, &Utf8Encoder);
+        let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
         parser.parse_term()
     };
     assert_eq!(parse_term("a"), Ok(Some('a' as u32)));
@@ -34,6 +34,21 @@ fn parse_ascii_escape() {
     assert_eq!(parse_term(r"\a"), err::unsupported_escape(r"\a", 0..2));
     assert_eq!(parse_term(r"\U"), err::unsupported_escape(r"\U", 0..2));
     assert_eq!(parse_term(r"\Ў"), err::unsupported_escape(r"\Ў", 0..3));
+
+    // Parsing special characters should be skipped
+    assert_eq!(parse_term("\\"), Ok(None));
+    assert_eq!(parse_term("."), Ok(None));
+    assert_eq!(parse_term("*"), Ok(None));
+    assert_eq!(parse_term("+"), Ok(None));
+    assert_eq!(parse_term("-"), Ok(None));
+    assert_eq!(parse_term("?"), Ok(None));
+    assert_eq!(parse_term("|"), Ok(None));
+    assert_eq!(parse_term("("), Ok(None));
+    assert_eq!(parse_term(")"), Ok(None));
+    assert_eq!(parse_term("["), Ok(None));
+    assert_eq!(parse_term("]"), Ok(None));
+    assert_eq!(parse_term("{"), Ok(None));
+    assert_eq!(parse_term("}"), Ok(None));
 
     // \x escape sequences (ASCII only, 0-127)
     assert_eq!(parse_term(r"\x00"), Ok(Some('\0' as u32)));
@@ -75,7 +90,7 @@ fn parse_ascii_escape() {
 fn parse_unicode_escape() {
     let parse_term = |pattern: &str| {
         let lexer = Lexer::new(pattern);
-        let mut parser = ParserImpl::new(lexer, &Utf8Encoder);
+        let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
         parser.parse_term()
     };
 
@@ -120,7 +135,8 @@ fn parse_unicode_escape() {
         parse_term(r"\u{XYZ}"),
         err::unexpected("X", 3..4, "either a hexadecimal digit or a closing brace")
     );
-
+    // Missing opening brace
+    assert_eq!(parse_term(r"\u10"), err::unexpected("1", 2..3, "`{`"));
     // Missing closing brace
     assert_eq!(
         parse_term(r"\u{123"),
@@ -133,7 +149,7 @@ fn parse_unicode_escape() {
 fn parse_decimal() {
     let parse_decimal = |pattern: &str| {
         let lexer = Lexer::new(pattern);
-        let mut parser = ParserImpl::new(lexer, &Utf8Encoder);
+        let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
         parser.parse_decimal()
     };
     assert_eq!(parse_decimal("-1"), Ok(None));
