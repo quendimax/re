@@ -119,13 +119,6 @@ impl Token {
         self.span.0 as usize..self.span.1 as usize
     }
 
-    /// Returns `true` if the token is a terminal token, i.e. a character or an
-    /// escape character.
-    #[inline]
-    pub fn is_term(&self) -> bool {
-        matches!(self.kind, tok::char(_) | tok::escape_char(_))
-    }
-
     /// Returns `true` if the token corresponds to the end of file.
     #[inline]
     pub fn is_eof(&self) -> bool {

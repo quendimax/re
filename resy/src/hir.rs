@@ -16,7 +16,8 @@ pub enum Hir {
 
 impl Hir {
     /// Creates a new disjunciton hir instance.
-    pub fn disjunct(alters: Vec<Hir>) -> Hir {
+    pub fn disjunct(alters: impl Into<Vec<Hir>>) -> Hir {
+        let alters = alters.into();
         let mut min_len = usize::MAX;
         let mut max_len = Some(0);
         for alter in &alters {
@@ -41,7 +42,8 @@ impl Hir {
     }
 
     /// Creates a new concatenation hir instance.
-    pub fn concat(items: Vec<Hir>) -> Hir {
+    pub fn concat(items: impl Into<Vec<Hir>>) -> Hir {
+        let items = items.into();
         let mut min_len = 0;
         let mut max_len = Some(0);
         for item in &items {
@@ -89,8 +91,8 @@ impl Hir {
 
     /// Creates a new literal hir instance, i.e. a sequence of bytes
     #[inline]
-    pub fn literal(bytes: &[u8]) -> Hir {
-        Hir::Literal(bytes.to_vec())
+    pub fn literal(bytes: impl Into<Vec<u8>>) -> Hir {
+        Hir::Literal(bytes.into())
     }
 
     #[inline]

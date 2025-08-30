@@ -9,7 +9,7 @@ fn parse_ascii_escape() {
     let parse_term = |pattern: &str| {
         let lexer = Lexer::new(pattern);
         let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
-        parser.parse_term()
+        parser.try_parse_term()
     };
     assert_eq!(parse_term("a"), Ok(Some('a' as u32)));
     assert_eq!(parse_term("/"), Ok(Some('/' as u32)));
@@ -91,7 +91,7 @@ fn parse_unicode_escape() {
     let parse_term = |pattern: &str| {
         let lexer = Lexer::new(pattern);
         let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
-        parser.parse_term()
+        parser.try_parse_term()
     };
 
     // \u{...} escape sequences (Unicode)
@@ -150,7 +150,7 @@ fn parse_decimal() {
     let parse_decimal = |pattern: &str| {
         let lexer = Lexer::new(pattern);
         let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
-        parser.parse_decimal()
+        parser.try_parse_decimal()
     };
     assert_eq!(parse_decimal("-1"), Ok(None));
     assert_eq!(parse_decimal("0"), Ok(Some(0)));

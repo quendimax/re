@@ -72,7 +72,7 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     /// ```
     fn parse_concat(&mut self) -> Result<Hir> {
         let mut items = vec![];
-        while let Some(hir) = self.parse_item()? {
+        while let Some(hir) = self.try_parse_item()? {
             items.push(hir);
         }
         Ok(Hir::concat(items))
@@ -89,33 +89,29 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     ///     group
     ///     item postfix
     /// ```
-    fn parse_item(&mut self) -> Result<Option<Hir>> {
+    fn try_parse_item(&mut self) -> Result<Option<Hir>> {
         let token = self.lexer.peek();
-        let hir = match token.kind() {
+        let mut hir = match token.kind() {
             tok::l_paren => self.parse_group()?,
             tok::l_paren_question => self.parse_named_group()?,
             tok::dot | tok::l_square | tok::l_square_caret => self.parse_class()?,
             _ => {
-                let mut literal = vec![];
-                while let Some(c) = self.parse_term()? {
-                    if self.lexer.peek().is_term() {
-                        let len = literal.len();
-                        literal.resize(len + 4, 0);
-                        match self.coder.encode_ucp(c, &mut literal[len..len + 4]) {
-                            Ok(bytes_num) => literal.resize(len + bytes_num, 0),
-                            Err(error) => return err::encoder_error(error, token.span()),
-                        }
+                if let Some(c) = self.try_parse_term()? {
+                    let mut literal = vec![0, 0, 0, 0, 0, 0, 0, 0];
+                    match self.coder.encode_ucp(c, &mut literal[..]) {
+                        Ok(len) => literal.resize(len, 0),
+                        Err(error) => return err::encoder_error(error, token.span()),
                     }
+                    Hir::literal(literal)
+                } else {
+                    return Ok(None);
                 }
-                todo!()
             }
         };
-        if let Some((iter_min, iter_max)) = self.parse_postfix()? {
-            let repeat_hir = Hir::repeat(hir, iter_min, iter_max);
-            Ok(Some(repeat_hir))
-        } else {
-            Ok(Some(hir))
+        while let Some((iter_min, iter_max)) = self.parse_postfix()? {
+            hir = Hir::repeat(hir, iter_min, iter_max);
         }
+        Ok(Some(hir))
     }
 
     fn parse_postfix(&mut self) -> Result<Option<(usize, Option<usize>)>> {
@@ -151,7 +147,7 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     fn parse_named_group(&mut self) -> Result<Hir> {
         self.lexer.expect(tok::l_paren_question)?;
         self.lexer.expect(tok::char('<'))?;
-        if let Some(num) = self.parse_decimal()? {
+        if let Some(num) = self.try_parse_decimal()? {
             self.lexer.expect(tok::char('>'))?;
             let hir = self.parse_disjunct()?;
             self.lexer.expect(tok::r_paren)?;
@@ -221,7 +217,7 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     ///     "\r"
     ///     "\t"
     /// ```
-    fn parse_term(&mut self) -> Result<Option<u32>> {
+    fn try_parse_term(&mut self) -> Result<Option<u32>> {
         let token = self.lexer.lex();
         match token.kind() {
             tok::char(c) => Ok(Some(c as u32)),
@@ -363,7 +359,7 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     /// dec
     ///     '0' . '9'
     /// ```
-    fn parse_decimal(&mut self) -> Result<Option<u32>> {
+    fn try_parse_decimal(&mut self) -> Result<Option<u32>> {
         let mut token = self.lexer.peek();
         if let tok::char(sym) = token.kind()
             && sym.is_ascii_digit()

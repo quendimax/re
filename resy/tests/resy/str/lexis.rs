@@ -15,43 +15,36 @@ fn lexer_lex() {
     assert_eq!(token.kind(), tok::char('h'));
     assert_eq!(token.span(), 0..1);
     assert_eq!(lexer.slice(token.span()), "h");
-    assert!(token.is_term());
 
     let token = lexer.lex();
     assert_eq!(token.kind(), tok::l_square);
     assert_eq!(token.span(), 1..2);
     assert_eq!(lexer.slice(token.span()), "[");
-    assert!(!token.is_term());
 
     let token = lexer.lex();
     assert_eq!(token.kind(), tok::l_square_caret);
     assert_eq!(token.span(), 2..4);
     assert_eq!(lexer.slice(token.span()), "[^");
-    assert!(!token.is_term());
 
     let token = lexer.lex();
     assert_eq!(token.kind(), tok::char('^'));
     assert_eq!(token.span(), 4..5);
     assert_eq!(lexer.slice(token.span()), "^");
-    assert!(token.is_term());
 
     let token = lexer.lex();
     assert_eq!(token.kind(), tok::escape_char('\\'));
     assert_eq!(token.span(), 5..7);
     assert_eq!(lexer.slice(token.span()), "\\\\");
-    assert!(token.is_term());
 
     let token = lexer.lex();
     assert_eq!(token.kind(), tok::escape);
     assert_eq!(token.span(), 7..8);
     assert_eq!(lexer.slice(token.span()), "\\");
-    assert!(!token.is_term());
 
     let token = lexer.lex();
     assert_eq!(token.kind(), tok::eof);
     assert_eq!(token.span(), 8..8);
     assert_eq!(lexer.slice(token.span()), "");
-    assert!(!token.is_term());
 
     let token = lexer.lex();
     assert_eq!(token.kind(), tok::eof);
