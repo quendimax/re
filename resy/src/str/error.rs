@@ -35,6 +35,12 @@ pub enum ErrorKind {
         sequence: Box<str>,
         span: Range<usize>,
     },
+
+    #[error("zero repetition `{{0,0}}` is not allowed")]
+    ZeroRepetition { span: Range<usize> },
+
+    #[error("repetition expression `{{n,m}}` expects that `n <= m`")]
+    InvalidRepetition { span: Range<usize> },
 }
 
 impl ErrorKind {
@@ -46,6 +52,8 @@ impl ErrorKind {
             OutOfRange { span, .. } => span.clone(),
             EmptyEscape { span } => span.clone(),
             UnsupportedEscape { span, .. } => span.clone(),
+            ZeroRepetition { span } => span.clone(),
+            InvalidRepetition { span } => span.clone(),
         }
     }
 }
@@ -94,5 +102,13 @@ pub(crate) mod err {
             sequence: sequence.into(),
             span,
         }))
+    }
+
+    pub(crate) fn zero_repetition<T>(span: Range<usize>) -> Result<T> {
+        Err(Box::new(ErrorKind::ZeroRepetition { span }))
+    }
+
+    pub(crate) fn invalid_repetition<T>(span: Range<usize>) -> Result<T> {
+        Err(Box::new(ErrorKind::InvalidRepetition { span }))
     }
 }

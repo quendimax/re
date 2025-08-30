@@ -108,14 +108,80 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
                 }
             }
         };
-        while let Some((iter_min, iter_max)) = self.parse_postfix()? {
+        while let Some((iter_min, iter_max)) = self.try_parse_postfix()? {
             hir = Hir::repeat(hir, iter_min, iter_max);
         }
         Ok(Some(hir))
     }
 
-    fn parse_postfix(&mut self) -> Result<Option<(usize, Option<usize>)>> {
-        todo!()
+    /// Parses postfix operators.
+    ///
+    /// # Syntax
+    ///
+    /// ```mkf
+    /// postfix
+    ///     '*'
+    ///     '+'
+    ///     '?'
+    ///     '{' decimal '}'
+    ///     '{' decimal ',' '}'
+    ///     '{' decimal ',' decimal '}'
+    /// ```
+    fn try_parse_postfix(&mut self) -> Result<Option<(usize, Option<usize>)>> {
+        let token = self.lexer.peek();
+        match token.kind() {
+            tok::star => {
+                self.lexer.consume_peeked();
+                Ok(Some((0, None)))
+            }
+            tok::plus => {
+                self.lexer.consume_peeked();
+                Ok(Some((1, None)))
+            }
+            tok::question => {
+                self.lexer.consume_peeked();
+                Ok(Some((0, Some(1))))
+            }
+            tok::l_brace => Ok(Some(self.parse_braces()?)),
+            _ => Ok(None),
+        }
+    }
+
+    /// Parses count of iterations within braces..
+    ///
+    /// # Syntax
+    ///
+    /// ```mkf
+    ///     '{' decimal '}'
+    ///     '{' decimal ',' '}'
+    ///     '{' decimal ',' decimal '}'
+    /// ```
+    fn parse_braces(&mut self) -> Result<(usize, Option<usize>)> {
+        let l_brace = self.lexer.expect(tok::l_brace)?;
+        let Some(first_num) = self.try_parse_decimal()? else {
+            let span = l_brace.end()..self.lexer.lex().end();
+            let spell = self.lexer.slice(span.clone());
+            return err::unexpected(spell, span, "a decimal number");
+        };
+        let peeked = self.lexer.peek();
+        let second_num = match peeked.kind() {
+            tok::r_brace => Some(first_num),
+            tok::char(',') => {
+                self.lexer.consume_peeked();
+                self.try_parse_decimal()?
+            }
+            _ => {
+                let spell = self.lexer.slice(peeked.span());
+                return err::unexpected(spell, peeked.span(), "either `}` or `,`");
+            }
+        };
+        let r_brace = self.lexer.expect(tok::r_brace)?;
+        let span = l_brace.start()..r_brace.end();
+        match (first_num, second_num) {
+            (0, Some(0)) => err::zero_repetition(span),
+            (n, Some(m)) if n > m => err::invalid_repetition(span),
+            _ => Ok((first_num, second_num)),
+        }
     }
 
     /// Parses a group expression.
@@ -146,12 +212,18 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     /// ```
     fn parse_named_group(&mut self) -> Result<Hir> {
         self.lexer.expect(tok::l_paren_question)?;
-        self.lexer.expect(tok::char('<'))?;
+        let l_angle = self.lexer.expect(tok::char('<'))?;
         if let Some(num) = self.try_parse_decimal()? {
-            self.lexer.expect(tok::char('>'))?;
-            let hir = self.parse_disjunct()?;
-            self.lexer.expect(tok::r_paren)?;
-            Ok(Hir::group(num, hir))
+            if let Ok(num) = u32::try_from(num) {
+                self.lexer.expect(tok::char('>'))?;
+                let hir = self.parse_disjunct()?;
+                self.lexer.expect(tok::r_paren)?;
+                Ok(Hir::group(num, hir))
+            } else {
+                let span = l_angle.span().end..self.lexer.last_pos();
+                let spell = self.lexer.slice(span.clone());
+                err::out_of_range(spell, span, "`u32` range")
+            }
         } else {
             let unexpected_token = self.lexer.peek();
             let slice = self.lexer.slice(unexpected_token.span());
@@ -343,7 +415,7 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
         Ok(codepoint)
     }
 
-    /// Parses decimal secquence into `u32` value.
+    /// Parses decimal secquence into `usize` value.
     ///
     /// If successfully parsed, returns `Ok(Some(value))`. If there wasn't found
     /// any decimal characters, returns `Ok(None)`. If the found value is out of
@@ -359,8 +431,8 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     /// dec
     ///     '0' . '9'
     /// ```
-    fn try_parse_decimal(&mut self) -> Result<Option<u32>> {
-        let mut token = self.lexer.peek();
+    fn try_parse_decimal(&mut self) -> Result<Option<usize>> {
+        let token = self.lexer.peek();
         if let tok::char(sym) = token.kind()
             && sym.is_ascii_digit()
         {
@@ -368,13 +440,12 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
             return Ok(None);
         }
 
-        let mut num: Option<u32> = Some(0);
-        let start = token.span().start;
+        let mut num: Option<usize> = Some(0);
         while let tok::char(sym) = self.lexer.peek().kind()
             && sym.is_ascii_digit()
         {
-            token = self.lexer.lex();
-            let next_digit = sym as u32 - '0' as u32;
+            self.lexer.consume_peeked();
+            let next_digit = sym as usize - '0' as usize;
             num = num
                 .and_then(|num| num.checked_mul(10))
                 .and_then(|num| num.checked_add(next_digit));
@@ -382,9 +453,9 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
         if let Some(num) = num {
             Ok(Some(num))
         } else {
-            let span = start..token.span().end;
+            let span = token.span().start..self.lexer.last_pos();
             let slice = self.lexer.slice(span.clone());
-            err::out_of_range(slice, span, "`u32` range")
+            err::out_of_range(slice, span, "allowed range")
         }
     }
 }

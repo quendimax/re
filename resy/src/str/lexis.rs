@@ -119,6 +119,16 @@ impl Token {
         self.span.0 as usize..self.span.1 as usize
     }
 
+    /// Returns the token's start position.
+    pub fn start(&self) -> usize {
+        self.span.0 as usize
+    }
+
+    /// Returns the token's end position.
+    pub fn end(&self) -> usize {
+        self.span.1 as usize
+    }
+
     /// Returns `true` if the token corresponds to the end of file.
     #[inline]
     pub fn is_eof(&self) -> bool {
@@ -150,6 +160,12 @@ impl<'s> Lexer<'s> {
     #[inline]
     pub fn slice(&self, span: std::ops::Range<usize>) -> &'s str {
         &self.source[span]
+    }
+
+    /// Returns the end position of the last token lexed.
+    #[inline]
+    pub fn last_pos(&self) -> usize {
+        self.pos
     }
 
     /// Returns and consumes the next token if exists including the peeked one.

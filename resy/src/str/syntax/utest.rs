@@ -5,6 +5,60 @@ use pretty_assertions::assert_eq;
 use renc::Utf8Encoder;
 
 #[test]
+fn parse_postfix() {
+    let parse_postfix = |pattern: &str| {
+        let lexer = Lexer::new(pattern);
+        let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
+        parser.try_parse_postfix()
+    };
+    assert_eq!(parse_postfix("*"), Ok(Some((0, None))));
+    assert_eq!(parse_postfix("{0,}"), Ok(Some((0, None))));
+    assert_eq!(parse_postfix("+"), Ok(Some((1, None))));
+    assert_eq!(parse_postfix("{1,}"), Ok(Some((1, None))));
+    assert_eq!(parse_postfix("?"), Ok(Some((0, Some(1)))));
+    assert_eq!(parse_postfix("{0,1}"), Ok(Some((0, Some(1)))));
+    assert_eq!(parse_postfix("."), Ok(None));
+    assert_eq!(
+        parse_postfix("{}"),
+        err::unexpected("}", 1..2, "a decimal number")
+    );
+}
+
+#[test]
+fn parse_braces() {
+    let parse_braces = |pattern: &str| {
+        let lexer = Lexer::new(pattern);
+        let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
+        parser.parse_braces()
+    };
+    assert_eq!(parse_braces("."), err::unexpected(".", 0..1, "`{`"));
+    assert_eq!(
+        parse_braces("{1000000000000000000000"),
+        err::out_of_range("1000000000000000000000", 1..23, "allowed range")
+    );
+    assert_eq!(
+        parse_braces("{1,1000000000000000000000}"),
+        err::out_of_range("1000000000000000000000", 3..25, "allowed range")
+    );
+    assert_eq!(
+        parse_braces("{}"),
+        err::unexpected("}", 1..2, "a decimal number")
+    );
+    assert_eq!(
+        parse_braces("{,}"),
+        err::unexpected(",", 1..2, "a decimal number")
+    );
+    assert_eq!(parse_braces("{0,s}"), err::unexpected("s", 3..4, "`}`"));
+    assert_eq!(
+        parse_braces("{0s}"),
+        err::unexpected("s", 2..3, "either `}` or `,`")
+    );
+    assert_eq!(parse_braces("{0}"), err::zero_repetition(0..3));
+    assert_eq!(parse_braces("{0,0}"), err::zero_repetition(0..5));
+    assert_eq!(parse_braces("{3,0}"), err::invalid_repetition(0..5));
+}
+
+#[test]
 fn parse_ascii_escape() {
     let parse_term = |pattern: &str| {
         let lexer = Lexer::new(pattern);
@@ -158,7 +212,7 @@ fn parse_decimal() {
     assert_eq!(parse_decimal("123"), Ok(Some(123)));
     assert_eq!(parse_decimal("1000000"), Ok(Some(1000000)));
     assert_eq!(
-        parse_decimal("1000000000000"),
-        err::out_of_range("1000000000000", 0..13, "`u32` range")
+        parse_decimal("100000000000000000000"),
+        err::out_of_range("100000000000000000000", 0..21, "allowed range")
     );
 }
