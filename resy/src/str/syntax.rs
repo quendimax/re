@@ -13,7 +13,8 @@ impl<C: Encoder> Parser<C> {
     }
 
     pub fn parse(&self, pattern: &str) -> Result<Hir> {
-        let mut parser = ParserImpl::<C>::new(Lexer::new(pattern), &self.encoder);
+        let lexer = Lexer::new(pattern);
+        let mut parser = ParserImpl::<C>::new(lexer, &self.encoder);
         parser.parse()
     }
 }
@@ -29,8 +30,8 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     }
 
     fn parse(&mut self) -> Result<Hir> {
-        _ = self.lexer.lex();
         let hir = self.parse_disjunct()?;
+        self.lexer.expect(tok::eof)?;
         Ok(hir)
     }
 
@@ -44,12 +45,11 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     ///     concat '|' disjunct
     /// ```
     fn parse_disjunct(&mut self) -> Result<Hir> {
-        let mut alternatives = vec![];
-        let hir = self.parse_concat()?;
-        alternatives.push(hir);
+        let first_hir = self.parse_concat()?;
+        let mut alternatives = Vec::new();
+        alternatives.push(first_hir);
         loop {
-            let token = self.lexer.peek();
-            if token.kind() == tok::pipe {
+            if self.lexer.peek().kind() == tok::pipe {
                 self.lexer.consume_peeked();
                 let hir = self.parse_concat()?;
                 alternatives.push(hir);
@@ -57,7 +57,11 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
                 break;
             }
         }
-        Ok(Hir::disjunct(alternatives))
+        if alternatives.len() == 1 {
+            Ok(alternatives.pop().unwrap())
+        } else {
+            Ok(Hir::disjunct(alternatives))
+        }
     }
 
     /// Parses a concatenation expression.
@@ -71,11 +75,22 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     ///     item concat
     /// ```
     fn parse_concat(&mut self) -> Result<Hir> {
-        let mut items = vec![];
+        let mut items = Vec::<Hir>::new();
         while let Some(hir) = self.try_parse_item()? {
-            items.push(hir);
+            if let Hir::Literal(literal) = &hir
+                && let Some(last_hir) = items.last_mut()
+                && let Hir::Literal(last_literal) = last_hir
+            {
+                last_literal.extend_from_slice(literal);
+            } else {
+                items.push(hir);
+            }
         }
-        Ok(Hir::concat(items))
+        if items.len() == 1 {
+            Ok(items.pop().unwrap())
+        } else {
+            Ok(Hir::concat(items))
+        }
     }
 
     /// Parses a item expression.

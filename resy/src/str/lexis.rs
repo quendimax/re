@@ -183,8 +183,8 @@ impl<'s> Lexer<'s> {
     pub fn expect(&mut self, expected: TokenKind) -> Result<Token> {
         let token = self.lex();
         if token.kind() != expected {
-            let token_spell = self.slice(token.span());
-            err::unexpected(token_spell, token.span(), format!("`{expected}`"))
+            let spell = self.slice(token.span());
+            err::unexpected(spell, token.span(), format!("`{expected}`"))
         } else {
             Ok(token)
         }
