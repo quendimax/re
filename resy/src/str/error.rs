@@ -1,11 +1,10 @@
 use std::ops::Range;
 use thiserror::Error;
 
-pub type Result<T> = std::result::Result<T, Error>;
-pub type Error = Box<ErrorKind>;
+pub type Result<T> = std::result::Result<T, Box<Error>>;
 
 #[derive(Error, Debug, PartialEq)]
-pub enum ErrorKind {
+pub enum Error {
     #[error("encoder error: {cause}")]
     EncoderError {
         #[source]
@@ -43,9 +42,9 @@ pub enum ErrorKind {
     InvalidRepetition { span: Range<usize> },
 }
 
-impl ErrorKind {
+impl Error {
     pub fn error_span(&self) -> Range<usize> {
-        use ErrorKind::*;
+        use Error::*;
         match self {
             EncoderError { span, .. } => span.clone(),
             Unexpected { found_span, .. } => found_span.clone(),
@@ -63,7 +62,7 @@ pub(crate) mod err {
     use super::*;
 
     pub(crate) fn encoder_error<T>(cause: renc::Error, span: Range<usize>) -> Result<T> {
-        Err(Box::new(ErrorKind::EncoderError { cause, span }))
+        Err(Box::new(Error::EncoderError { cause, span }))
     }
 
     pub(crate) fn unexpected<T>(
@@ -71,7 +70,7 @@ pub(crate) mod err {
         found_span: Range<usize>,
         expected: impl Into<Box<str>>,
     ) -> Result<T> {
-        Err(Box::new(ErrorKind::Unexpected {
+        Err(Box::new(Error::Unexpected {
             found_spell: found_spell.into(),
             found_span,
             expected: expected.into(),
@@ -83,7 +82,7 @@ pub(crate) mod err {
         span: Range<usize>,
         range: impl Into<Box<str>>,
     ) -> Result<T> {
-        Err(Box::new(ErrorKind::OutOfRange {
+        Err(Box::new(Error::OutOfRange {
             value: value.into(),
             span,
             range: range.into(),
@@ -91,24 +90,24 @@ pub(crate) mod err {
     }
 
     pub(crate) fn empty_escape<T>(span: Range<usize>) -> Result<T> {
-        Err(Box::new(ErrorKind::EmptyEscape { span }))
+        Err(Box::new(Error::EmptyEscape { span }))
     }
 
     pub(crate) fn unsupported_escape<T, S>(sequence: S, span: Range<usize>) -> Result<T>
     where
         S: Into<Box<str>>,
     {
-        Err(Box::new(ErrorKind::UnsupportedEscape {
+        Err(Box::new(Error::UnsupportedEscape {
             sequence: sequence.into(),
             span,
         }))
     }
 
     pub(crate) fn zero_repetition<T>(span: Range<usize>) -> Result<T> {
-        Err(Box::new(ErrorKind::ZeroRepetition { span }))
+        Err(Box::new(Error::ZeroRepetition { span }))
     }
 
     pub(crate) fn invalid_repetition<T>(span: Range<usize>) -> Result<T> {
-        Err(Box::new(ErrorKind::InvalidRepetition { span }))
+        Err(Box::new(Error::InvalidRepetition { span }))
     }
 }

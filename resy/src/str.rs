@@ -2,7 +2,7 @@
 //! (UTF-8) strings.
 
 mod error;
-pub use error::{Error, ErrorKind, Result};
+pub use error::{Error, Result};
 
 mod lexis;
 pub use lexis::{Lexer, Token, TokenKind, tok};
