@@ -262,11 +262,7 @@ fn encode_out_ranges() {
 #[test]
 fn encode_entire_range() {
     let mut seq = Sequences::new();
-    assert!(
-        Utf8Encoder
-            .encode_entire_range(|ranges| seq.push(arr(ranges)))
-            .is_ok()
-    );
+    Utf8Encoder.encode_entire_range(|ranges| seq.push(arr(ranges)));
     seq.sort();
     assert_eq!(Ok(seq.clone()), expect_range(0x0..=0x10FFFF));
     assert_eq!(Ok(seq), encode_range(0x0..=0x10FFFF));

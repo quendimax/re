@@ -350,7 +350,7 @@ impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
         self.lexer.expect('.')?;
         self.encoder.encode_entire_range(|seq| {
             self.build_from_sequence(seq, start_node, end_node);
-        })?;
+        });
         Ok(end_node)
     }
 

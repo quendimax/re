@@ -47,18 +47,24 @@ impl Encoder for Utf8Encoder {
         _ = char_try_from(start_ucp)?;
         _ = char_try_from(end_ucp)?;
         let mut handler = handler;
-        encode_range(start_ucp..=end_ucp, &mut handler)
+        encode_range(start_ucp..=end_ucp, &mut handler);
+        Ok(())
     }
 
-    fn encode_entire_range<F>(&self, handler: F) -> Result<()>
+    fn encode_entire_range<F>(&self, handler: F)
     where
         F: FnMut(&[Range<u8>]),
     {
-        self.encode_range(ENCODING.min_codepoint(), ENCODING.max_codepoint(), handler)
+        debug_assert!(ENCODING.min_codepoint() <= ENCODING.max_codepoint());
+        let mut handler = handler;
+        encode_range(
+            ENCODING.min_codepoint()..=ENCODING.max_codepoint(),
+            &mut handler,
+        );
     }
 }
 
-fn encode_range<F, R>(range: R, handler: &mut F) -> Result<()>
+fn encode_range<F, R>(range: R, handler: &mut F)
 where
     F: FnMut(&[Range<u8>]),
     R: Into<Range<u32>>,
@@ -73,7 +79,6 @@ where
             _ => unreachable!(),
         }
     }
-    Ok(())
 }
 
 fn take_n_bytes_range(range: &mut Range<u32>) -> Option<(Range<u32>, usize)> {

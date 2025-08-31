@@ -23,7 +23,7 @@ pub trait Encoder {
 
     /// Encode the entire range of code points allowed by this coder into array
     /// of byte sequences.
-    fn encode_entire_range<F>(&self, handler: F) -> Result<()>
+    fn encode_entire_range<F>(&self, handler: F)
     where
         F: FnMut(&[Range<u8>]);
 }
