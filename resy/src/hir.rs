@@ -128,19 +128,10 @@ impl Hir {
     /// Returns the bounds of the Hir's length. `None` means infinite.
     pub fn len_hint(&self) -> (usize, Option<usize>) {
         match self {
-            Hir::Disjunct(hir) => (hir.min_len, hir.max_len),
-            Hir::Concat(hir) => (hir.min_len, hir.max_len),
-            Hir::Repeat(hir) => {
-                let (min_len, max_len) = hir.item.len_hint();
-                if let Some(max) = hir.upper
-                    && let Some(max_len) = max_len
-                {
-                    (hir.lower * min_len, Some(max * max_len))
-                } else {
-                    (hir.lower * min_len, None)
-                }
-            }
-            Hir::Group(hir) => hir.item.len_hint(),
+            Hir::Disjunct(hir) => hir.len_hint(),
+            Hir::Concat(hir) => hir.len_hint(),
+            Hir::Repeat(hir) => hir.len_hint(),
+            Hir::Group(hir) => hir.len_hint(),
             Hir::Class(_) => (1, Some(1)),
             Hir::Literal(bytes) => (bytes.len(), Some(bytes.len())),
         }
@@ -209,11 +200,35 @@ pub struct DisjunctHir {
     max_len: Option<usize>,
 }
 
+impl DisjunctHir {
+    #[inline]
+    pub fn alternatives(&self) -> &[Hir] {
+        &self.alters
+    }
+
+    #[inline]
+    pub fn len_hint(&self) -> (usize, Option<usize>) {
+        (self.min_len, self.max_len)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ConcatHir {
     items: Vec<Hir>,
     min_len: usize,
     max_len: Option<usize>,
+}
+
+impl ConcatHir {
+    #[inline]
+    pub fn items(&self) -> &[Hir] {
+        &self.items
+    }
+
+    #[inline]
+    pub fn len_hint(&self) -> (usize, Option<usize>) {
+        (self.min_len, self.max_len)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -224,6 +239,22 @@ pub struct RepeatHir {
 }
 
 impl RepeatHir {
+    #[inline]
+    pub fn inner(&self) -> &Hir {
+        &self.item
+    }
+
+    pub fn len_hint(&self) -> (usize, Option<usize>) {
+        let (min_len, max_len) = self.item.len_hint();
+        if let Some(max) = self.upper
+            && let Some(max_len) = max_len
+        {
+            (self.lower * min_len, Some(max * max_len))
+        } else {
+            (self.lower * min_len, None)
+        }
+    }
+
     /// Lower and upper bounds of possible number of iterations. `None` means infinite.
     #[inline]
     pub fn iter_hint(&self) -> (usize, Option<usize>) {
@@ -235,6 +266,18 @@ impl RepeatHir {
 pub struct GroupHir {
     label: u32,
     item: Box<Hir>,
+}
+
+impl GroupHir {
+    #[inline]
+    pub fn inner(&self) -> &Hir {
+        &self.item
+    }
+
+    #[inline]
+    pub fn len_hint(&self) -> (usize, Option<usize>) {
+        self.item.len_hint()
+    }
 }
 
 impl std::fmt::Display for Hir {

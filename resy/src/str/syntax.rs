@@ -1,6 +1,7 @@
 use crate::hir::Hir;
 use crate::str::error::{Result, err};
 use crate::str::lexis::{Lexer, tok};
+use redt::SetU8;
 use renc::Encoder;
 
 pub struct Parser<C: Encoder> {
@@ -265,7 +266,40 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     ///     term '-' term
     /// ```
     fn parse_class(&mut self) -> Result<Hir> {
-        todo!()
+        let token = self.lexer.peek();
+        match token.kind() {
+            tok::dot => self.parse_dot(),
+            tok::l_square => todo!(),
+            tok::l_square_caret => todo!(),
+            _ => {
+                let slice = self.lexer.slice(token.span());
+                err::unexpected(slice, token.span(), "dot")
+            }
+        }
+    }
+
+    /// Parses a dot as a class of all possible code points.
+    fn parse_dot(&mut self) -> Result<Hir> {
+        self.lexer.expect(tok::dot)?;
+        let mut alternatives = Vec::new();
+        self.coder.encode_entire_range(|seq| {
+            let mut items = Vec::new();
+            for range in seq {
+                let mut set = SetU8::new();
+                set.merge_range(*range);
+                items.push(Hir::class(set));
+            }
+            if items.len() == 1 {
+                alternatives.push(items.pop().unwrap());
+            } else {
+                alternatives.push(Hir::concat(items));
+            }
+        });
+        if alternatives.len() == 1 {
+            Ok(alternatives.pop().unwrap())
+        } else {
+            Ok(Hir::disjunct(alternatives))
+        }
     }
 
     /// Parses a sequence corresponding to one code point, i.e. either a single

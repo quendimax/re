@@ -82,6 +82,33 @@ fn parse_braces() {
 }
 
 #[test]
+fn parse_dot() {
+    let parse = |pattern: &str| {
+        let lexer = Lexer::new(pattern);
+        let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
+        parser.parse_dot()
+    };
+    let Ok(hir) = parse(".") else {
+        panic!("Failed to parse dot pattern");
+    };
+    assert!(hir.is_disjunct());
+    assert_eq!(
+        hir.to_string(),
+        concat!(
+            "[00h-7Fh] | ",
+            "([C2h-DFh] & [80h-BFh]) | ",
+            "([E0h] & [A0h-BFh] & [80h-BFh]) | ",
+            "([E1h-ECh] & [80h-BFh] & [80h-BFh]) | ",
+            "([EDh] & [80h-9Fh] & [80h-BFh]) | ",
+            "([EEh-EFh] & [80h-BFh] & [80h-BFh]) | ",
+            "([F0h] & [90h-BFh] & [80h-BFh] & [80h-BFh]) | ",
+            "([F1h-F3h] & [80h-BFh] & [80h-BFh] & [80h-BFh]) | ",
+            "([F4h] & [80h-8Fh] & [80h-BFh] & [80h-BFh])"
+        )
+    );
+}
+
+#[test]
 fn parse_ascii_escape() {
     let parse = |pattern: &str| {
         let lexer = Lexer::new(pattern);

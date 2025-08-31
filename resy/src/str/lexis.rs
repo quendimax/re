@@ -128,12 +128,6 @@ impl Token {
     pub fn end(&self) -> usize {
         self.span.1 as usize
     }
-
-    /// Returns `true` if the token corresponds to the end of file.
-    #[inline]
-    pub fn is_eof(&self) -> bool {
-        self.kind() == tok::eof
-    }
 }
 
 /// Lexer for regular expression parsers.
