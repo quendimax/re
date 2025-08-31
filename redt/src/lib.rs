@@ -9,6 +9,9 @@ pub use range::{Range, range};
 pub type RangeU8 = Range<u8>;
 pub type RangeU32 = Range<u32>;
 
+mod range_set;
+pub use range_set::RangeSet;
+
 mod set;
 pub use set::{ByteIter, RangeIter, SetU8};
 
