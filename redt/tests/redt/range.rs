@@ -40,8 +40,10 @@ fn range_fn() {
 
 #[test]
 fn range_width() {
-    assert_eq!(range::<u8>(3, 4).width(), 2);
-    assert_eq!(Range::new(7u16, 2).width(), 6);
+    assert_eq!(range::<u8>(3, 4).width(), Some(2));
+    assert_eq!(Range::new(7u16, 2).width(), Some(6));
+    assert_eq!(Range::new(0u8, 254).width(), Some(255));
+    assert_eq!(Range::new(0u8, 255).width(), None);
 }
 
 #[test]

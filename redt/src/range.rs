@@ -35,7 +35,9 @@ impl<T: PartialOrd> Range<T> {
             }
         }
     }
+}
 
+impl<T> Range<T> {
     /// Creates a new range with inclusive bounds from `start` to `end`.
     ///
     /// It expects that `start <= end`. Otherwise it breaks `Span`'s invariant.
@@ -60,11 +62,12 @@ impl<T: Copy> Range<T> {
     }
 }
 
-impl<T: Copy + Into<usize>> Range<T> {
-    /// Returns the width of the range.
+impl<T: Step> Range<T> {
+    /// Returns the width of the range. If width is greater than `T::MAX`, it
+    /// returns `None`.
     #[inline]
-    pub fn width(&self) -> usize {
-        self.last.into() - self.start.into() + 1
+    pub fn width(&self) -> Option<T> {
+        self.last.steps_between(self.start).forward(1)
     }
 }
 
@@ -120,7 +123,7 @@ impl<T: Copy + PartialOrd> Range<T> {
     }
 }
 
-impl<T: Step + Copy + PartialOrd> Range<T> {
+impl<T: Step + PartialOrd> Range<T> {
     /// Checks if the two ranges have a joint, but not common elements.
     pub fn adjoins(&self, other: &Self) -> bool {
         (self.last() < other.start() && self.last.adjoins(other.start()))
@@ -128,7 +131,7 @@ impl<T: Step + Copy + PartialOrd> Range<T> {
     }
 }
 
-impl<T: Step + Copy + Ord> Range<T> {
+impl<T: Step + Ord> Range<T> {
     /// Merges two ranges if they are either intersected or adjoint. Otherwise
     /// returns an error.
     pub fn try_merge(&self, other: &Self) -> Option<Self> {
@@ -143,12 +146,19 @@ impl<T: Step + Copy + Ord> Range<T> {
     }
 }
 
-impl<T: Step + Copy + Ord + std::fmt::Debug> Range<T> {
+impl<T: Step + Ord + std::fmt::Debug> Range<T> {
     /// Merges two ranges if they are either intersected or adjoint. Otherwise it
     /// panics.
     pub fn merge(&self, other: &Self) -> Self {
         self.try_merge(other)
             .unwrap_or_else(|| panic!("can't merge ranges {self:?} and {other:?}"))
+    }
+}
+
+impl<T: Copy> std::convert::From<T> for Range<T> {
+    #[inline]
+    fn from(value: T) -> Self {
+        Self::new_unchecked(value, value)
     }
 }
 
