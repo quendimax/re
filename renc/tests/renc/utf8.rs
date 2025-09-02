@@ -23,7 +23,7 @@ fn encode_range(range: RangeInclusive<u32>) -> Result<Sequences> {
     let end = *range.end();
     Utf8Encoder.encode_range(start, end, |ranges| {
         seq.push(Sequence::try_from(ranges).unwrap())
-    })?;
+    });
     Ok(seq)
 }
 
@@ -243,20 +243,11 @@ fn encode_four_byte_ranges() {
 
 #[test]
 fn encode_out_ranges() {
-    assert_matches!(
-        CODER.encode_range(0x800, 0x11FFFF, |_| {}),
-        Err(Error::InvalidCodePoint {
-            codepoint: 0x11FFFF,
-            ..
-        })
+    assert_eq!(
+        encode_range(0x800..=0x11FFFF),
+        expect_range(0x800..=0x10FFFF)
     );
-    assert_matches!(
-        CODER.encode_range(0x118000, 0x11FFFF, |_| {}),
-        Err(Error::InvalidCodePoint {
-            codepoint: 0x118000,
-            ..
-        })
-    );
+    assert_eq!(encode_range(0x118000..=0x11FFFF), Ok(Sequences::new()));
 }
 
 #[test]

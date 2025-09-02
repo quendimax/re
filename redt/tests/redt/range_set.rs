@@ -4,7 +4,9 @@ use redt::{Range, RangeSet};
 #[test]
 fn range_set_ctor() {
     assert!(RangeSet::<u32>::default().is_empty());
-    assert!(RangeSet::<u32>::new().is_empty());
+    let r = RangeSet::<u32>::new(1, 5);
+    assert_eq!(r.is_empty(), false);
+    assert_eq!(r.len(), 1);
     assert_eq!(RangeSet::<u32>::from(Range::from(0)).len(), 1);
 }
 

@@ -39,16 +39,13 @@ impl Encoder for Utf8Encoder {
         }
     }
 
-    fn encode_range<F>(&self, start_ucp: u32, end_ucp: u32, handler: F) -> Result<()>
+    fn encode_range<F>(&self, start_ucp: u32, end_ucp: u32, handler: F)
     where
         F: FnMut(&[Range<u8>]),
     {
         assert!(start_ucp <= end_ucp);
-        _ = char_try_from(start_ucp)?;
-        _ = char_try_from(end_ucp)?;
         let mut handler = handler;
         encode_range(start_ucp..=end_ucp, &mut handler);
-        Ok(())
     }
 
     fn encode_entire_range<F>(&self, handler: F)

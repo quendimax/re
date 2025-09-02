@@ -43,6 +43,7 @@ elements
 element
     term
     term '-' term
+    class
 
 term                ; terminals correspond to one unicode code point
     char

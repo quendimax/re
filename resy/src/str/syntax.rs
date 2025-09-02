@@ -1,7 +1,7 @@
 use crate::hir::Hir;
 use crate::str::error::{Result, err};
 use crate::str::lexis::{Lexer, tok};
-use redt::SetU8;
+use redt::{RangeSet, SetU8};
 use renc::Encoder;
 
 pub struct Parser<C: Encoder> {
@@ -58,11 +58,7 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
                 break;
             }
         }
-        if alternatives.len() == 1 {
-            Ok(alternatives.pop().unwrap())
-        } else {
-            Ok(Hir::disjunct(alternatives))
-        }
+        Ok(Hir::disjunct(alternatives))
     }
 
     /// Parses a concatenation expression.
@@ -87,11 +83,7 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
                 items.push(hir);
             }
         }
-        if items.len() == 1 {
-            Ok(items.pop().unwrap())
-        } else {
-            Ok(Hir::concat(items))
-        }
+        Ok(Hir::concat(items))
     }
 
     /// Parses a item expression.
@@ -266,40 +258,34 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     ///     term '-' term
     /// ```
     fn parse_class(&mut self) -> Result<Hir> {
+        let encoding = self.coder.encoding();
         let token = self.lexer.peek();
-        match token.kind() {
-            tok::dot => self.parse_dot(),
-            tok::l_square => todo!(),
-            tok::l_square_caret => todo!(),
+        let range_set = match token.kind() {
+            tok::dot => RangeSet::new(encoding.min_codepoint(), encoding.max_codepoint()),
+            tok::l_square => self.parse_squares()?,
+            tok::l_square_caret => self.parse_squares_negated()?,
             _ => {
                 let slice = self.lexer.slice(token.span());
-                err::unexpected(slice, token.span(), "dot")
+                return err::unexpected(slice, token.span(), "dot or square brackets");
             }
+        };
+
+        let mut alternatives = Vec::new();
+        for cp_range in range_set.ranges() {
+            let hir = self.convert(cp_range.start(), cp_range.last());
+            alternatives.push(hir);
         }
+        Ok(Hir::disjunct(alternatives))
     }
 
-    /// Parses a dot as a class of all possible code points.
-    fn parse_dot(&mut self) -> Result<Hir> {
-        self.lexer.expect(tok::dot)?;
-        let mut alternatives = Vec::new();
-        self.coder.encode_entire_range(|seq| {
-            let mut items = Vec::new();
-            for range in seq {
-                let mut set = SetU8::new();
-                set.merge_range(*range);
-                items.push(Hir::class(set));
-            }
-            if items.len() == 1 {
-                alternatives.push(items.pop().unwrap());
-            } else {
-                alternatives.push(Hir::concat(items));
-            }
-        });
-        if alternatives.len() == 1 {
-            Ok(alternatives.pop().unwrap())
-        } else {
-            Ok(Hir::disjunct(alternatives))
-        }
+    /// Parses a class with square brackets.
+    fn parse_squares(&mut self) -> Result<RangeSet<u32>> {
+        todo!()
+    }
+
+    /// Parses a class with square brackets.
+    fn parse_squares_negated(&mut self) -> Result<RangeSet<u32>> {
+        todo!()
     }
 
     /// Parses a sequence corresponding to one code point, i.e. either a single
@@ -506,6 +492,26 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
             let slice = self.lexer.slice(span.clone());
             err::out_of_range(slice, span, "allowed range")
         }
+    }
+
+    /// Converts a range of code points to a Hir.
+    fn convert(&self, first_codepoint: u32, last_codepoint: u32) -> Hir {
+        let mut alternatives = Vec::new();
+        self.coder
+            .encode_range(first_codepoint, last_codepoint, |seq| {
+                let mut items = Vec::new();
+                for b_range in seq {
+                    let mut b_set = SetU8::new();
+                    b_set.merge_range(*b_range);
+                    items.push(Hir::class(b_set));
+                }
+                if items.len() == 1 {
+                    alternatives.push(items.pop().unwrap());
+                } else {
+                    alternatives.push(Hir::concat(items));
+                }
+            });
+        Hir::disjunct(alternatives)
     }
 }
 

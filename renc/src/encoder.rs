@@ -17,7 +17,10 @@ pub trait Encoder {
     fn encode_str(&self, s: &str, buffer: &mut [u8]) -> Result<usize>;
 
     /// Encode range of unicode code points into array of byte sequences.
-    fn encode_range<F>(&self, start_ucp: u32, end_ucp: u32, handler: F) -> Result<()>
+    ///
+    /// If input range contains invalid code points, the method should ignore
+    /// them.
+    fn encode_range<F>(&self, start_ucp: u32, end_ucp: u32, handler: F)
     where
         F: FnMut(&[Range<u8>]);
 

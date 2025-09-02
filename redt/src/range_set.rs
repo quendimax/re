@@ -5,12 +5,17 @@ pub struct RangeSet<T> {
     ranges: Vec<Range<T>>,
 }
 
-impl<T> RangeSet<T> {
+impl<T: PartialOrd> RangeSet<T> {
+    /// Creates a new range set from the given start and last values.
     #[inline]
-    pub fn new() -> Self {
-        RangeSet { ranges: Vec::new() }
+    pub fn new(start: T, last: T) -> Self {
+        Self {
+            ranges: vec![Range::new(start, last)],
+        }
     }
+}
 
+impl<T> RangeSet<T> {
     #[inline]
     pub fn len(&self) -> usize {
         self.ranges.len()
@@ -161,7 +166,7 @@ impl<T: Step + Ord> RangeSet<T> {
 impl<T> std::default::Default for RangeSet<T> {
     #[inline]
     fn default() -> Self {
-        Self::new()
+        Self { ranges: Vec::new() }
     }
 }
 

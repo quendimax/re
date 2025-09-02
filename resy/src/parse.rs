@@ -388,7 +388,7 @@ impl<'g, 'n, 's, C: Encoder> Parser<'g, 'n, 's, C> {
                         let last_ucp = self.parse_term_codepoint()?;
                         self.encoder.encode_range(first_ucp, last_ucp, |seq| {
                             self.build_from_sequence(seq, start_node, end_node);
-                        })?;
+                        });
                     } else {
                         self.build_from_codepoint(first_ucp, start_node, Some(end_node))?;
                     }

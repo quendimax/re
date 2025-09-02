@@ -86,7 +86,7 @@ fn parse_dot() {
     let parse = |pattern: &str| {
         let lexer = Lexer::new(pattern);
         let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
-        parser.parse_dot()
+        parser.parse_class()
     };
     let hir = parse(".").expect("Failed to parse dot pattern");
     assert!(hir.is_disjunct());

@@ -15,9 +15,13 @@ pub enum Hir {
 }
 
 impl Hir {
-    /// Creates a new disjunciton hir instance.
-    pub fn disjunct(alters: impl Into<Vec<Hir>>) -> Hir {
-        let alters = alters.into();
+    /// Creates a new disjunciton hir instance. If there is only one item, it
+    /// returns that item.
+    pub fn disjunct(items: impl Into<Vec<Hir>>) -> Hir {
+        let alters = items.into();
+        if alters.len() == 1 {
+            return alters.into_iter().next().unwrap();
+        }
         let mut min_len = usize::MAX;
         let mut max_len = Some(0);
         for alter in &alters {
@@ -41,9 +45,13 @@ impl Hir {
         })
     }
 
-    /// Creates a new concatenation hir instance.
+    /// Creates a new concatenation hir instance. If there is only one item, it
+    /// returns that item.
     pub fn concat(items: impl Into<Vec<Hir>>) -> Hir {
         let items = items.into();
+        if items.len() == 1 {
+            return items.into_iter().next().unwrap();
+        }
         let mut min_len = 0;
         let mut max_len = Some(0);
         for item in &items {
