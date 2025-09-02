@@ -169,6 +169,12 @@ fn encode_one_byte_ranges() {
     assert_eq!(encode_range(0..=0), Ok(arr(&[arr(&[range(0, 0)])])));
     assert_eq!(encode_range(0..=23), Ok(arr(&[arr(&[range(0, 23)])])));
     assert_eq!(encode_range(0..=0x7F), Ok(arr(&[arr(&[range(0, 0x7F)])])));
+
+    #[allow(clippy::reversed_empty_ranges)]
+    {
+        assert_eq!(encode_range(23..=0), Ok(arr(&[arr(&[range(0, 23)])])));
+        assert_eq!(encode_range(0x7F..=0), Ok(arr(&[arr(&[range(0, 0x7F)])])));
+    }
 }
 
 #[test]

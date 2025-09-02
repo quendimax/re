@@ -43,9 +43,9 @@ impl Encoder for Utf8Encoder {
     where
         F: FnMut(&[Range<u8>]),
     {
-        assert!(start_ucp <= end_ucp);
+        let range = Range::new(start_ucp, end_ucp);
         let mut handler = handler;
-        encode_range(start_ucp..=end_ucp, &mut handler);
+        encode_range(range, &mut handler);
     }
 
     fn encode_entire_range<F>(&self, handler: F)
