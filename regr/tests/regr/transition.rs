@@ -65,7 +65,7 @@ where
 
 #[test]
 #[should_panic]
-fn transition_new() {
+fn tr_new() {
     let mut arena_1 = Arena::new();
     let mut arena_2 = Arena::new();
     let gr_1 = Graph::nfa_in(&mut arena_1);
@@ -74,12 +74,12 @@ fn transition_new() {
 }
 
 #[test]
-fn transition_clone() {
+fn tr_clone() {
     handle_tr(|tr| assert_eq!(tr, tr.clone()));
 }
 
 #[test]
-fn transition_symbols() {
+fn tr_symbols() {
     type Vec = smallvec::SmallVec<[u8; 8]>;
     fn symbols(a: u64, b: u64, c: u64, d: u64) -> Vec {
         handle_tr_from_chunks(&[a, b, c, d], |tr| tr.symbols().collect::<Vec>())
@@ -103,7 +103,7 @@ fn transition_symbols() {
 }
 
 #[test]
-fn transition_ranges() {
+fn tr_ranges() {
     type Vec = smallvec::SmallVec<[RangeU8; 4]>;
     fn ranges(a: u64, b: u64, c: u64, d: u64) -> Vec {
         handle_tr_from_chunks(&[a, b, c, d], |tr| tr.ranges().collect::<Vec>())
@@ -156,7 +156,7 @@ fn transition_ranges() {
 }
 
 #[test]
-fn transition_instructs_for() {
+fn tr_instructs_for() {
     let mut arena = Arena::new();
     let gr = Graph::nfa_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
@@ -185,7 +185,7 @@ fn transition_instructs_for() {
 }
 
 #[test]
-fn transition_contains_symbol() {
+fn tr_contains_symbol() {
     handle_tr_from_symbols(b"\x00bcde\xFF", |tr| {
         assert_eq!(tr.contains(0), true);
         assert_eq!(tr.contains(255), true);
@@ -197,7 +197,7 @@ fn transition_contains_symbol() {
 }
 
 #[test]
-fn transition_contains_range() {
+fn tr_contains_range() {
     handle_tr_from_symbols(&[0, 1, 5, 6, 7, 255], |tr| {
         assert!(tr.contains(single(0)));
         assert!(tr.contains(range(0, 1)));
@@ -216,7 +216,7 @@ fn transition_contains_range() {
 }
 
 #[test]
-fn transition_contains_transition() {
+fn tr_contains_transition() {
     let mut arena = Arena::new();
     let gr = Graph::nfa_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
@@ -249,7 +249,7 @@ fn transition_contains_transition() {
 }
 
 #[test]
-fn transition_contains_epsilon() {
+fn tr_contains_epsilon() {
     handle_tr_from_symbols(b"ace", |tr| {
         assert!(!tr.contains(Epsilon));
         tr.merge(Epsilon);
@@ -258,7 +258,7 @@ fn transition_contains_epsilon() {
 }
 
 #[test]
-fn transition_intersects_symbol() {
+fn tr_intersects_symbol() {
     handle_tr_from_symbols(b"\x00bcde\xFF", |tr| {
         assert_eq!(tr.intersects(0), true);
         assert_eq!(tr.intersects(255), true);
@@ -270,7 +270,7 @@ fn transition_intersects_symbol() {
 }
 
 #[test]
-fn transition_intersects_range() {
+fn tr_intersects_range() {
     handle_tr_from_symbols(b"\x00bcde\xFF", |tr| {
         assert_eq!(tr.intersects(range(0, 255)), true);
         assert_eq!(tr.intersects(single(0)), true);
@@ -294,7 +294,7 @@ fn transition_intersects_range() {
 }
 
 #[test]
-fn transition_intersects_transition() {
+fn tr_intersects_transition() {
     let mut arena = Arena::new();
     let gr = Graph::nfa_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
@@ -320,7 +320,7 @@ fn transition_intersects_transition() {
 }
 
 #[test]
-fn transition_merge_symbol() {
+fn tr_merge_symbol() {
     handle_tr(|tr| {
         tr.merge(64);
         tr.merge(63);
@@ -334,7 +334,7 @@ fn transition_merge_symbol() {
 }
 
 #[test]
-fn transition_merge_range() {
+fn tr_merge_range() {
     fn check(range: impl Into<RangeU8>) -> Option<RangeU8> {
         let range = range.into();
         let mut arena = Arena::new();
@@ -362,7 +362,7 @@ fn transition_merge_range() {
 }
 
 #[test]
-fn transition_merge_transition() {
+fn tr_merge_transition() {
     let mut arena = Arena::new();
     let gr = Graph::nfa_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
@@ -392,7 +392,7 @@ fn transition_merge_transition() {
 }
 
 #[test]
-fn transition_merge_instruct() {
+fn tr_merge_instruct() {
     let mut arena = Arena::new();
     let gr = Graph::nfa_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
@@ -427,7 +427,7 @@ fn transition_merge_instruct() {
 }
 
 #[test]
-fn transition_merge_instructs() {
+fn tr_merge_instructs() {
     let mut arena = Arena::new();
     let gr = Graph::nfa_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
@@ -460,7 +460,7 @@ fn transition_merge_instructs() {
 }
 
 #[test]
-fn transition_display_fmt() {
+fn tr_display_fmt() {
     fn tr(bytes: &[u8]) -> String {
         handle_tr_from_symbols(bytes, |tr| format!("{tr}"))
     }
@@ -478,7 +478,7 @@ fn transition_display_fmt() {
 }
 
 #[test]
-fn transition_display_fmt_with_epsilon() {
+fn tr_display_fmt_with_epsilon() {
     handle_epsilon(|tr| assert_eq!(format!("{}", tr), "[Epsilon]"));
     handle_tr_from_symbols(b"abc", |tr| {
         tr.merge(Epsilon);
@@ -489,7 +489,7 @@ fn transition_display_fmt_with_epsilon() {
 }
 
 #[test]
-fn transition_debug_fmt() {
+fn tr_debug_fmt() {
     fn tr(bytes: &[u8]) -> String {
         handle_tr_from_symbols(bytes, |tr| format!("{tr:?}"))
     }
@@ -507,7 +507,7 @@ fn transition_debug_fmt() {
 }
 
 #[test]
-fn transition_debug_fmt_with_epsilon() {
+fn tr_debug_fmt_with_epsilon() {
     handle_epsilon(|tr| assert_eq!(format!("{tr:?}"), "[Epsilon]"));
     handle_tr_from_symbols(b"?@ABC", |tr| {
         tr.merge(Epsilon);

@@ -27,7 +27,7 @@ impl<T> RangeSet<T> {
     }
 }
 
-impl<T: Step + Copy + Ord> RangeSet<T> {
+impl<T: Step + Ord> RangeSet<T> {
     pub fn merge(&mut self, other: Range<T>) {
         let i = match self
             .ranges
