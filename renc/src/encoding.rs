@@ -1,3 +1,5 @@
+use redt::Range;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Encoding {
     Ascii,
@@ -34,6 +36,20 @@ impl Encoding {
         match self {
             Encoding::Ascii => 0x7F,
             Encoding::Utf8 => 0x10FFFF,
+        }
+    }
+
+    #[inline]
+    pub fn codepoint_ranges(&self) -> &'static [Range<u32>] {
+        static ASCII_RANGES: &[Range<u32>] = &[Range::new_unchecked_const(0, 0x7F)];
+        static UTF_RANGES: &[Range<u32>] = &[
+            Range::new_unchecked_const(0, 0xD7FF),
+            Range::new_unchecked_const(0xE000, 0x10FFFF),
+        ];
+
+        match self {
+            Encoding::Ascii => ASCII_RANGES,
+            Encoding::Utf8 => UTF_RANGES,
         }
     }
 }
