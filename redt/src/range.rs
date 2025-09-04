@@ -179,6 +179,12 @@ impl<T: Step + Ord + std::fmt::Debug> Range<T> {
     }
 }
 
+impl<T> AsRef<Range<T>> for Range<T> {
+    fn as_ref(&self) -> &Range<T> {
+        self
+    }
+}
+
 impl<T: Copy> std::convert::From<T> for Range<T> {
     #[inline]
     fn from(value: T) -> Self {

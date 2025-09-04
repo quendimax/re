@@ -177,3 +177,18 @@ impl<T> std::convert::From<Range<T>> for RangeSet<T> {
         }
     }
 }
+
+impl<T, R, I> std::convert::From<I> for RangeSet<T>
+where
+    T: Step + Ord,
+    R: AsRef<Range<T>>,
+    I: IntoIterator<Item = R>,
+{
+    fn from(iter: I) -> Self {
+        let mut set = RangeSet::default();
+        for range in iter.into_iter() {
+            set.merge(range.as_ref());
+        }
+        set
+    }
+}

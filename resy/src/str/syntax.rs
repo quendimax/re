@@ -281,10 +281,7 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     fn parse_dot(&mut self) -> Result<RangeSet<u32>> {
         self.lexer.expect(tok::dot)?;
         let encoding = self.coder.encoding();
-        Ok(RangeSet::new(
-            encoding.min_codepoint(),
-            encoding.max_codepoint(),
-        ))
+        Ok(RangeSet::from(encoding.codepoint_ranges()))
     }
 
     /// Parses a class with square brackets.

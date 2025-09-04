@@ -8,6 +8,12 @@ fn range_set_ctor() {
     assert_eq!(r.is_empty(), false);
     assert_eq!(r.len(), 1);
     assert_eq!(RangeSet::<u32>::from(Range::from(0)).len(), 1);
+
+    let r = RangeSet::<u32>::from([Range::<u32>::new(1, 5), Range::<u32>::new(7, 9)]);
+    assert_eq!(r.len(), 2);
+
+    let r = RangeSet::<u32>::from(&[Range::new(1, 5), Range::new(6, 9)]);
+    assert_eq!(r.len(), 1);
 }
 
 #[test]
