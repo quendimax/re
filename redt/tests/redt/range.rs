@@ -6,6 +6,10 @@ fn range_new() {
     _ = Range::new(1, 2);
     _ = Range::new(2, 0);
     _ = Range::new_unchecked(0, 1);
+    const _: Range<u8> = Range::new_unchecked_const(0, 1);
+    assert_eq!(Range::new_checked(0, 0), Some(Range::from(0)));
+    assert_eq!(Range::new_checked(0, 2), Some(Range::new(0, 2)));
+    assert_eq!(Range::new_checked(3, 2), None);
 }
 
 #[test]

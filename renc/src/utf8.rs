@@ -66,7 +66,8 @@ where
     F: FnMut(&[Range<u8>]),
     R: Into<Range<u32>>,
 {
-    let mut range = range.into();
+    let range = range.into();
+    let mut range = range.start()..=range.last();
     while let Some((range, bytes_len)) = take_n_bytes_range(&mut range) {
         match bytes_len {
             1 => handle_range::<1>(range.start(), range.last(), handler),
@@ -78,39 +79,41 @@ where
     }
 }
 
-fn take_n_bytes_range(range: &mut Range<u32>) -> Option<(Range<u32>, usize)> {
-    if range.start() > range.last() {
+// It needs a `RangeInclusive` range because the `range` can have `start`
+// greater than `end`.
+fn take_n_bytes_range(range: &mut std::ops::RangeInclusive<u32>) -> Option<(Range<u32>, usize)> {
+    if range.start() > range.end() {
         return None;
     }
     match range.start() {
         0..=0x7F => {
-            let start = range.start();
-            let end = range.last().min(0x7F);
-            *range = Range::new_unchecked(end + 1, range.last());
+            let start = *range.start();
+            let end = *range.end().min(&0x7F);
+            *range = end + 1..=*range.end();
             Some((Range::new_unchecked(start, end), 1))
         }
         0x80..=0x7FF => {
-            let start = range.start();
-            let end = range.last().min(0x7FF);
-            *range = Range::new_unchecked(end + 1, range.last());
+            let start = *range.start();
+            let end = *range.end().min(&0x7FF);
+            *range = end + 1..=*range.end();
             Some((Range::new_unchecked(start, end), 2))
         }
         0x800..=0xD7FF => {
-            let start = range.start();
-            let end = range.last().min(0xD7FF);
-            *range = Range::new_unchecked(end + 1, range.last());
+            let start = *range.start();
+            let end = *range.end().min(&0xD7FF);
+            *range = end + 1..=*range.end();
             Some((Range::new_unchecked(start, end), 3))
         }
         0xD800..=0xFFFF => {
-            let start = range.start().max(0xE000); // skip surrogates
-            let end = range.last().min(0xFFFF);
-            *range = Range::new_unchecked(end + 1, range.last());
+            let start = *range.start().max(&0xE000); // skip surrogates
+            let end = *range.end().min(&0xFFFF);
+            *range = end + 1..=*range.end();
             Some((Range::new_unchecked(start, end), 3))
         }
         0x10000..=0x10FFFF => {
-            let start = range.start();
-            let end = range.last().min(0x10FFFF);
-            *range = Range::new_unchecked(end + 1, range.last());
+            let start = *range.start();
+            let end = *range.end().min(&0x10FFFF);
+            *range = end + 1..=*range.end();
             Some((Range::new_unchecked(start, end), 4))
         }
         _ => None,
@@ -208,7 +211,7 @@ mod utest {
 
     #[test]
     fn fn_take_n_bytes_range() {
-        let mut range = Range::new(0x110000u32, 0x110001u32);
+        let mut range = 0x110000u32..=0x110001u32;
         assert_eq!(take_n_bytes_range(&mut range), None);
     }
 

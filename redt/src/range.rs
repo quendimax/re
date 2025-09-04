@@ -37,13 +37,37 @@ impl<T: PartialOrd> Range<T> {
     }
 }
 
-impl<T> Range<T> {
+impl<T: PartialOrd> Range<T> {
     /// Creates a new range with inclusive bounds from `start` to `end`.
     ///
     /// It expects that `start <= end`. Otherwise it breaks `Span`'s invariant.
     /// Although it is still safe in terms of Rust.
     #[inline]
     pub fn new_unchecked(start: T, last: T) -> Self {
+        debug_assert!(start <= last);
+        Self { start, last }
+    }
+
+    /// Creats a new range with inclusive bounds from `start` and `last`.
+    ///
+    /// If `start` >= `end`, returns `None`.
+    #[inline]
+    pub fn new_checked(start: T, last: T) -> Option<Self> {
+        if start <= last {
+            Some(Self { start, last })
+        } else {
+            None
+        }
+    }
+}
+
+impl<T> Range<T> {
+    /// Creates a new range with inclusive bounds from `start` to `end`.
+    ///
+    /// It expects that `start <= end`. Otherwise it breaks `Span`'s invariant.
+    /// Although it is still safe in terms of Rust.
+    #[inline]
+    pub const fn new_unchecked_const(start: T, last: T) -> Self {
         Self { start, last }
     }
 }
@@ -158,7 +182,7 @@ impl<T: Step + Ord + std::fmt::Debug> Range<T> {
 impl<T: Copy> std::convert::From<T> for Range<T> {
     #[inline]
     fn from(value: T) -> Self {
-        Self::new_unchecked(value, value)
+        Self::new_unchecked_const(value, value)
     }
 }
 
