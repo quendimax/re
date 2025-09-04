@@ -40,6 +40,3 @@ pub trait RegexStr {
 pub trait MatchStr<'h>: MatchBytes<'h> {
     fn as_str(&self) -> &'h str;
 }
-
-#[cfg(test)]
-mod playground;

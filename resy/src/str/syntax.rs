@@ -563,4 +563,5 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
 }
 
 #[cfg(test)]
+#[path = "syntax.utest.rs"]
 mod utest;

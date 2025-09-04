@@ -6,7 +6,7 @@ use pretty_assertions::assert_eq;
 fn attempt_0() {
     let re = {
         mod adhoc {
-            use super::super::*;
+            use recz::*;
 
             pub(crate) struct Match0<'h> {
                 capture: &'h str,
@@ -126,7 +126,7 @@ fn attempt_0() {
     test_my_match(m);
 }
 
-fn test_my_match<'h>(m: impl super::MatchStr<'h>) {
+fn test_my_match<'h>(m: impl recz::MatchStr<'h>) {
     _ = m.start();
     //
 }
