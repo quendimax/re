@@ -107,6 +107,33 @@ fn parse_dot() {
 }
 
 #[test]
+fn parse_squares() {
+    let parse = |pattern: &str| {
+        let lexer = Lexer::new(pattern);
+        let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
+        match parser.parse_class() {
+            Ok(hir) => hir.to_string(),
+            Err(err) => err.to_string(),
+        }
+    };
+    assert_eq!(parse("[a]"), "['a']");
+    assert_eq!(parse("[\x61-\x62]"), "['a'-'b']");
+    assert_eq!(parse(r"[\x61-\x62]"), "['a'-'b']");
+    assert_eq!(
+        parse(r"[\u{61}-\u{162}]"),
+        "['a'-7Fh] | ([C2h-C4h] & [80h-BFh]) | ([C5h] & [80h-A2h])"
+    );
+
+    assert_eq!(parse("[a[b[c-d]]f]"), "['a'-'d'] | ['f']");
+
+    // parsing errors
+    assert_eq!(
+        parse("[a"),
+        "expected a character or an escape sequence, but found ``"
+    );
+}
+
+#[test]
 fn parse_ascii_escape() {
     let parse = |pattern: &str| {
         let lexer = Lexer::new(pattern);

@@ -158,7 +158,7 @@ impl<'s> Lexer<'s> {
 
     /// Returns the end position of the last token lexed.
     #[inline]
-    pub fn last_pos(&self) -> usize {
+    pub fn end_pos(&self) -> usize {
         self.pos
     }
 

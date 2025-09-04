@@ -33,49 +33,49 @@ impl<T> RangeSet<T> {
 }
 
 impl<T: Step + Ord> RangeSet<T> {
-    pub fn merge(&mut self, other: Range<T>) {
+    pub fn merge(&mut self, other: &Range<T>) {
         let i = match self
             .ranges
             .binary_search_by(|r| r.start().cmp(&other.start()))
         {
             Ok(index) => {
-                self.ranges[index] = self.ranges[index].try_merge(&other).unwrap();
+                self.ranges[index] = self.ranges[index].try_merge(other).unwrap();
                 index
             }
             Err(index) if index == self.ranges.len() => {
                 if let Some(last_range) = self.ranges.last_mut()
-                    && let Some(new_range) = last_range.try_merge(&other)
+                    && let Some(new_range) = last_range.try_merge(other)
                 {
                     *last_range = new_range;
                 } else {
-                    self.ranges.push(other);
+                    self.ranges.push(*other);
                 }
                 return;
             }
             Err(index) if index == 0 => {
                 if let Some(next_range) = self.ranges.get_mut(index)
-                    && let Some(new_range) = next_range.try_merge(&other)
+                    && let Some(new_range) = next_range.try_merge(other)
                 {
                     *next_range = new_range;
                     index
                 } else {
-                    self.ranges.insert(index, other);
+                    self.ranges.insert(index, *other);
                     return;
                 }
             }
             Err(index) => {
                 if let Some(prev_range) = self.ranges.get_mut(index - 1)
-                    && let Some(new_range) = prev_range.try_merge(&other)
+                    && let Some(new_range) = prev_range.try_merge(other)
                 {
                     *prev_range = new_range;
                     index - 1
                 } else if let Some(next_range) = self.ranges.get_mut(index)
-                    && let Some(new_range) = next_range.try_merge(&other)
+                    && let Some(new_range) = next_range.try_merge(other)
                 {
                     *next_range = new_range;
                     index
                 } else {
-                    self.ranges.insert(index, other);
+                    self.ranges.insert(index, *other);
                     return;
                 }
             }
@@ -94,7 +94,7 @@ impl<T: Step + Ord> RangeSet<T> {
         }
     }
 
-    pub fn exclude(&mut self, other: Range<T>) {
+    pub fn exclude(&mut self, other: &Range<T>) {
         if self.is_empty() {
             return;
         }

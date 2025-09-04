@@ -228,7 +228,7 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
                 self.lexer.expect(tok::r_paren)?;
                 Ok(Hir::group(num, hir))
             } else {
-                let span = l_angle.span().end..self.lexer.last_pos();
+                let span = l_angle.span().end..self.lexer.end_pos();
                 let spell = self.lexer.slice(span.clone());
                 err::out_of_range(spell, span, "`u32` range")
             }
@@ -256,12 +256,12 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     /// element
     ///     term
     ///     term '-' term
+    ///     class
     /// ```
     fn parse_class(&mut self) -> Result<Hir> {
-        let encoding = self.coder.encoding();
         let token = self.lexer.peek();
         let range_set = match token.kind() {
-            tok::dot => RangeSet::new(encoding.min_codepoint(), encoding.max_codepoint()),
+            tok::dot => self.parse_dot()?,
             tok::l_square => self.parse_squares()?,
             tok::l_square_caret => self.parse_squares_negated()?,
             _ => {
@@ -278,14 +278,50 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
         Ok(Hir::disjunct(alternatives))
     }
 
+    fn parse_dot(&mut self) -> Result<RangeSet<u32>> {
+        self.lexer.expect(tok::dot)?;
+        let encoding = self.coder.encoding();
+        Ok(RangeSet::new(
+            encoding.min_codepoint(),
+            encoding.max_codepoint(),
+        ))
+    }
+
     /// Parses a class with square brackets.
     fn parse_squares(&mut self) -> Result<RangeSet<u32>> {
-        todo!()
+        self.lexer.expect(tok::l_square)?;
+        let mut ranges = RangeSet::default();
+        loop {
+            let token = self.lexer.peek();
+            let range_set = match token.kind() {
+                tok::dot => self.parse_dot()?,
+                tok::l_square => self.parse_squares()?,
+                tok::l_square_caret => self.parse_squares_negated()?,
+                tok::r_square => break,
+                _ => self.parse_range()?,
+            };
+            for range in range_set.ranges() {
+                ranges.merge(range);
+            }
+        }
+        self.lexer.expect(tok::r_square)?;
+        Ok(ranges)
     }
 
     /// Parses a class with square brackets.
     fn parse_squares_negated(&mut self) -> Result<RangeSet<u32>> {
         todo!()
+    }
+
+    fn parse_range(&mut self) -> Result<RangeSet<u32>> {
+        let start_codepoint = self.parse_term()?;
+        if let tok::minus = self.lexer.peek().kind() {
+            self.lexer.consume_peeked();
+            let last_codepoint = self.parse_term()?;
+            Ok(RangeSet::new(start_codepoint, last_codepoint))
+        } else {
+            Ok(RangeSet::new(start_codepoint, start_codepoint))
+        }
     }
 
     /// Parses a sequence corresponding to one code point, i.e. either a single
@@ -354,6 +390,17 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
                 }
             },
             _ => Ok(None),
+        }
+    }
+
+    fn parse_term(&mut self) -> Result<u32> {
+        let start = self.lexer.end_pos();
+        if let Some(codepoint) = self.try_parse_term()? {
+            Ok(codepoint)
+        } else {
+            let span = start..self.lexer.end_pos();
+            let spell = self.lexer.slice(span.clone());
+            err::unexpected(spell, span, "a character or an escape sequence")
         }
     }
 
@@ -488,7 +535,7 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
         if let Some(num) = num {
             Ok(Some(num))
         } else {
-            let span = token.span().start..self.lexer.last_pos();
+            let span = token.span().start..self.lexer.end_pos();
             let slice = self.lexer.slice(span.clone());
             err::out_of_range(slice, span, "allowed range")
         }
