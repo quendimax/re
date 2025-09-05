@@ -266,7 +266,7 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
             tok::l_square_caret => self.parse_squares_negated()?,
             _ => {
                 let slice = self.lexer.slice(token.span());
-                return err::unexpected(slice, token.span(), "dot or square brackets");
+                return err::unexpected(slice, token.span(), "a dot or square brackets");
             }
         };
 

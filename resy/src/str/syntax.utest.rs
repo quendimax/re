@@ -111,6 +111,38 @@ fn parse_braces() {
 }
 
 #[test]
+fn parse_group() {
+    let parse = |pattern: &str| {
+        let lexer = Lexer::new(pattern);
+        let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
+        parser.parse_group()
+    };
+    assert_eq!(parse("(hello)"), Ok(Hir::literal("hello")));
+}
+
+#[test]
+fn parse_named_group() {
+    let parse = |pattern: &str| {
+        let lexer = Lexer::new(pattern);
+        let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
+        parser.parse_named_group()
+    };
+    assert_eq!(
+        parse("(?<1>hello)"),
+        Ok(Hir::group(1, Hir::literal("hello")))
+    );
+    assert_eq!(
+        parse("(?<12345>hello)"),
+        Ok(Hir::group(12345, Hir::literal("hello")))
+    );
+    assert_eq!(
+        parse("(?<123450000000>hello)"),
+        err::out_of_range("123450000000", 3..15, "`u32` range")
+    );
+    assert_eq!(parse("(?<a>hello)"), err::unexpected("a", 3..4, "decimal"));
+}
+
+#[test]
 fn parse_dot() {
     let parse = |pattern: &str| {
         let lexer = Lexer::new(pattern);
@@ -133,6 +165,10 @@ fn parse_dot() {
             "([F4h] & [80h-8Fh] & [80h-BFh] & [80h-BFh])"
         )
     );
+    assert_eq!(
+        parse(","),
+        err::unexpected(",", 0..1, "a dot or square brackets")
+    );
 }
 
 #[test]
@@ -154,6 +190,20 @@ fn parse_squares() {
     );
 
     assert_eq!(parse("[a[b[c-d]]f]"), "['a'-'d'] | ['f']");
+    assert_eq!(
+        parse("[.]"),
+        concat!(
+            "[00h-7Fh] | ",
+            "([C2h-DFh] & [80h-BFh]) | ",
+            "([E0h] & [A0h-BFh] & [80h-BFh]) | ",
+            "([E1h-ECh] & [80h-BFh] & [80h-BFh]) | ",
+            "([EDh] & [80h-9Fh] & [80h-BFh]) | ",
+            "([EEh-EFh] & [80h-BFh] & [80h-BFh]) | ",
+            "([F0h] & [90h-BFh] & [80h-BFh] & [80h-BFh]) | ",
+            "([F1h-F3h] & [80h-BFh] & [80h-BFh] & [80h-BFh]) | ",
+            "([F4h] & [80h-8Fh] & [80h-BFh] & [80h-BFh])"
+        )
+    );
 
     // parsing errors
     assert_eq!(
