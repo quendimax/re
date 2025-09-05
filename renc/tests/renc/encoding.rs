@@ -1,6 +1,6 @@
 use pretty_assertions::assert_eq;
-use renc::Encoding;
 use redt::Range;
+use renc::Encoding;
 
 #[test]
 fn encoding_ascii() {
@@ -19,5 +19,8 @@ fn encoding_utf8() {
     assert_eq!(encoding.allows_surrogates(), false);
     assert_eq!(encoding.min_codepoint(), 0);
     assert_eq!(encoding.max_codepoint(), 0x10FFFF);
-    assert_eq!(encoding.codepoint_ranges(), &[Range::new(0, 0xD7FF), Range::new(0xE000, 0x10FFFF)]);
+    assert_eq!(
+        encoding.codepoint_ranges(),
+        &[Range::new(0, 0xD7FF), Range::new(0xE000, 0x10FFFF)]
+    );
 }
