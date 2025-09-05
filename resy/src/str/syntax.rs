@@ -379,36 +379,43 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     ///     "\t"
     /// ```
     fn try_parse_term(&mut self) -> Result<Option<u32>> {
-        let token = self.lexer.lex();
-        match token.kind() {
-            tok::char(c) => Ok(Some(c as u32)),
-            tok::escape_char(c) => match c {
-                '\\' => Ok(Some('\\' as u32)),
-                '.' => Ok(Some('.' as u32)),
-                '*' => Ok(Some('*' as u32)),
-                '+' => Ok(Some('+' as u32)),
-                '-' => Ok(Some('-' as u32)),
-                '?' => Ok(Some('?' as u32)),
-                '|' => Ok(Some('|' as u32)),
-                '(' => Ok(Some('(' as u32)),
-                ')' => Ok(Some(')' as u32)),
-                '[' => Ok(Some('[' as u32)),
-                ']' => Ok(Some(']' as u32)),
-                '{' => Ok(Some('{' as u32)),
-                '}' => Ok(Some('}' as u32)),
-                '0' => Ok(Some('\0' as u32)),
-                'n' => Ok(Some('\n' as u32)),
-                'r' => Ok(Some('\r' as u32)),
-                't' => Ok(Some('\t' as u32)),
-                'x' => Ok(Some(self.parse_hex_escape()?)),
-                'u' if UNICODE => Ok(Some(self.parse_unicode_escape()?)),
-                _ => {
-                    let spell = self.lexer.slice(token.span());
-                    err::unsupported_escape(spell, token.span())
+        let token = self.lexer.peek();
+        let codepoint = match token.kind() {
+            tok::char(c) => {
+                self.lexer.consume_peeked();
+                Some(c as u32)
+            }
+            tok::escape_char(c) => {
+                self.lexer.consume_peeked();
+                match c {
+                    '\\' => Some('\\' as u32),
+                    '.' => Some('.' as u32),
+                    '*' => Some('*' as u32),
+                    '+' => Some('+' as u32),
+                    '-' => Some('-' as u32),
+                    '?' => Some('?' as u32),
+                    '|' => Some('|' as u32),
+                    '(' => Some('(' as u32),
+                    ')' => Some(')' as u32),
+                    '[' => Some('[' as u32),
+                    ']' => Some(']' as u32),
+                    '{' => Some('{' as u32),
+                    '}' => Some('}' as u32),
+                    '0' => Some('\0' as u32),
+                    'n' => Some('\n' as u32),
+                    'r' => Some('\r' as u32),
+                    't' => Some('\t' as u32),
+                    'x' => Some(self.parse_hex_escape()?),
+                    'u' if UNICODE => Some(self.parse_unicode_escape()?),
+                    _ => {
+                        let spell = self.lexer.slice(token.span());
+                        return err::unsupported_escape(spell, token.span());
+                    }
                 }
-            },
-            _ => Ok(None),
-        }
+            }
+            _ => None,
+        };
+        Ok(codepoint)
     }
 
     fn parse_term(&mut self) -> Result<u32> {
