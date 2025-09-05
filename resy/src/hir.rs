@@ -103,6 +103,12 @@ impl Hir {
         Hir::Literal(bytes.into())
     }
 
+    /// Creates an empty hir instance, i.e. a literal with no bytes.
+    #[inline]
+    pub fn empty() -> Hir {
+        Hir::Literal(vec![])
+    }
+
     #[inline]
     pub fn is_disjunct(&self) -> bool {
         matches!(self, Hir::Disjunct(..))

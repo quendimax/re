@@ -145,6 +145,21 @@ fn parse_squares_negated() {
     };
     assert_eq!(parse("[^.]"), "\"\"");
     assert_eq!(parse(r"[^\u{80}-\u{10FFFF}]"), "[00h-7Fh]");
+    assert_eq!(
+        parse(r"[^\x01]"),
+        concat!(
+            "[00h] | ",
+            "[02h-7Fh] | ",
+            "([C2h-DFh] & [80h-BFh]) | ",
+            "([E0h] & [A0h-BFh] & [80h-BFh]) | ",
+            "([E1h-ECh] & [80h-BFh] & [80h-BFh]) | ",
+            "([EDh] & [80h-9Fh] & [80h-BFh]) | ",
+            "([EEh-EFh] & [80h-BFh] & [80h-BFh]) | ",
+            "([F0h] & [90h-BFh] & [80h-BFh] & [80h-BFh]) | ",
+            "([F1h-F3h] & [80h-BFh] & [80h-BFh] & [80h-BFh]) | ",
+            "([F4h] & [80h-8Fh] & [80h-BFh] & [80h-BFh])"
+        )
+    );
 }
 
 #[test]

@@ -271,7 +271,7 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
         };
 
         if range_set.is_empty() {
-            return Ok(Hir::literal(""));
+            return Ok(Hir::empty());
         }
 
         let mut alternatives = Vec::new();

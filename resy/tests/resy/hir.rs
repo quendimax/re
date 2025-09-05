@@ -18,6 +18,13 @@ fn hir_literal() {
     assert_eq!(lit.len_hint(), (1, Some(1)));
     assert_eq!(lit.exact_len(), Some(1));
     assert_str_eq!(lit.to_string(), "\"h\"");
+
+    let empty = Hir::empty();
+    assert!(empty.is_literal());
+    assert!(!empty.is_repeat());
+    assert_eq!(empty.len_hint(), (0, Some(0)));
+    assert_eq!(empty.exact_len(), Some(0));
+    assert_str_eq!(empty.to_string(), "\"\"");
 }
 
 #[test]
