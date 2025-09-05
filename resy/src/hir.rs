@@ -36,13 +36,14 @@ impl Hir {
             };
         }
         if alters.is_empty() {
-            min_len = 0;
+            Hir::empty()
+        } else {
+            Hir::Disjunct(DisjunctHir {
+                alters,
+                min_len,
+                max_len,
+            })
         }
-        Hir::Disjunct(DisjunctHir {
-            alters,
-            min_len,
-            max_len,
-        })
     }
 
     /// Creates a new concatenation hir instance. If there is only one item, it
@@ -65,11 +66,15 @@ impl Hir {
                 max_len = None;
             }
         }
-        Hir::Concat(ConcatHir {
-            items,
-            min_len,
-            max_len,
-        })
+        if items.is_empty() {
+            Hir::empty()
+        } else {
+            Hir::Concat(ConcatHir {
+                items,
+                min_len,
+                max_len,
+            })
+        }
     }
 
     /// Creates a new repeat hir instance.
@@ -156,54 +161,6 @@ impl Hir {
     pub fn exact_len(&self) -> Option<usize> {
         let (lower, upper) = self.len_hint();
         if Some(lower) == upper { upper } else { None }
-    }
-
-    /// Unwraps the Hir into a DisjunctHir, panicking if it is not a repeat.
-    pub fn unwrap_disjunct(self) -> DisjunctHir {
-        match self {
-            Hir::Disjunct(hir) => hir,
-            _ => panic!("unwrap_disjunct called on non-disjunct hir"),
-        }
-    }
-
-    /// Unwraps the Hir into a ConcatHir, panicking if it is not a repeat.
-    pub fn unwrap_concat(self) -> ConcatHir {
-        match self {
-            Hir::Concat(hir) => hir,
-            _ => panic!("unwrap_concat called on non-concat hir"),
-        }
-    }
-
-    /// Unwraps the Hir into a RepeatHir, panicking if it is not a repeat.
-    pub fn unwrap_repeat(self) -> RepeatHir {
-        match self {
-            Hir::Repeat(hir) => hir,
-            _ => panic!("unwrap_repeat called on non-repeat hir"),
-        }
-    }
-
-    /// Unwraps the Hir into a GroupHir, panicking if it is not a repeat.
-    pub fn unwrap_group(self) -> GroupHir {
-        match self {
-            Hir::Group(hir) => hir,
-            _ => panic!("unwrap_group called on non-group hir"),
-        }
-    }
-
-    /// Unwraps the Hir into a byte set, panicking if it is not a literal.
-    pub fn unwrap_class(self) -> SetU8 {
-        match self {
-            Hir::Class(hir) => hir,
-            _ => panic!("unwrap_class called on non-class hir"),
-        }
-    }
-
-    /// Unwraps the Hir into a byte array, panicking if it is not a literal.
-    pub fn unwrap_literal(self) -> Vec<u8> {
-        match self {
-            Hir::Literal(hir) => hir,
-            _ => panic!("unwrap_literal called on non-literal hir"),
-        }
     }
 }
 

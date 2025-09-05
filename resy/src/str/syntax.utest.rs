@@ -6,6 +6,35 @@ use pretty_assertions::assert_eq;
 use renc::Utf8Encoder;
 
 #[test]
+fn parse_disjunct() {
+    let parse = |pattern: &str| {
+        let lexer = Lexer::new(pattern);
+        let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
+        parser.parse_disjunct()
+    };
+    assert_eq!(
+        parse("a|b"),
+        Ok(Hir::disjunct([Hir::literal("a"), Hir::literal("b")]))
+    );
+    assert_eq!(
+        parse("a|"),
+        Ok(Hir::disjunct([Hir::literal("a"), Hir::empty()]))
+    );
+    assert_eq!(
+        parse("|||"),
+        Ok(Hir::disjunct([
+            Hir::empty(),
+            Hir::empty(),
+            Hir::empty(),
+            Hir::empty()
+        ]))
+    );
+
+    // fails
+    assert_eq!(parse(")"), Ok(Hir::empty()));
+}
+
+#[test]
 fn parse_concat() {
     let parse = |pattern: &str| {
         let lexer = Lexer::new(pattern);
