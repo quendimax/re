@@ -270,6 +270,10 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
             }
         };
 
+        if range_set.is_empty() {
+            return Ok(Hir::literal(""));
+        }
+
         let mut alternatives = Vec::new();
         for cp_range in range_set.ranges() {
             let hir = self.convert(cp_range.start(), cp_range.last());
@@ -307,7 +311,24 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
 
     /// Parses a class with square brackets.
     fn parse_squares_negated(&mut self) -> Result<RangeSet<u32>> {
-        todo!()
+        self.lexer.expect(tok::l_square_caret)?;
+        let encoding = self.coder.encoding();
+        let mut ranges = RangeSet::from(encoding.codepoint_ranges());
+        loop {
+            let token = self.lexer.peek();
+            let range_set = match token.kind() {
+                tok::dot => self.parse_dot()?,
+                tok::l_square => self.parse_squares()?,
+                tok::l_square_caret => self.parse_squares_negated()?,
+                tok::r_square => break,
+                _ => self.parse_range()?,
+            };
+            for range in range_set.ranges() {
+                ranges.exclude(range);
+            }
+        }
+        self.lexer.expect(tok::r_square)?;
+        Ok(ranges)
     }
 
     fn parse_range(&mut self) -> Result<RangeSet<u32>> {

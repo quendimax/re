@@ -134,6 +134,20 @@ fn parse_squares() {
 }
 
 #[test]
+fn parse_squares_negated() {
+    let parse = |pattern: &str| {
+        let lexer = Lexer::new(pattern);
+        let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
+        match parser.parse_class() {
+            Ok(hir) => hir.to_string(),
+            Err(err) => err.to_string(),
+        }
+    };
+    assert_eq!(parse("[^.]"), "\"\"");
+    assert_eq!(parse(r"[^\u{80}-\u{10FFFF}]"), "[00h-7Fh]");
+}
+
+#[test]
 fn parse_ascii_escape() {
     let parse = |pattern: &str| {
         let lexer = Lexer::new(pattern);
