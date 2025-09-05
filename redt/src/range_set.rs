@@ -33,7 +33,8 @@ impl<T> RangeSet<T> {
 }
 
 impl<T: Step + Ord> RangeSet<T> {
-    pub fn merge(&mut self, other: &Range<T>) {
+    pub fn merge(&mut self, other: impl AsRef<Range<T>>) {
+        let other = other.as_ref();
         let i = match self
             .ranges
             .binary_search_by(|r| r.start().cmp(&other.start()))
@@ -94,10 +95,11 @@ impl<T: Step + Ord> RangeSet<T> {
         }
     }
 
-    pub fn exclude(&mut self, other: &Range<T>) {
+    pub fn exclude(&mut self, other: impl AsRef<Range<T>>) {
         if self.is_empty() {
             return;
         }
+        let other = other.as_ref();
         let start = match self
             .ranges
             .binary_search_by(|r| r.last().cmp(&other.start())) // start <= last
@@ -146,7 +148,7 @@ impl<T: Step + Ord> RangeSet<T> {
                 }
                 let index = index - 1;
                 if self.ranges[index].last() <= other.last() {
-                    index
+                    index + 1
                 } else {
                     self.ranges[index] = Range::new_unchecked(
                         other.last().forward(1).unwrap(),
