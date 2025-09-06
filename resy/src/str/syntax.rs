@@ -4,15 +4,49 @@ use crate::str::lexis::{Lexer, tok};
 use redt::{RangeSet, SetU8};
 use renc::Encoder;
 
+/// A regex pattern parser that converts string patterns into high-level
+/// intermediate representation (HIR).
+///
+/// The parser takes a regex pattern string and converts it into a structured
+/// [`Hir`] tree that represents the pattern's semantics. It uses an [`Encoder`]
+/// to handle character encoding specifics during parsing.
+///
+/// # Type Parameters
+///
+/// * `C` - An [`Encoder`] implementation that defines how characters are
+///   encoded in byte sequences.
+///
+/// # Examples
+///
+/// ```rust
+/// use resy::str::Parser;
+/// use renc::Utf8Encoder;
+///
+/// let parser = Parser::new(Utf8Encoder);
+/// let hir = parser.parse("a+b*").unwrap();
+/// ```
 pub struct Parser<C: Encoder> {
     encoder: C,
 }
 
 impl<C: Encoder> Parser<C> {
+    /// Creates a new parser with the specified encoder.
     pub fn new(encoder: C) -> Self {
         Parser { encoder }
     }
 
+    /// Parses a regex pattern string into a high-level intermediate
+    /// representation.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use resy::str::Parser;
+    /// use renc::Utf8Encoder;
+    ///
+    /// let parser = Parser::new(Utf8Encoder);
+    /// let hir = parser.parse("hello.*world").unwrap();
+    /// ```
     pub fn parse(&self, pattern: &str) -> Result<Hir> {
         let lexer = Lexer::new(pattern);
         let mut parser = ParserImpl::<C>::new(lexer, &self.encoder);
@@ -20,16 +54,19 @@ impl<C: Encoder> Parser<C> {
     }
 }
 
+/// Internal parser implementation that handles the actual parsing logic.
 struct ParserImpl<'s, 'c, C: Encoder, const UNICODE: bool = true> {
     lexer: Lexer<'s>,
     coder: &'c C,
 }
 
 impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
+    /// Creates a new parser implementation instance.
     fn new(lexer: Lexer<'s>, coder: &'c C) -> Self {
         ParserImpl { lexer, coder }
     }
 
+    /// Parses the entire regex pattern and returns the resulting HIR.
     fn parse(&mut self) -> Result<Hir> {
         let hir = self.parse_disjunct()?;
         self.lexer.expect(tok::eof)?;
@@ -282,13 +319,14 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
         Ok(Hir::disjunct(alternatives))
     }
 
+    /// Parses a dot (`.`) character class that matches any character.
     fn parse_dot(&mut self) -> Result<RangeSet<u32>> {
         self.lexer.expect(tok::dot)?;
         let encoding = self.coder.encoding();
         Ok(RangeSet::from(encoding.codepoint_ranges()))
     }
 
-    /// Parses a class with square brackets.
+    /// Parses a character class with square brackets `[...]`.
     fn parse_squares(&mut self) -> Result<RangeSet<u32>> {
         self.lexer.expect(tok::l_square)?;
         let mut ranges = RangeSet::default();
@@ -309,7 +347,7 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
         Ok(ranges)
     }
 
-    /// Parses a class with square brackets.
+    /// Parses a negated character class with square brackets `[^...]`.
     fn parse_squares_negated(&mut self) -> Result<RangeSet<u32>> {
         self.lexer.expect(tok::l_square_caret)?;
         let encoding = self.coder.encoding();
@@ -331,6 +369,11 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
         Ok(ranges)
     }
 
+    /// Parses a character range or single character within a character class.
+    ///
+    /// This can parse either:
+    /// - A single character: `a`
+    /// - A character range: `a-z`
     fn parse_range(&mut self) -> Result<RangeSet<u32>> {
         let start_codepoint = self.parse_term()?;
         if let tok::minus = self.lexer.peek().kind() {
@@ -418,6 +461,11 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
         Ok(codepoint)
     }
 
+    /// Parses a term (character or escape sequence) and returns its codepoint
+    /// value.
+    ///
+    /// This is a wrapper around `try_parse_term` that returns an error if no
+    /// term is found at the current position.
     fn parse_term(&mut self) -> Result<u32> {
         let start = self.lexer.end_pos();
         if let Some(codepoint) = self.try_parse_term()? {
