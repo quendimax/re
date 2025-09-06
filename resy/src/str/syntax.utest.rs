@@ -3,6 +3,7 @@ use crate::str::error::err;
 use crate::str::lexis::Lexer;
 use crate::str::syntax::ParserImpl;
 use pretty_assertions::assert_eq;
+use redt::{Range, RangeSet};
 use renc::Utf8Encoder;
 
 #[test]
@@ -32,6 +33,8 @@ fn parse_disjunct() {
 
     // fails
     assert_eq!(parse(")"), Ok(Hir::empty()));
+    assert_eq!(parse("asdf\\q"), err::unsupported_escape("\\q", 4..6));
+    assert_eq!(parse("a|df\\q"), err::unsupported_escape("\\q", 4..6));
 }
 
 #[test]
@@ -169,6 +172,20 @@ fn parse_dot() {
         parse(","),
         err::unexpected(",", 0..1, "a dot or square brackets")
     );
+
+    let parse = |pattern: &str| {
+        let lexer = Lexer::new(pattern);
+        let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
+        parser.parse_dot()
+    };
+    assert_eq!(
+        parse("."),
+        Ok(RangeSet::from(&[
+            Range::new(0, 0xD7FF),
+            Range::new(0xE000, 0x10FFFF)
+        ]))
+    );
+    assert_eq!(parse(","), err::unexpected(",", 0..1, "`.`"));
 }
 
 #[test]
@@ -189,7 +206,7 @@ fn parse_squares() {
         "['a'-7Fh] | ([C2h-C4h] & [80h-BFh]) | ([C5h] & [80h-A2h])"
     );
 
-    assert_eq!(parse("[a[b[c-d]]f]"), "['a'-'d'] | ['f']");
+    assert_eq!(parse("[a[b[^c-d[^c-d]]]f]"), "['a'-'b'] | ['f']");
     assert_eq!(
         parse("[.]"),
         concat!(
@@ -210,6 +227,10 @@ fn parse_squares() {
         parse("[a"),
         "expected a character or an escape sequence, but found ``"
     );
+    assert_eq!(
+        parse(r"[a-.]"),
+        "expected a character or an escape sequence, but found `.`"
+    );
 }
 
 #[test]
@@ -224,6 +245,7 @@ fn parse_squares_negated() {
     };
     assert_eq!(parse("[^.]"), "\"\"");
     assert_eq!(parse(r"[^\u{80}-\u{10FFFF}]"), "[00h-7Fh]");
+    assert_eq!(parse("[^a[^b[c]]f]"), "['b'-'c']");
     assert_eq!(
         parse(r"[^\x01]"),
         concat!(
@@ -239,6 +261,17 @@ fn parse_squares_negated() {
             "([F4h] & [80h-8Fh] & [80h-BFh] & [80h-BFh])"
         )
     );
+    // parsing errors
+    assert_eq!(
+        parse(r"[^a-.]"),
+        "expected a character or an escape sequence, but found `.`"
+    );
+    let parse = |pattern: &str| {
+        let lexer = Lexer::new(pattern);
+        let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
+        parser.parse_squares_negated()
+    };
+    assert_eq!(parse("a"), err::unexpected("a", 0..1, "`[^`"));
 }
 
 #[test]
@@ -246,54 +279,39 @@ fn parse_ascii_escape() {
     let parse = |pattern: &str| {
         let lexer = Lexer::new(pattern);
         let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
-        parser.try_parse_term()
+        parser.parse_term()
     };
-    assert_eq!(parse("a"), Ok(Some('a' as u32)));
-    assert_eq!(parse("/"), Ok(Some('/' as u32)));
-    assert_eq!(parse(r"\\"), Ok(Some('\\' as u32)));
-    assert_eq!(parse(r"\."), Ok(Some('.' as u32)));
-    assert_eq!(parse(r"\*"), Ok(Some('*' as u32)));
-    assert_eq!(parse(r"\+"), Ok(Some('+' as u32)));
-    assert_eq!(parse(r"\-"), Ok(Some('-' as u32)));
-    assert_eq!(parse(r"\?"), Ok(Some('?' as u32)));
-    assert_eq!(parse(r"\|"), Ok(Some('|' as u32)));
-    assert_eq!(parse(r"\("), Ok(Some('(' as u32)));
-    assert_eq!(parse(r"\)"), Ok(Some(')' as u32)));
-    assert_eq!(parse(r"\["), Ok(Some('[' as u32)));
-    assert_eq!(parse(r"\]"), Ok(Some(']' as u32)));
-    assert_eq!(parse(r"\{"), Ok(Some('{' as u32)));
-    assert_eq!(parse(r"\}"), Ok(Some('}' as u32)));
-    assert_eq!(parse(r"\0"), Ok(Some('\0' as u32)));
-    assert_eq!(parse(r"\n"), Ok(Some('\n' as u32)));
-    assert_eq!(parse(r"\r"), Ok(Some('\r' as u32)));
-    assert_eq!(parse(r"\t"), Ok(Some('\t' as u32)));
+    assert_eq!(parse("a"), Ok('a' as u32));
+    assert_eq!(parse("/"), Ok('/' as u32));
+    assert_eq!(parse(r"\\"), Ok('\\' as u32));
+    assert_eq!(parse(r"\."), Ok('.' as u32));
+    assert_eq!(parse(r"\*"), Ok('*' as u32));
+    assert_eq!(parse(r"\+"), Ok('+' as u32));
+    assert_eq!(parse(r"\-"), Ok('-' as u32));
+    assert_eq!(parse(r"\?"), Ok('?' as u32));
+    assert_eq!(parse(r"\|"), Ok('|' as u32));
+    assert_eq!(parse(r"\("), Ok('(' as u32));
+    assert_eq!(parse(r"\)"), Ok(')' as u32));
+    assert_eq!(parse(r"\["), Ok('[' as u32));
+    assert_eq!(parse(r"\]"), Ok(']' as u32));
+    assert_eq!(parse(r"\{"), Ok('{' as u32));
+    assert_eq!(parse(r"\}"), Ok('}' as u32));
+    assert_eq!(parse(r"\0"), Ok('\0' as u32));
+    assert_eq!(parse(r"\n"), Ok('\n' as u32));
+    assert_eq!(parse(r"\r"), Ok('\r' as u32));
+    assert_eq!(parse(r"\t"), Ok('\t' as u32));
     // Unsupported escape sequences
     assert_eq!(parse(r"\a"), err::unsupported_escape(r"\a", 0..2));
     assert_eq!(parse(r"\U"), err::unsupported_escape(r"\U", 0..2));
     assert_eq!(parse(r"\Ў"), err::unsupported_escape(r"\Ў", 0..3));
 
-    // Parsing special characters should be skipped
-    assert_eq!(parse("\\"), Ok(None));
-    assert_eq!(parse("."), Ok(None));
-    assert_eq!(parse("*"), Ok(None));
-    assert_eq!(parse("+"), Ok(None));
-    assert_eq!(parse("-"), Ok(None));
-    assert_eq!(parse("?"), Ok(None));
-    assert_eq!(parse("|"), Ok(None));
-    assert_eq!(parse("("), Ok(None));
-    assert_eq!(parse(")"), Ok(None));
-    assert_eq!(parse("["), Ok(None));
-    assert_eq!(parse("]"), Ok(None));
-    assert_eq!(parse("{"), Ok(None));
-    assert_eq!(parse("}"), Ok(None));
-
     // \x escape sequences (ASCII only, 0-127)
-    assert_eq!(parse(r"\x00"), Ok(Some('\0' as u32)));
-    assert_eq!(parse(r"\x20"), Ok(Some(' ' as u32)));
-    assert_eq!(parse(r"\x41"), Ok(Some('A' as u32)));
-    assert_eq!(parse(r"\x61"), Ok(Some('a' as u32)));
-    assert_eq!(parse(r"\x7F"), Ok(Some('\x7F' as u32)));
-    assert_eq!(parse(r"\x7f"), Ok(Some('\x7F' as u32)));
+    assert_eq!(parse(r"\x00"), Ok('\0' as u32));
+    assert_eq!(parse(r"\x20"), Ok(' ' as u32));
+    assert_eq!(parse(r"\x41"), Ok('A' as u32));
+    assert_eq!(parse(r"\x61"), Ok('a' as u32));
+    assert_eq!(parse(r"\x7F"), Ok('\x7F' as u32));
+    assert_eq!(parse(r"\x7f"), Ok('\x7F' as u32));
     // Test case sensitivity
     assert_eq!(
         parse(r"\xFF"),
@@ -321,6 +339,26 @@ fn parse_ascii_escape() {
         parse(r"\x1"),
         err::unexpected("", 3..3, "a hexadecimal digit")
     );
+
+    // Parsing special characters should be skipped
+    let parse = |pattern: &str| {
+        let lexer = Lexer::new(pattern);
+        let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
+        parser.try_parse_term()
+    };
+    assert_eq!(parse("\\"), Ok(None));
+    assert_eq!(parse("."), Ok(None));
+    assert_eq!(parse("*"), Ok(None));
+    assert_eq!(parse("+"), Ok(None));
+    assert_eq!(parse("-"), Ok(None));
+    assert_eq!(parse("?"), Ok(None));
+    assert_eq!(parse("|"), Ok(None));
+    assert_eq!(parse("("), Ok(None));
+    assert_eq!(parse(")"), Ok(None));
+    assert_eq!(parse("["), Ok(None));
+    assert_eq!(parse("]"), Ok(None));
+    assert_eq!(parse("{"), Ok(None));
+    assert_eq!(parse("}"), Ok(None));
 }
 
 #[test]
@@ -328,33 +366,33 @@ fn parse_unicode_escape() {
     let parse = |pattern: &str| {
         let lexer = Lexer::new(pattern);
         let mut parser = ParserImpl::<Utf8Encoder, true>::new(lexer, &Utf8Encoder);
-        parser.try_parse_term()
+        parser.parse_term()
     };
 
     // \u{...} escape sequences (Unicode)
     // Basic ASCII characters
-    assert_eq!(parse(r"\u{0}"), Ok(Some(0x0)));
-    assert_eq!(parse(r"\u{41}"), Ok(Some('A' as u32)));
-    assert_eq!(parse(r"\u{61}"), Ok(Some('a' as u32)));
-    assert_eq!(parse(r"\u{7F}"), Ok(Some(0x7F)));
+    assert_eq!(parse(r"\u{0}"), Ok(0x0));
+    assert_eq!(parse(r"\u{41}"), Ok('A' as u32));
+    assert_eq!(parse(r"\u{61}"), Ok('a' as u32));
+    assert_eq!(parse(r"\u{7F}"), Ok(0x7F));
 
     // Multi-digit hex values
-    assert_eq!(parse(r"\u{20}"), Ok(Some(' ' as u32)));
-    assert_eq!(parse(r"\u{1F4}"), Ok(Some(0x1F4)));
-    assert_eq!(parse(r"\u{1234}"), Ok(Some(0x1234)));
-    assert_eq!(parse(r"\u{12345}"), Ok(Some(0x12345)));
-    assert_eq!(parse(r"\u{123456}"), Ok(Some(0x123456)));
+    assert_eq!(parse(r"\u{20}"), Ok(' ' as u32));
+    assert_eq!(parse(r"\u{1F4}"), Ok(0x1F4));
+    assert_eq!(parse(r"\u{1234}"), Ok(0x1234));
+    assert_eq!(parse(r"\u{12345}"), Ok(0x12345));
+    assert_eq!(parse(r"\u{123456}"), Ok(0x123456));
 
     // Case insensitive hex digits
-    assert_eq!(parse(r"\u{aB}"), Ok(Some(0xAB)));
-    assert_eq!(parse(r"\u{Cd}"), Ok(Some(0xCD)));
-    assert_eq!(parse(r"\u{EF}"), Ok(Some(0xEF)));
-    assert_eq!(parse(r"\u{abcdef}"), Ok(Some(0xABCDEF)));
+    assert_eq!(parse(r"\u{aB}"), Ok(0xAB));
+    assert_eq!(parse(r"\u{Cd}"), Ok(0xCD));
+    assert_eq!(parse(r"\u{EF}"), Ok(0xEF));
+    assert_eq!(parse(r"\u{abcdef}"), Ok(0xABCDEF));
 
     // Unicode characters
-    assert_eq!(parse(r"\u{A9}"), Ok(Some('©' as u32))); // Copyright symbol
-    assert_eq!(parse(r"\u{1F600}"), Ok(Some(0x1F600))); // Emoji
-    assert_eq!(parse(r"\u{10FFFF}"), Ok(Some(0x10FFFF))); // Max Unicode
+    assert_eq!(parse(r"\u{A9}"), Ok('©' as u32)); // Copyright symbol
+    assert_eq!(parse(r"\u{1F600}"), Ok(0x1F600)); // Emoji
+    assert_eq!(parse(r"\u{10FFFF}"), Ok(0x10FFFF)); // Max Unicode
 
     // Empty escape sequence
     assert_eq!(parse(r"\u{}"), err::empty_escape(0..4));

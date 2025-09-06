@@ -100,9 +100,9 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     fn try_parse_item(&mut self) -> Result<Option<Hir>> {
         let token = self.lexer.peek();
         let mut hir = match token.kind() {
-            tok::l_paren => self.parse_group()?,
-            tok::l_paren_question => self.parse_named_group()?,
-            tok::dot | tok::l_square | tok::l_square_caret => self.parse_class()?,
+            tok::l_paren => self.parse_group(),
+            tok::l_paren_question => self.parse_named_group(),
+            tok::dot | tok::l_square | tok::l_square_caret => self.parse_class(),
             _ => {
                 if let Some(c) = self.try_parse_term()? {
                     let mut literal = vec![0, 0, 0, 0, 0, 0, 0, 0];
@@ -110,12 +110,12 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
                         Ok(len) => literal.resize(len, 0),
                         Err(error) => return err::encoder_error(error, token.span()),
                     }
-                    Hir::literal(literal)
+                    Ok(Hir::literal(literal))
                 } else {
                     return Ok(None);
                 }
             }
-        };
+        }?;
         while let Some((iter_min, iter_max)) = self.try_parse_postfix()? {
             hir = Hir::repeat(hir, iter_min, iter_max);
         }
@@ -261,14 +261,14 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     fn parse_class(&mut self) -> Result<Hir> {
         let token = self.lexer.peek();
         let range_set = match token.kind() {
-            tok::dot => self.parse_dot()?,
-            tok::l_square => self.parse_squares()?,
-            tok::l_square_caret => self.parse_squares_negated()?,
+            tok::dot => self.parse_dot(),
+            tok::l_square => self.parse_squares(),
+            tok::l_square_caret => self.parse_squares_negated(),
             _ => {
                 let slice = self.lexer.slice(token.span());
                 return err::unexpected(slice, token.span(), "a dot or square brackets");
             }
-        };
+        }?;
 
         if range_set.is_empty() {
             return Ok(Hir::empty());
@@ -295,12 +295,12 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
         loop {
             let token = self.lexer.peek();
             let range_set = match token.kind() {
-                tok::dot => self.parse_dot()?,
-                tok::l_square => self.parse_squares()?,
-                tok::l_square_caret => self.parse_squares_negated()?,
+                tok::dot => self.parse_dot(),
+                tok::l_square => self.parse_squares(),
+                tok::l_square_caret => self.parse_squares_negated(),
                 tok::r_square => break,
-                _ => self.parse_range()?,
-            };
+                _ => self.parse_range(),
+            }?;
             for range in range_set.ranges() {
                 ranges.merge(range);
             }
@@ -317,12 +317,12 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
         loop {
             let token = self.lexer.peek();
             let range_set = match token.kind() {
-                tok::dot => self.parse_dot()?,
-                tok::l_square => self.parse_squares()?,
-                tok::l_square_caret => self.parse_squares_negated()?,
+                tok::dot => self.parse_dot(),
+                tok::l_square => self.parse_squares(),
+                tok::l_square_caret => self.parse_squares_negated(),
                 tok::r_square => break,
-                _ => self.parse_range()?,
-            };
+                _ => self.parse_range(),
+            }?;
             for range in range_set.ranges() {
                 ranges.exclude(range);
             }
@@ -423,7 +423,7 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
         if let Some(codepoint) = self.try_parse_term()? {
             Ok(codepoint)
         } else {
-            let span = start..self.lexer.end_pos();
+            let span = start..self.lexer.peek().end();
             let spell = self.lexer.slice(span.clone());
             err::unexpected(spell, span, "a character or an escape sequence")
         }

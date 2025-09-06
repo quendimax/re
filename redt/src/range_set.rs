@@ -1,6 +1,7 @@
 use crate::range::Range;
 use crate::step::Step;
 
+#[derive(PartialEq, Eq)]
 pub struct RangeSet<T> {
     ranges: Vec<Range<T>>,
 }
@@ -192,5 +193,21 @@ where
             set.merge(range.as_ref());
         }
         set
+    }
+}
+
+impl<T: Copy + PartialEq + std::fmt::Debug> std::fmt::Debug for RangeSet<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (i, range) in self.ranges.iter().enumerate() {
+            if range.start() == range.last() {
+                write!(f, "{:?}, ", range.start())?;
+            } else {
+                write!(f, "{:?}-{:?}, ", range.start(), range.last())?;
+            }
+            if i < self.ranges.len() - 1 {
+                write!(f, " | ")?;
+            }
+        }
+        Ok(())
     }
 }

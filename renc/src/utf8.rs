@@ -8,6 +8,20 @@ const ENCODING: Encoding = Encoding::Utf8;
 
 pub struct Utf8Encoder;
 
+impl Utf8Encoder {
+    #[inline]
+    pub fn new() -> Self {
+        Utf8Encoder
+    }
+}
+
+impl Default for Utf8Encoder {
+    #[inline]
+    fn default() -> Self {
+        Utf8Encoder::new()
+    }
+}
+
 impl Encoder for Utf8Encoder {
     #[inline]
     fn encoding(&self) -> Encoding {
@@ -195,7 +209,10 @@ fn char_try_from(codepoint: u32) -> Result<char> {
     if let Ok(c) = char::try_from(codepoint) {
         Ok(c)
     } else if codepoint <= 0x10FFFF {
-        Err(SurrogateUnsupported { encoding: ENCODING })
+        Err(SurrogateUnsupported {
+            codepoint,
+            encoding: ENCODING,
+        })
     } else {
         Err(InvalidCodePoint {
             codepoint,
