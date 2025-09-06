@@ -79,7 +79,8 @@ fn _expect<const N: usize>(start: &[u8; N], end: &[u8; N]) -> Result<Sequences> 
 
 #[test]
 fn encoding() {
-    let coder = Utf8Encoder;
+    #[allow(clippy::default_constructed_unit_structs)]
+    let coder = Utf8Encoder::default();
     let encoding = coder.encoding();
     assert_eq!(encoding.name(), "UTF-8");
 }

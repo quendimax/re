@@ -49,6 +49,9 @@ fn hir_group() {
     assert_eq!(group.len_hint(), (5, Some(5)));
     assert_eq!(group.exact_len(), Some(5));
     assert_str_eq!(group.to_string(), r#"(?<2> "hello" )"#);
+    if let Hir::Group(hir) = group {
+        assert_eq!(hir.inner(), &Hir::literal("hello"));
+    }
 }
 
 #[test]
@@ -60,6 +63,10 @@ fn hir_repeat() {
     assert_eq!(repeat.len_hint(), (0, None));
     assert_eq!(repeat.exact_len(), None);
     assert_str_eq!(repeat.to_string(), r#""a"*"#);
+    if let Hir::Repeat(hir) = repeat {
+        assert_eq!(hir.inner(), &Hir::literal("a"));
+        assert_eq!(hir.iter_hint(), (0, None));
+    }
 
     let lit = Hir::literal(b"abc");
     let repeat = Hir::repeat(lit, 1, None);
@@ -110,6 +117,9 @@ fn hir_concat() {
     assert_eq!(concat.len_hint(), (5, Some(5)));
     assert_eq!(concat.exact_len(), Some(5));
     assert_str_eq!(concat.to_string(), r#""ab" & "cde""#);
+    if let Hir::Concat(hir) = concat {
+        assert_eq!(hir.items().len(), 2);
+    }
 
     let lit = Hir::literal(b"abc");
     let repeat = Hir::repeat(lit, 1, None);
@@ -151,4 +161,13 @@ fn hir_disjunct() {
     assert_eq!(disjunct.len_hint(), (2, None));
     assert_eq!(disjunct.exact_len(), None);
     assert_str_eq!(disjunct.to_string(), r#""ab" | ("ab" & "cde"*)"#);
+    if let Hir::Disjunct(hir) = disjunct {
+        assert_eq!(hir.alternatives().len(), 2);
+    }
+
+    let disjunct = Hir::disjunct(vec![]);
+    assert!(disjunct.is_literal());
+    assert_eq!(disjunct.len_hint(), (0, Some(0)));
+    assert_eq!(disjunct.exact_len(), Some(0));
+    assert_str_eq!(disjunct.to_string(), r#""""#);
 }
