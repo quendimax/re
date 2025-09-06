@@ -1,6 +1,10 @@
-use proc_macro::TokenStream;
-
+mod codegen;
 mod regex;
+
+#[cfg(test)]
+mod utest;
+
+use proc_macro::TokenStream;
 
 #[proc_macro]
 pub fn re(input: TokenStream) -> TokenStream {

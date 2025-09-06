@@ -1,6 +1,6 @@
+use crate::codegen::CodeGen;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use regn::CodeGen;
 use regr::{Arena, Graph};
 use renc::Utf8Encoder;
 use resy::Parser;

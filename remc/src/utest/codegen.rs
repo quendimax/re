@@ -1,7 +1,7 @@
+use crate::codegen::CodeGen;
 use pretty_assertions::assert_eq;
 use proc_macro2::TokenStream;
 use quote::quote;
-use regn::CodeGen;
 use regr::{Arena, Graph};
 
 fn pretty(tok_stream: TokenStream) -> String {
