@@ -52,56 +52,6 @@ impl<C: Encoder> Parser<C> {
         let mut parser = ParserImpl::<C>::new(lexer, &self.encoder);
         parser.parse()
     }
-
-    /// Parses a regex pattern within a rust literal. It is intended for use in
-    /// procedural macros.
-    pub fn parse_literal(&self, literal: &str) -> Result<Hir> {
-        if literal.starts_with("r") {
-            self.parse_raw_literal(literal)
-        } else {
-            todo!()
-        }
-    }
-
-    /// Looks like we need only to parse prefix, postfix, and suffix, and then
-    /// run a usual parser for the literal content, because rust raw literal
-    /// doesn't have any special sequences.
-    fn parse_raw_literal(&self, literal: &str) -> Result<Hir> {
-        let len = literal.len();
-        let mut lexer = Lexer::new(literal);
-        lexer.expect(tok::char('r'))?;
-        while let tok::char(c) = lexer.peek().kind()
-            && c == '#'
-        {
-            lexer.consume_peeked();
-        }
-        lexer.expect(tok::char('"'))?;
-        let prefix_len = lexer.end_pos();
-        let postfix_len = prefix_len - 1;
-
-        let mut suffix_len = 0;
-        for c in literal.chars().rev() {
-            if c == '"' || c == '#' {
-                break;
-            }
-            suffix_len += 1;
-        }
-
-        let _prefix = &literal[..prefix_len];
-        let postfix = &literal[len - suffix_len - postfix_len..len - suffix_len];
-        let _suffix = &literal[len - suffix_len..];
-
-        let mut lexer = Lexer::new(postfix);
-        lexer.expect(tok::char('"'))?;
-        for _ in 0..prefix_len - 2 {
-            lexer.expect(tok::char('#'))?;
-        }
-
-        let pattern = &literal[prefix_len..len - postfix_len - suffix_len];
-        let lexer = Lexer::new(pattern);
-        let mut parser = ParserImpl::<C>::new(lexer, &self.encoder);
-        parser.parse()
-    }
 }
 
 /// Internal parser implementation that handles the actual parsing logic.

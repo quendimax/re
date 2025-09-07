@@ -10,8 +10,8 @@ fn error_span() {
     assert_eq!(err.error_span(), 0..11);
 
     let err = Error::Unexpected {
-        found_spell: "asf".into(),
-        found_span: 1..10,
+        misspell: "asf".into(),
+        span: 1..10,
         expected: "".into(),
     };
     assert_eq!(err.error_span(), 1..10);

@@ -12,10 +12,10 @@ pub enum Error {
         span: Range<usize>,
     },
 
-    #[error("expected {expected}, but found `{found_spell}`")]
+    #[error("expected {expected}, but found `{misspell}`")]
     Unexpected {
-        found_spell: Box<str>,
-        found_span: Range<usize>,
+        misspell: Box<str>,
+        span: Range<usize>,
         expected: Box<str>,
     },
 
@@ -47,7 +47,7 @@ impl Error {
         use Error::*;
         match self {
             EncoderError { span, .. } => span.clone(),
-            Unexpected { found_span, .. } => found_span.clone(),
+            Unexpected { span, .. } => span.clone(),
             OutOfRange { span, .. } => span.clone(),
             EmptyEscape { span } => span.clone(),
             UnsupportedEscape { span, .. } => span.clone(),
@@ -66,13 +66,13 @@ pub(crate) mod err {
     }
 
     pub(crate) fn unexpected<T>(
-        found_spell: impl Into<Box<str>>,
-        found_span: Range<usize>,
+        misspell: impl Into<Box<str>>,
+        misspan: Range<usize>,
         expected: impl Into<Box<str>>,
     ) -> Result<T> {
         Err(Box::new(Error::Unexpected {
-            found_spell: found_spell.into(),
-            found_span,
+            misspell: misspell.into(),
+            span: misspan,
             expected: expected.into(),
         }))
     }
