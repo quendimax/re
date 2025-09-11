@@ -1,5 +1,5 @@
 use pretty_assertions::assert_eq;
-use resy::str::{Lexer, tok};
+use resy::{Lexer, tok};
 
 #[test]
 fn lexer_new() {

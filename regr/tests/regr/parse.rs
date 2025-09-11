@@ -1,9 +1,11 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use regr::{Arena, Graph};
-use renc::{Error::*, Utf8Encoder};
-use resy::Error::*;
-use resy::{Error, Parser};
+use regr::{
+    Error::{self, *},
+    Parser,
+};
+use resy::enc::{Error::*, Utf8Encoder};
 
 const CODER: Utf8Encoder = Utf8Encoder;
 

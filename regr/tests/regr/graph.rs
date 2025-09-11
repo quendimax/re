@@ -96,7 +96,7 @@ fn graph_determine_0() {
     );
 
     let mut dfa_arena = Arena::new();
-    let dfa = nfa.determine_in(&mut dfa_arena);
+    let dfa = nfa.determinize_in(&mut dfa_arena);
     assert_eq!(format!("{dfa}"), "node(0) {}");
 }
 
@@ -130,7 +130,7 @@ fn graph_determine_1() {
     );
 
     let mut dfa_arena = Arena::new();
-    let dfa = nfa.determine_in(&mut dfa_arena);
+    let dfa = nfa.determinize_in(&mut dfa_arena);
     assert_eq!(
         dsp(&dfa),
         dsp(&"
@@ -183,7 +183,7 @@ fn graph_determine_klenee_star() {
     );
 
     let mut dfa_arena = Arena::new();
-    let dfa = nfa.determine_in(&mut dfa_arena);
+    let dfa = nfa.determinize_in(&mut dfa_arena);
     assert_eq!(
         dsp(&dfa),
         dsp(&"

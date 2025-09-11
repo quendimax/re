@@ -1,3 +1,4 @@
+mod error;
 mod hir;
-mod parse;
-mod str;
+mod lexis;
+mod syntax;

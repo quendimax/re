@@ -1,6 +1,6 @@
+use crate::error::{Result, err};
 use crate::hir::Hir;
-use crate::str::error::{Result, err};
-use crate::str::lexis::{Lexer, tok};
+use crate::lexis::{Lexer, tok};
 use redt::{RangeSet, SetU8};
 use renc::Encoder;
 

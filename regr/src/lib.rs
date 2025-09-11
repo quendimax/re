@@ -15,3 +15,9 @@ pub use symbol::Epsilon;
 
 mod transition;
 pub use transition::Transition;
+
+mod error;
+pub use error::Error;
+
+mod parse;
+pub use parse::Parser;

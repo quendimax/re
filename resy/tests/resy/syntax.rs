@@ -1,6 +1,6 @@
 use pretty_assertions::assert_eq;
 use renc::Utf8Encoder;
-use resy::str::Parser;
+use resy::Parser;
 
 #[test]
 fn parser_parse() {

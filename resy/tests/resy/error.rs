@@ -1,5 +1,5 @@
 use pretty_assertions::assert_eq;
-use resy::str::Error;
+use resy::Error;
 
 #[test]
 fn error_span() {

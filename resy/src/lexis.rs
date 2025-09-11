@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use crate::str::error::{Result, err};
+use crate::error::{Result, err};
 use static_assertions::const_assert;
 
 #[allow(non_camel_case_types)]

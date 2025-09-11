@@ -1,7 +1,7 @@
+use crate::error::err;
 use crate::hir::Hir;
-use crate::str::error::err;
-use crate::str::lexis::Lexer;
-use crate::str::syntax::ParserImpl;
+use crate::lexis::Lexer;
+use crate::syntax::ParserImpl;
 use pretty_assertions::assert_eq;
 use redt::{Range, RangeSet};
 use renc::Utf8Encoder;

@@ -13,9 +13,11 @@ linked-hash-map = { workspace = true, optional = true }
 linked_hash_set = { workspace = true, optional = true }
 paste.workspace = true
 redt = { path = "../redt" }
+resy = { path = "../resy" }
 smallvec.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+assert_matches.workspace = true
 pretty_assertions.workspace = true
 smallvec.workspace = true

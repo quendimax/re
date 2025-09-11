@@ -4,9 +4,9 @@
 //! form.
 
 use crate::error::{Error::*, Result, err};
+use crate::{Epsilon, Graph, Node};
 use redt::Range;
-use regr::{Epsilon, Graph, Node};
-use renc::Encoder;
+use resy::enc::Encoder;
 use std::collections::HashMap;
 use std::str::Chars;
 

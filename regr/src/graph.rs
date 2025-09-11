@@ -99,7 +99,8 @@ impl<'a> Graph<'a> {
         node
     }
 
-    /// Returns the start node of the graph. If the graph is empty, creates a node, and returns it.
+    /// Returns the start node of the graph. If the graph is empty, creates a
+    /// node, and returns it.
     #[inline]
     pub fn start_node(&self) -> Node<'a> {
         self.start_node.get().unwrap_or_else(|| self.node())
@@ -117,11 +118,11 @@ impl<'a> Graph<'a> {
         self.arena
     }
 
-    /// Builds a new DFA from itself using determinization algorithm.
+    /// Builds a new DFA from `self` using determinization algorithm.
     ///
     /// If instead of NFA, this graph is a DFA, this method just builds a clone
     /// of it.
-    pub fn determine_in<'d>(&self, arena: &'d mut Arena) -> Graph<'d> {
+    pub fn determinize_in<'d>(&self, arena: &'d mut Arena) -> Graph<'d> {
         type ConvertMap<'n, 'd> = BTreeMap<Rc<BTreeSet<Node<'n>>>, Node<'d>>;
 
         struct Lambda<'a, 'n, 'd> {

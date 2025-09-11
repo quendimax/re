@@ -1,103 +1,113 @@
+use std::ops::Range;
 use thiserror::Error;
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, Box<Error>>;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum Error {
-    #[error("encoder error: {0}")]
-    EncoderError(#[from] renc::Error),
+    #[error("encoder error: {cause}")]
+    EncoderError {
+        #[source]
+        cause: renc::Error,
+        span: Range<usize>,
+    },
 
-    #[error("empty class expression `[]` is not supported")]
-    EmptyClass,
-
-    #[error("empty escape expression is not supported")]
-    EmptyEscape,
-
-    #[error("character `{0}` must be escaped with a prior backslash `\\`")]
-    EscapeIt(char),
-
-    #[error("invalid hexadecimal `{0}`")]
-    InvalidHex(Box<str>),
-
-    #[error("value {0} doesn't make sense here")]
-    NonsenseValue(u32),
-
-    #[error("value `{value}` is out of allowable range {range}")]
-    OutOfRange { value: Box<str>, range: Box<str> },
-
-    #[error("escape expression '\\{0}' is not supported")]
-    UnsupportedEscape(char),
-
-    #[error("unexpected close bracket `{0}` encountered without open one")]
-    UnexpcetedCloseBracket(char),
-
-    #[error("expected that {condition}")]
-    UnexpectedCond { condition: Box<str> },
-
-    #[error("unexpected end of file within {aborted_expr} expression")]
-    UnexpectedEof { aborted_expr: Box<str> },
-
-    #[error("expected {expected}, but got '{gotten}'")]
-    UnexpectedToken {
-        gotten: Box<str>,
+    #[error("expected {expected}, but found `{misspell}`")]
+    Unexpected {
+        misspell: Box<str>,
+        span: Range<usize>,
         expected: Box<str>,
     },
+
+    #[error("value `{value}` is out of {range}")]
+    OutOfRange {
+        value: Box<str>,
+        span: Range<usize>,
+        range: Box<str>,
+    },
+
+    #[error("empty escape expression is not allowed")]
+    EmptyEscape { span: Range<usize> },
+
+    #[error("unsupported escape sequence `{sequence}`")]
+    UnsupportedEscape {
+        sequence: Box<str>,
+        span: Range<usize>,
+    },
+
+    #[error("zero repetition `{{0,0}}` is not allowed")]
+    ZeroRepetition { span: Range<usize> },
+
+    #[error("repetition expression `{{n,m}}` expects that `n <= m`")]
+    InvalidRepetition { span: Range<usize> },
+}
+
+impl Error {
+    pub fn error_span(&self) -> Range<usize> {
+        use Error::*;
+        match self {
+            EncoderError { span, .. } => span.clone(),
+            Unexpected { span, .. } => span.clone(),
+            OutOfRange { span, .. } => span.clone(),
+            EmptyEscape { span } => span.clone(),
+            UnsupportedEscape { span, .. } => span.clone(),
+            ZeroRepetition { span } => span.clone(),
+            InvalidRepetition { span } => span.clone(),
+        }
+    }
 }
 
 /// Helper module to facilitate creating new error instances.
 pub(crate) mod err {
-    use super::{Error, Result};
+    use super::*;
 
-    pub(crate) fn escape_it<T>(symbol: char) -> Result<T> {
-        Err(Error::EscapeIt(symbol))
+    pub(crate) fn encoder_error<T>(cause: renc::Error, span: Range<usize>) -> Result<T> {
+        Err(Box::new(Error::EncoderError { cause, span }))
     }
 
-    #[inline(never)]
-    pub(crate) fn invalid_hex<T>(got: impl Into<String>) -> Result<T> {
-        Err(Error::InvalidHex(got.into().into_boxed_str()))
+    pub(crate) fn unexpected<T>(
+        misspell: impl Into<Box<str>>,
+        misspan: Range<usize>,
+        expected: impl Into<Box<str>>,
+    ) -> Result<T> {
+        Err(Box::new(Error::Unexpected {
+            misspell: misspell.into(),
+            span: misspan,
+            expected: expected.into(),
+        }))
     }
 
-    pub(crate) fn nonsense_value<T>(value: u32) -> Result<T> {
-        Err(Error::NonsenseValue(value))
-    }
-
-    #[inline(never)]
     pub(crate) fn out_of_range<T>(
         value: impl Into<Box<str>>,
+        span: Range<usize>,
         range: impl Into<Box<str>>,
     ) -> Result<T> {
-        Err(Error::OutOfRange {
+        Err(Box::new(Error::OutOfRange {
             value: value.into(),
+            span,
             range: range.into(),
-        })
+        }))
     }
 
-    pub(crate) fn unexpected_close_bracket<T>(bracket: char) -> Result<T> {
-        Err(Error::UnexpcetedCloseBracket(bracket))
+    pub(crate) fn empty_escape<T>(span: Range<usize>) -> Result<T> {
+        Err(Box::new(Error::EmptyEscape { span }))
     }
 
-    #[inline(never)]
-    pub(crate) fn unexpected_cond<T>(expected: impl Into<Box<str>>) -> Result<T> {
-        Err(Error::UnexpectedCond {
-            condition: expected.into(),
-        })
+    pub(crate) fn unsupported_escape<T, S>(sequence: S, span: Range<usize>) -> Result<T>
+    where
+        S: Into<Box<str>>,
+    {
+        Err(Box::new(Error::UnsupportedEscape {
+            sequence: sequence.into(),
+            span,
+        }))
     }
 
-    #[inline(never)]
-    pub(crate) fn unexpected_eof<T>(aborted_expr: impl Into<Box<str>>) -> Result<T> {
-        Err(Error::UnexpectedEof {
-            aborted_expr: aborted_expr.into(),
-        })
+    pub(crate) fn zero_repetition<T>(span: Range<usize>) -> Result<T> {
+        Err(Box::new(Error::ZeroRepetition { span }))
     }
 
-    #[inline(never)]
-    pub(crate) fn unexpected_token<T>(
-        gotten: impl Into<String>,
-        expected: impl Into<String>,
-    ) -> Result<T> {
-        Err(Error::UnexpectedToken {
-            gotten: gotten.into().into_boxed_str(),
-            expected: expected.into().into_boxed_str(),
-        })
+    pub(crate) fn invalid_repetition<T>(span: Range<usize>) -> Result<T> {
+        Err(Box::new(Error::InvalidRepetition { span }))
     }
 }

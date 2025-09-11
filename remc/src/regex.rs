@@ -1,9 +1,9 @@
 use crate::codegen::CodeGen;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
+use regr::Parser;
 use regr::{Arena, Graph};
-use renc::Utf8Encoder;
-use resy::Parser;
+use resy::enc::Utf8Encoder;
 use syn::{LitStr, Result};
 
 pub(crate) fn re_impl(input: TokenStream2) -> Result<TokenStream2> {
@@ -28,7 +28,7 @@ pub(crate) fn re_impl(input: TokenStream2) -> Result<TokenStream2> {
     end_node.finalize();
 
     let mut dfa_arena = Arena::new();
-    let dfa = nfa.determine_in(&mut dfa_arena);
+    let dfa = nfa.determinize_in(&mut dfa_arena);
 
     let cogen = CodeGen::new(&dfa);
     let state_machine_code = cogen.gen_state_machine();
