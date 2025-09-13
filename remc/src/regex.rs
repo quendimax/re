@@ -1,9 +1,8 @@
 use crate::codegen::CodeGen;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use regr::Parser;
-use regr::{Arena, Graph};
-use resy::enc::Utf8Encoder;
+use regr::{Arena, Graph, Translator};
+use resy::{Parser, enc::Utf8Encoder};
 use syn::{LitStr, Result};
 
 pub(crate) fn re_impl(input: TokenStream2) -> Result<TokenStream2> {
@@ -20,12 +19,16 @@ pub(crate) fn re_impl(input: TokenStream2) -> Result<TokenStream2> {
 
     let mut nfa_arena = Arena::new();
     let nfa = Graph::nfa_in(&mut nfa_arena);
+    let start_node = nfa.start_node();
+    let end_node = nfa.node();
 
-    let mut parser = Parser::new(&nfa, Utf8Encoder);
-    let end_node = parser
-        .parse(&lit.value(), nfa.start_node())
+    let parser = Parser::new(Utf8Encoder);
+    let hir = parser
+        .parse(&lit.value())
         .map_err(|err| syn::Error::new(lit.span(), err))?;
-    end_node.finalize();
+
+    let translator = Translator::new(&nfa);
+    translator.translate(&hir, start_node, end_node);
 
     let mut dfa_arena = Arena::new();
     let dfa = nfa.determinize_in(&mut dfa_arena);

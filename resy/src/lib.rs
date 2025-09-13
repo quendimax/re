@@ -2,7 +2,7 @@ mod error;
 pub use error::{Error, Result};
 
 mod hir;
-pub use hir::{ConcatHir, DisjunctHir, Hir, RepeatHir};
+pub use hir::{ConcatHir, DisjunctHir, GroupHir, Hir, RepeatHir};
 
 mod lexis;
 pub use lexis::{Lexer, Token, TokenKind, tok};
