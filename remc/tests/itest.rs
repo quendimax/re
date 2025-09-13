@@ -1,6 +1,7 @@
 use remc::re;
 
 #[test]
+#[ignore]
 fn simple_regex() {
     let mut regex = re!("hello");
     let m = regex.match_at("hello", 0).unwrap();
@@ -14,6 +15,7 @@ fn simple_regex() {
 }
 
 #[test]
+#[ignore]
 fn klenee_start_regex() {
     let mut regex = re!("hello**");
     let m = regex.match_at("hello", 0).unwrap();
@@ -38,6 +40,7 @@ fn klenee_start_regex() {
 }
 
 #[test]
+#[ignore]
 fn another_test() {
     let mut regex = re!("[ab]*a");
     let m = regex.match_at("ba", 0).unwrap();

@@ -80,7 +80,10 @@ impl Hir {
     /// Creates a new repeat hir instance.
     pub fn repeat(item: Hir, lower: usize, upper: Option<usize>) -> Hir {
         if let Some(upper) = upper {
-            assert!(lower <= upper);
+            assert!(
+                lower <= upper,
+                "invalid repetition counters: {{{lower},{upper}}}"
+            );
         }
         Hir::Repeat(RepeatHir {
             lower,

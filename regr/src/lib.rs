@@ -17,4 +17,4 @@ mod transition;
 pub use transition::Transition;
 
 mod translator;
-pub use translator::{Translator, translate_in};
+pub use translator::Translator;

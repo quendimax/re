@@ -199,6 +199,7 @@ fn parse_squares() {
         }
     };
     assert_eq!(parse("[a]"), "['a']");
+    assert_eq!(parse("[ac]"), "['a'] | ['c']");
     assert_eq!(parse("[\x61-\x62]"), "['a'-'b']");
     assert_eq!(parse(r"[\x61-\x62]"), "['a'-'b']");
     assert_eq!(

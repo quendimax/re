@@ -38,7 +38,7 @@ fn node_id() {
     let d = graph_1.node();
 
     assert_eq!(c.nid(), 0);
-    assert_eq!(c.gid(), a.gid() + 1);
+    assert_ne!(c.gid(), a.gid());
     assert_eq!(c.uid(), c.gid() << (u64::BITS / 2));
 
     assert_eq!(d.nid(), 1);

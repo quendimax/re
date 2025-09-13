@@ -1,21 +1,8 @@
-use crate::arena::Arena;
 use crate::graph::Graph;
 use crate::node::Node;
 use crate::symbol::Epsilon;
 use redt::SetU8;
 use resy::{ConcatHir, DisjunctHir, GroupHir, Hir, RepeatHir};
-
-/// Builds a new NFA graph from the given HIR in the specified arena.
-pub fn translate_in<'a>(arena: &'a mut Arena, hir: &Hir) -> Graph<'a> {
-    let graph = Graph::dfa_in(arena);
-    let translator = Translator::new(&graph);
-    let sub_graph = Pair {
-        first: graph.start_node(),
-        last: graph.node(),
-    };
-    translator.translate_hir(hir, sub_graph);
-    graph
-}
 
 struct Pair<'a> {
     first: Node<'a>,
@@ -53,17 +40,18 @@ impl<'a, 'g> Translator<'a, 'g> {
     }
 
     fn translate_literal(&self, literal: &[u8], sub: Pair<'a>) {
+        if literal.is_empty() {
+            sub.first.connect(sub.last).merge(Epsilon);
+            return;
+        }
         let mut first = sub.first;
         for byte in &literal[..literal.len() - 1] {
             let next = self.graph.node();
             first.connect(next).merge(byte);
             first = next;
         }
-        if let Some(last_byte) = literal.last() {
-            first.connect(sub.last).merge(last_byte);
-        } else {
-            first.connect(sub.last).merge(Epsilon);
-        }
+        let last_byte = literal.last().unwrap();
+        first.connect(sub.last).merge(last_byte);
     }
 
     fn translate_class(&self, class: &SetU8, sub: Pair<'a>) {
@@ -133,7 +121,7 @@ impl<'a, 'g> Translator<'a, 'g> {
             (n, Some(m)) if n == m => {
                 if n == 0 {
                     sub.first.connect(sub.last).merge(Epsilon);
-                } else if n == m {
+                } else {
                     let mut first = sub.first;
                     for _ in 0..n - 1 {
                         let last = self.graph.node();
@@ -207,3 +195,7 @@ impl<'a, 'g> Translator<'a, 'g> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "translator.utest.rs"]
+mod utest;
