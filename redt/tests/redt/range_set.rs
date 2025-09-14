@@ -122,3 +122,18 @@ fn range_set_exclude() {
     set.exclude(Range::new(5, 16));
     assert_eq!(set.ranges(), &[]);
 }
+
+#[test]
+fn range_set_fmt() {
+    let mut set = RangeSet::<u8>::default();
+    set.merge(Range::new(3, 10));
+    set.merge(Range::new(13, 13));
+    set.merge(Range::new(61, u8::MAX));
+
+    assert_eq!(format!("{set}"), "03h-0Ah | 0Dh | '='-FFh");
+    assert_eq!(format!("{set:?}"), "3-10 | 13 | 61-255");
+    assert_eq!(format!("{set:b}"), "11-1010 | 1101 | 111101-11111111");
+    assert_eq!(format!("{set:o}"), "3-12 | 15 | 75-377");
+    assert_eq!(format!("{set:x}"), "3-a | d | 3d-ff");
+    assert_eq!(format!("{set:X}"), "3-A | D | 3D-FF");
+}

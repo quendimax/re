@@ -165,17 +165,18 @@ impl<'a, 'g> Translator<'a, 'g> {
 
     fn translate_concat(&self, concat: &ConcatHir, sub: Pair<'a>) {
         let items = concat.items();
+        if items.is_empty() {
+            sub.first.connect(sub.last).merge(Epsilon);
+            return;
+        }
         let mut first = sub.first;
         for hir in &items[..items.len() - 1] {
             let last = self.graph.node();
             self.translate_hir(hir, pair(first, last));
             first = last;
         }
-        if let Some(hir) = items.last() {
-            self.translate_hir(hir, pair(first, sub.last));
-        } else {
-            first.connect(sub.last).merge(Epsilon);
-        }
+        let hir = items.last().unwrap();
+        self.translate_hir(hir, pair(first, sub.last));
     }
 
     /// ```txt

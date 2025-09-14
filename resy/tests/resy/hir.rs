@@ -164,10 +164,10 @@ fn hir_disjunct() {
     if let Hir::Disjunct(hir) = disjunct {
         assert_eq!(hir.alternatives().len(), 2);
     }
+}
 
-    let disjunct = Hir::disjunct(vec![]);
-    assert!(disjunct.is_literal());
-    assert_eq!(disjunct.len_hint(), (0, Some(0)));
-    assert_eq!(disjunct.exact_len(), Some(0));
-    assert_str_eq!(disjunct.to_string(), r#""""#);
+#[test]
+#[should_panic(expected = "empty disjunction is not allowed")]
+fn hir_disjunct_fails() {
+    let _ = Hir::disjunct(vec![]);
 }

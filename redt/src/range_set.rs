@@ -196,16 +196,34 @@ where
     }
 }
 
-impl<T: Copy + PartialEq + std::fmt::Debug> std::fmt::Debug for RangeSet<T> {
+macro_rules! impl_fmt {
+    (std::fmt::$trait:ident) => {
+        impl<T: Copy + PartialEq + std::fmt::$trait> std::fmt::$trait for RangeSet<T> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                for (i, range) in self.ranges.iter().enumerate() {
+                    std::fmt::$trait::fmt(&range, f)?;
+                    if i < self.ranges.len() - 1 {
+                        f.write_str(" | ")?;
+                    }
+                }
+                Ok(())
+            }
+        }
+    };
+}
+
+impl_fmt!(std::fmt::Debug);
+impl_fmt!(std::fmt::Binary);
+impl_fmt!(std::fmt::Octal);
+impl_fmt!(std::fmt::LowerHex);
+impl_fmt!(std::fmt::UpperHex);
+
+impl std::fmt::Display for RangeSet<u8> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (i, range) in self.ranges.iter().enumerate() {
-            if range.start() == range.last() {
-                write!(f, "{:?}, ", range.start())?;
-            } else {
-                write!(f, "{:?}-{:?}, ", range.start(), range.last())?;
-            }
+            std::fmt::Display::fmt(&range, f)?;
             if i < self.ranges.len() - 1 {
-                write!(f, " | ")?;
+                f.write_str(" | ")?;
             }
         }
         Ok(())

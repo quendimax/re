@@ -17,8 +17,9 @@ pub enum Hir {
 impl Hir {
     /// Creates a new disjunciton hir instance. If there is only one item, it
     /// returns that item.
-    pub fn disjunct(items: impl Into<Vec<Hir>>) -> Hir {
-        let alters = items.into();
+    pub fn disjunct(alternatives: impl Into<Vec<Hir>>) -> Hir {
+        let alters = alternatives.into();
+        assert!(!alters.is_empty(), "empty disjunction is not allowed");
         if alters.len() == 1 {
             return alters.into_iter().next().unwrap();
         }
@@ -35,15 +36,11 @@ impl Hir {
                 None
             };
         }
-        if alters.is_empty() {
-            Hir::empty()
-        } else {
-            Hir::Disjunct(DisjunctHir {
-                alters,
-                min_len,
-                max_len,
-            })
-        }
+        Hir::Disjunct(DisjunctHir {
+            alters,
+            min_len,
+            max_len,
+        })
     }
 
     /// Creates a new concatenation hir instance. If there is only one item, it

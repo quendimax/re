@@ -237,4 +237,8 @@ fn symbol_range_legible_display() {
         r"00h-'Z'"
     );
     assert_eq!(format!("{}", Range::from(b'\x7E'..=b'~').display()), r"'~'");
+
+    assert_eq!(format!("{}", Range::from(b'a'..=b'a')), r"'a'");
+    assert_eq!(format!("{}", Range::from(b'\0'..=b'Z')), r"00h-'Z'");
+    assert_eq!(format!("{}", Range::from(b'\x7E'..=b'~')), r"'~'");
 }

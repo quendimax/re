@@ -238,3 +238,9 @@ impl std::fmt::Display for ByteRangeLegible {
         Ok(())
     }
 }
+
+impl std::fmt::Display for Range<u8> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.display().fmt(f)
+    }
+}
