@@ -1,7 +1,7 @@
 use crate::arena::Arena;
-use crate::instruct::Inst;
 use crate::node::Node;
 use crate::symbol::{Epsilon, SymbolSet};
+use crate::tag::Inst;
 use bumpalo::collections::Vec as BumpVec;
 use redt::{ByteIter, Legible, RangeIter, RangeU8, Step};
 use std::cell::{Ref, RefCell};
@@ -94,41 +94,23 @@ impl<'a> Transition<'a> {
         TransitionOps::merge(self, other);
     }
 
-    /// Adds the specified instruction to the all transition's symbols without
-    /// sorting.
-    ///
-    /// This method is used internally for optimization purposes. It doesn't
-    /// sort the instruction array at the end of the method.
-    fn merge_inst_wo_sort(&self, instruct: Inst) -> bool {
-        let symset = self.0.symset.borrow().clone();
-        let mut insts = self.0.insts.borrow_mut();
-        if insts.iter().any(|(inst, _)| *inst == instruct) {
-            false
-        } else {
-            let new_bitmap = self.0.arena.alloc_with(|| symset);
-            insts.push((instruct, new_bitmap));
-            true
-        }
-    }
-
     /// Adds the specified instruction to the all transition's symbols.
     pub fn merge_instruct(&self, instruct: Inst) {
-        if self.merge_inst_wo_sort(instruct) {
-            let mut insts = self.0.insts.borrow_mut();
-            insts.sort_by(|(l_inst, _), (r_inst, _)| l_inst.cmp(r_inst));
+        let symset = self.0.symset.borrow().clone();
+        let mut insts = self.0.insts.borrow_mut();
+        match insts.binary_search_by(|probe| probe.0.cmp(&instruct)) {
+            Ok(index) => *insts[index].1 = symset,
+            Err(index) => {
+                let new_bitmap = self.0.arena.alloc_with(|| symset);
+                insts.insert(index, (instruct, new_bitmap));
+            }
         }
     }
 
     /// Adds the specified operations to the all transition's symbols.
     pub fn merge_instructs(&self, instructs: impl IntoIterator<Item = Inst>) {
-        let iter = instructs.into_iter();
-        let mut merged = false;
-        for inst in iter {
-            merged |= self.merge_inst_wo_sort(inst);
-        }
-        if merged {
-            let mut insts = self.0.insts.borrow_mut();
-            insts.sort_by(|(l_inst, _), (r_inst, _)| l_inst.cmp(r_inst));
+        for inst in instructs {
+            self.merge_instruct(inst);
         }
     }
 

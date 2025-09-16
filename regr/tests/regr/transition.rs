@@ -1,6 +1,10 @@
 use pretty_assertions::assert_eq;
 use redt::{RangeU8, range};
-use regr::{Arena, Epsilon, Graph, Inst, Transition};
+use regr::{
+    Arena, Epsilon, Graph,
+    Inst::{Invalidate, StorePos},
+    Reg, Transition,
+};
 
 type Chunk = u64;
 
@@ -157,29 +161,28 @@ fn tr_ranges() {
 
 #[test]
 fn tr_instructs_for() {
+    let r0 = Reg::new(0);
+    let r1 = Reg::new(1);
     let mut arena = Arena::new();
     let gr = Graph::nfa_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
     tr_a.merge(0);
-    tr_a.merge_instruct(Inst::StorePos(0));
-    tr_a.merge_instruct(Inst::Invalidate(0));
+    tr_a.merge_instruct(StorePos(r0));
+    tr_a.merge_instruct(Invalidate(r0));
 
     let tr_b = gr.node().connect(gr.node());
     tr_b.merge(1);
-    tr_b.merge_instruct(Inst::StorePos(1));
+    tr_b.merge_instruct(StorePos(r1));
     tr_b.merge(tr_a);
 
     assert_eq!(
         tr_b.instructs_for(0).collect::<Vec<_>>(),
-        &[Inst::StorePos(0), Inst::Invalidate(0)]
+        &[StorePos(r0), Invalidate(r0)]
     );
-    assert_eq!(
-        tr_b.instructs_for(1).collect::<Vec<_>>(),
-        &[Inst::StorePos(1)]
-    );
+    assert_eq!(tr_b.instructs_for(1).collect::<Vec<_>>(), &[StorePos(r1)]);
     assert_eq!(
         tr_b.instructs().collect::<Vec<_>>(),
-        &[Inst::StorePos(0), Inst::StorePos(1), Inst::Invalidate(0)]
+        &[StorePos(r0), StorePos(r1), Invalidate(r0)]
     );
     assert_eq!(tr_b.instructs_for(2).collect::<Vec<_>>(), &[]);
 }
@@ -363,6 +366,8 @@ fn tr_merge_range() {
 
 #[test]
 fn tr_merge_transition() {
+    let r0 = Reg::new(0);
+    let r1 = Reg::new(1);
     let mut arena = Arena::new();
     let gr = Graph::nfa_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
@@ -384,27 +389,29 @@ fn tr_merge_transition() {
     tr_a.merge(&tr_b);
     assert_eq!(tr_a, tr_c);
 
-    tr_a.merge_instructs([Inst::StorePos(0), Inst::StorePos(1)]);
+    tr_a.merge_instructs([StorePos(r0), StorePos(r1)]);
     let tr_d = gr.node().connect(gr.node());
-    tr_d.merge_instruct(Inst::StorePos(0));
+    tr_d.merge_instruct(StorePos(r0));
     tr_d.merge(tr_a);
     assert_eq!(tr_a, tr_d);
 }
 
 #[test]
 fn tr_merge_instruct() {
+    let r0 = Reg::new(0);
+    let r1 = Reg::new(1);
     let mut arena = Arena::new();
     let gr = Graph::nfa_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
     tr_a.merge(b'a');
     tr_a.merge(b'b');
     tr_a.merge(b'c');
-    tr_a.merge_instruct(Inst::StorePos(0));
-    tr_a.merge_instruct(Inst::StorePos(1));
+    tr_a.merge_instruct(StorePos(r0));
+    tr_a.merge_instruct(StorePos(r1));
     tr_a.merge(b'e');
     assert_eq!(
         tr_a.instructs().collect::<Vec<_>>(),
-        &[Inst::StorePos(0), Inst::StorePos(1)]
+        &[StorePos(r0), StorePos(r1)]
     );
 
     let tr_b = gr.node().connect(gr.node());
@@ -412,12 +419,12 @@ fn tr_merge_instruct() {
     tr_b.merge(b'c');
     tr_b.merge(b'd');
     tr_b.merge(b'e');
-    tr_b.merge_instruct(Inst::StorePos(0));
-    tr_b.merge_instruct(Inst::StorePos(0));
-    tr_b.merge_instruct(Inst::StorePos(1));
+    tr_b.merge_instruct(StorePos(r0));
+    tr_b.merge_instruct(StorePos(r0));
+    tr_b.merge_instruct(StorePos(r1));
     assert_eq!(
         tr_b.instructs().collect::<Vec<_>>(),
-        &[Inst::StorePos(0), Inst::StorePos(1)]
+        &[StorePos(r0), StorePos(r1)]
     );
     assert_eq!(
         tr_a.instructs().collect::<Vec<_>>(),
@@ -428,18 +435,20 @@ fn tr_merge_instruct() {
 
 #[test]
 fn tr_merge_instructs() {
+    let r0 = Reg::new(0);
+    let r1 = Reg::new(1);
     let mut arena = Arena::new();
     let gr = Graph::nfa_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
     tr_a.merge(b'a');
     tr_a.merge(b'b');
     tr_a.merge(b'c');
-    tr_a.merge_instructs([Inst::StorePos(0), Inst::StorePos(1)]);
-    tr_a.merge_instructs([Inst::StorePos(0), Inst::StorePos(1)]);
+    tr_a.merge_instructs([StorePos(r0), StorePos(r1)]);
+    tr_a.merge_instructs([StorePos(r0), StorePos(r1)]);
     tr_a.merge(b'e');
     assert_eq!(
         tr_a.instructs().collect::<Vec<_>>(),
-        &[Inst::StorePos(0), Inst::StorePos(1)]
+        &[StorePos(r0), StorePos(r1)]
     );
 
     let tr_b = gr.node().connect(gr.node());
@@ -447,10 +456,10 @@ fn tr_merge_instructs() {
     tr_b.merge(b'c');
     tr_b.merge(b'd');
     tr_b.merge(b'e');
-    tr_b.merge_instructs([Inst::StorePos(0), Inst::StorePos(0), Inst::StorePos(1)]);
+    tr_b.merge_instructs([StorePos(r0), StorePos(r0), StorePos(r1)]);
     assert_eq!(
         tr_b.instructs().collect::<Vec<_>>(),
-        &[Inst::StorePos(0), Inst::StorePos(1)]
+        &[StorePos(r0), StorePos(r1)]
     );
     assert_eq!(
         tr_a.instructs().collect::<Vec<_>>(),

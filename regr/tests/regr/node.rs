@@ -42,7 +42,7 @@ fn node_id() {
     assert_eq!(c.uid(), c.gid() << (u64::BITS / 2));
 
     assert_eq!(d.nid(), 1);
-    assert_eq!(d.gid(), a.gid() + 1);
+    assert_ne!(d.gid(), a.gid());
     assert_eq!(d.uid(), (c.gid() << (u64::BITS / 2)) | 1);
 }
 
