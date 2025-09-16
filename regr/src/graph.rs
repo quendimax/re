@@ -1,8 +1,9 @@
 use crate::arena::Arena;
 use crate::node::{ClosureOp, Node};
 use crate::symbol::Epsilon;
-use redt::Set;
-use std::cell::Cell;
+use crate::tag::Tag;
+use redt::{Map, Set};
+use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 use std::rc::Rc;
@@ -20,6 +21,7 @@ pub struct Graph<'a> {
     next_nid: Cell<u32>,
     start_node: Cell<Option<Node<'a>>>,
     kind: AutomatonKind,
+    tag_groups: RefCell<Map<u32, (Tag, Tag)>>,
 }
 
 static NEXT_GRAPH_ID: AtomicU32 = AtomicU32::new(1);
@@ -39,6 +41,7 @@ impl<'a> Graph<'a> {
             next_nid: Cell::new(0),
             start_node: Cell::new(None),
             kind,
+            tag_groups: RefCell::new(Map::new()),
         }
     }
 
@@ -116,6 +119,15 @@ impl<'a> Graph<'a> {
     #[inline]
     pub fn arena(&self) -> &'a Arena {
         self.arena
+    }
+
+    pub fn add_tag_group(&self, label: u32, open_tag: Tag, close_tag: Tag) {
+        let mut tag_table = self.tag_groups.borrow_mut();
+        tag_table.entry(label).or_insert((open_tag, close_tag));
+    }
+
+    pub fn tag_group(&self, label: u32) -> Option<(Tag, Tag)> {
+        self.tag_groups.borrow().get(&label).cloned()
     }
 
     /// Builds a new DFA from `self` using determinization algorithm.

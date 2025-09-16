@@ -246,6 +246,11 @@ impl GroupHir {
     }
 
     #[inline]
+    pub fn label(&self) -> u32 {
+        self.label
+    }
+
+    #[inline]
     pub fn len_hint(&self) -> (usize, Option<usize>) {
         self.item.len_hint()
     }

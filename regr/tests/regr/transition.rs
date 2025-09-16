@@ -3,7 +3,7 @@ use redt::{RangeU8, range};
 use regr::{
     Arena, Epsilon, Graph,
     Inst::{Invalidate, StorePos},
-    Reg, Transition,
+    Transition,
 };
 
 type Chunk = u64;
@@ -161,8 +161,8 @@ fn tr_ranges() {
 
 #[test]
 fn tr_instructs_for() {
-    let r0 = Reg::new(0);
-    let r1 = Reg::new(1);
+    let r0 = 0;
+    let r1 = 1;
     let mut arena = Arena::new();
     let gr = Graph::nfa_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
@@ -366,8 +366,8 @@ fn tr_merge_range() {
 
 #[test]
 fn tr_merge_transition() {
-    let r0 = Reg::new(0);
-    let r1 = Reg::new(1);
+    let r0 = 0;
+    let r1 = 1;
     let mut arena = Arena::new();
     let gr = Graph::nfa_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
@@ -398,8 +398,8 @@ fn tr_merge_transition() {
 
 #[test]
 fn tr_merge_instruct() {
-    let r0 = Reg::new(0);
-    let r1 = Reg::new(1);
+    let r0 = 0;
+    let r1 = 1;
     let mut arena = Arena::new();
     let gr = Graph::nfa_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
@@ -435,8 +435,8 @@ fn tr_merge_instruct() {
 
 #[test]
 fn tr_merge_instructs() {
-    let r0 = Reg::new(0);
-    let r1 = Reg::new(1);
+    let r0 = 0;
+    let r1 = 1;
     let mut arena = Arena::new();
     let gr = Graph::nfa_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());

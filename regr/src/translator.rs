@@ -1,8 +1,10 @@
 use crate::graph::Graph;
 use crate::node::Node;
 use crate::symbol::Epsilon;
+use crate::tag::*;
 use redt::SetU8;
 use resy::{ConcatHir, DisjunctHir, GroupHir, Hir, RepeatHir};
+use std::cell::Cell;
 
 struct Pair<'a> {
     first: Node<'a>,
@@ -16,12 +18,16 @@ fn pair<'a>(first: Node<'a>, last: Node<'a>) -> Pair<'a> {
 /// Translator for translating a HIR into a NFA.
 pub struct Translator<'a, 'g> {
     graph: &'g Graph<'a>,
+    next_reg: Cell<u32>,
 }
 
 impl<'a, 'g> Translator<'a, 'g> {
     pub fn new(graph: &'g Graph<'a>) -> Self {
         assert!(graph.is_nfa(), "translator can build only NFA graphs");
-        Self { graph }
+        Self {
+            graph,
+            next_reg: Cell::new(0),
+        }
     }
 
     pub fn translate(&self, hir: &Hir, start_hode: Node<'a>, end_node: Node<'a>) {
@@ -32,7 +38,7 @@ impl<'a, 'g> Translator<'a, 'g> {
         match hir {
             Hir::Literal(literal) => self.translate_literal(literal, sub),
             Hir::Class(class) => self.translate_class(class, sub),
-            Hir::Group(group) => self.translate_group(group, sub),
+            Hir::Group(group) => self.translate_group(group, sub, None),
             Hir::Repeat(repeat) => self.translate_repeat(repeat, sub),
             Hir::Concat(concat) => self.translate_concat(concat, sub),
             Hir::Disjunct(disjunct) => self.translate_disjunct(disjunct, sub),
@@ -60,8 +66,34 @@ impl<'a, 'g> Translator<'a, 'g> {
         }
     }
 
-    fn translate_group(&self, _group: &GroupHir, _sub: Pair<'a>) {
-        unimplemented!()
+    fn translate_group(&self, group: &GroupHir, sub: Pair<'a>, tag: Option<Tag>) {
+        let first = self.graph.node();
+        let tr_in = sub.first.connect(sub.first);
+        tr_in.merge(Epsilon);
+
+        let last = self.graph.node();
+        let tr_out = last.connect(sub.last);
+        tr_out.merge(Epsilon);
+
+        let (open_tag, close_tag) = self.graph.tag_group(group.label()).unwrap_or_else(|| {
+            let open_tag = tag.unwrap_or_else(|| Tag::new(self.next_reg()));
+            let close_tag = if let Some(offset) = group.inner().exact_len() {
+                Tag::with_offset(open_tag.register(), open_tag.offset() + offset)
+            } else {
+                Tag::new(self.next_reg())
+            };
+            self.graph.add_tag_group(group.label(), open_tag, close_tag);
+            (open_tag, close_tag)
+        });
+
+        if open_tag.offset() == 0 {
+            tr_in.merge_instruct(Inst::StorePos(open_tag.register()));
+        }
+        if close_tag.offset() == 0 {
+            tr_out.merge_instruct(Inst::StorePos(close_tag.register()));
+        }
+
+        self.translate_hir(group.inner(), pair(first, last));
     }
 
     fn translate_repeat(&self, repeat: &RepeatHir, mut sub: Pair<'a>) {
@@ -194,6 +226,13 @@ impl<'a, 'g> Translator<'a, 'g> {
             sub.first.connect(first).merge(Epsilon);
             last.connect(sub.last).merge(Epsilon);
         }
+    }
+
+    pub fn next_reg(&self) -> u32 {
+        let new_reg = self.next_reg.get();
+        self.next_reg
+            .update(|id| id.checked_add(1).expect("register id overflow"));
+        new_reg
     }
 }
 

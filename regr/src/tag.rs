@@ -1,24 +1,24 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Tag {
     /// register index in the register file
-    register: Reg,
+    register: u32,
     /// offset from the register value
     offset: usize,
 }
 
 impl Tag {
-    pub fn new(register: Reg) -> Self {
+    pub fn new(register: u32) -> Self {
         Self {
             register,
             offset: 0,
         }
     }
 
-    pub fn with_offset(register: Reg, offset: usize) -> Self {
+    pub fn with_offset(register: u32, offset: usize) -> Self {
         Self { register, offset }
     }
 
-    pub fn register(&self) -> Reg {
+    pub fn register(&self) -> u32 {
         self.register
     }
 
@@ -27,34 +27,15 @@ impl Tag {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Reg(u32);
-
-impl Reg {
-    pub fn new(id: u32) -> Self {
-        Self(id)
-    }
-
-    pub fn id(&self) -> u32 {
-        self.0
-    }
-}
-
-impl std::fmt::Display for Reg {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "r{}", self.id())
-    }
-}
-
 /// Instruction represents the actions that can be performed during a transition
 /// step.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Inst {
     /// Store the current position to the specified register
-    StorePos(Reg),
+    StorePos(u32),
 
     /// Invalidate the specified register
-    Invalidate(Reg),
+    Invalidate(u32),
 }
 
 macro_rules! impl_fmt {

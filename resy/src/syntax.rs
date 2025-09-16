@@ -19,8 +19,7 @@ use renc::Encoder;
 /// # Examples
 ///
 /// ```rust
-/// use resy::str::Parser;
-/// use renc::Utf8Encoder;
+/// use resy::{Parser, enc::Utf8Encoder};
 ///
 /// let parser = Parser::new(Utf8Encoder);
 /// let hir = parser.parse("a+b*").unwrap();
@@ -41,8 +40,7 @@ impl<C: Encoder> Parser<C> {
     /// # Examples
     ///
     /// ```rust
-    /// use resy::str::Parser;
-    /// use renc::Utf8Encoder;
+    /// use resy::{Parser, enc::Utf8Encoder};
     ///
     /// let parser = Parser::new(Utf8Encoder);
     /// let hir = parser.parse("hello.*world").unwrap();

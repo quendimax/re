@@ -11,7 +11,7 @@ mod symbol;
 pub use symbol::Epsilon;
 
 mod tag;
-pub use tag::{Inst, Reg, Tag};
+pub use tag::{Inst, Tag};
 
 mod transition;
 pub use transition::Transition;
