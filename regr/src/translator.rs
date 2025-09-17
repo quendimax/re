@@ -31,16 +31,16 @@ impl<'a, 'g> Translator<'a, 'g> {
     }
 
     pub fn translate(&self, hir: &Hir, start_hode: Node<'a>, end_node: Node<'a>) {
-        self.translate_hir(hir, pair(start_hode, end_node));
+        self.translate_hir(hir, pair(start_hode, end_node), None);
     }
 
-    fn translate_hir(&self, hir: &Hir, sub: Pair<'a>) {
+    fn translate_hir(&self, hir: &Hir, sub: Pair<'a>, tag: Option<Tag>) {
         match hir {
             Hir::Literal(literal) => self.translate_literal(literal, sub),
             Hir::Class(class) => self.translate_class(class, sub),
-            Hir::Group(group) => self.translate_group(group, sub, None),
+            Hir::Group(group) => self.translate_group(group, sub, tag),
             Hir::Repeat(repeat) => self.translate_repeat(repeat, sub),
-            Hir::Concat(concat) => self.translate_concat(concat, sub),
+            Hir::Concat(concat) => self.translate_concat(concat, sub, tag),
             Hir::Disjunct(disjunct) => self.translate_disjunct(disjunct, sub),
         }
     }
@@ -93,7 +93,7 @@ impl<'a, 'g> Translator<'a, 'g> {
             tr_out.merge_instruct(Inst::StorePos(close_tag.register()));
         }
 
-        self.translate_hir(group.inner(), pair(first, last));
+        self.translate_hir(group.inner(), pair(first, last), Some(open_tag));
     }
 
     fn translate_repeat(&self, repeat: &RepeatHir, mut sub: Pair<'a>) {
@@ -108,7 +108,7 @@ impl<'a, 'g> Translator<'a, 'g> {
             (0, None) => {
                 let first = self.graph.node();
                 let last = self.graph.node();
-                self.translate_hir(repeat.inner(), pair(first, last));
+                self.translate_hir(repeat.inner(), pair(first, last), None);
                 sub.first.connect(first).merge(Epsilon);
                 last.connect(sub.last).merge(Epsilon);
                 last.connect(first).merge(Epsilon);
@@ -122,7 +122,7 @@ impl<'a, 'g> Translator<'a, 'g> {
             (1, None) => {
                 let first = self.graph.node();
                 let last = self.graph.node();
-                self.translate_hir(repeat.inner(), pair(first, last));
+                self.translate_hir(repeat.inner(), pair(first, last), None);
                 sub.first.connect(first).merge(Epsilon);
                 last.connect(sub.last).merge(Epsilon);
                 last.connect(first).merge(Epsilon);
@@ -136,13 +136,13 @@ impl<'a, 'g> Translator<'a, 'g> {
                 let mut first = sub.first;
                 for _ in 1..n {
                     let last = self.graph.node();
-                    self.translate_hir(repeat.inner(), pair(first, last));
+                    self.translate_hir(repeat.inner(), pair(first, last), None);
                     first = last;
                 }
                 sub.first = first;
                 let first = self.graph.node();
                 let last = self.graph.node();
-                self.translate_hir(repeat.inner(), pair(first, last));
+                self.translate_hir(repeat.inner(), pair(first, last), None);
                 sub.first.connect(first).merge(Epsilon);
                 last.connect(sub.last).merge(Epsilon);
                 last.connect(first).merge(Epsilon);
@@ -157,10 +157,10 @@ impl<'a, 'g> Translator<'a, 'g> {
                     let mut first = sub.first;
                     for _ in 0..n - 1 {
                         let last = self.graph.node();
-                        self.translate_hir(repeat.inner(), pair(first, last));
+                        self.translate_hir(repeat.inner(), pair(first, last), None);
                         first = last;
                     }
-                    self.translate_hir(repeat.inner(), pair(first, sub.last));
+                    self.translate_hir(repeat.inner(), pair(first, sub.last), None);
                 }
             }
             //
@@ -174,14 +174,14 @@ impl<'a, 'g> Translator<'a, 'g> {
                 let mut first = sub.first;
                 for _ in 0..n {
                     let last = self.graph.node();
-                    self.translate_hir(repeat.inner(), pair(first, last));
+                    self.translate_hir(repeat.inner(), pair(first, last), None);
                     first = last;
                 }
                 for _ in n..m {
                     let mid_one = self.graph.node();
                     first.connect(mid_one).merge(Epsilon);
                     let mid_two = self.graph.node();
-                    self.translate_hir(repeat.inner(), pair(mid_one, mid_two));
+                    self.translate_hir(repeat.inner(), pair(mid_one, mid_two), None);
                     let last = self.graph.node();
                     mid_two.connect(last).merge(Epsilon);
                     first.connect(sub.last).merge(Epsilon);
@@ -195,20 +195,26 @@ impl<'a, 'g> Translator<'a, 'g> {
         }
     }
 
-    fn translate_concat(&self, concat: &ConcatHir, sub: Pair<'a>) {
+    fn translate_concat(&self, concat: &ConcatHir, sub: Pair<'a>, tag: Option<Tag>) {
         let items = concat.items();
         if items.is_empty() {
             sub.first.connect(sub.last).merge(Epsilon);
             return;
         }
+        let mut tag = tag;
         let mut first = sub.first;
         for hir in &items[..items.len() - 1] {
             let last = self.graph.node();
-            self.translate_hir(hir, pair(first, last));
+            self.translate_hir(hir, pair(first, last), tag);
+            if let (Some(inner), Some(len)) = (tag, hir.exact_len()) {
+                tag = Some(Tag::with_offset(inner.register(), inner.offset() + len));
+            } else {
+                tag = None;
+            }
             first = last;
         }
         let hir = items.last().unwrap();
-        self.translate_hir(hir, pair(first, sub.last));
+        self.translate_hir(hir, pair(first, sub.last), tag);
     }
 
     /// ```txt
@@ -222,7 +228,7 @@ impl<'a, 'g> Translator<'a, 'g> {
         for hir in disjunct.alternatives() {
             let first = self.graph.node();
             let last = self.graph.node();
-            self.translate_hir(hir, pair(first, last));
+            self.translate_hir(hir, pair(first, last), None);
             sub.first.connect(first).merge(Epsilon);
             last.connect(sub.last).merge(Epsilon);
         }

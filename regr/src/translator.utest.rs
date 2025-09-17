@@ -265,7 +265,7 @@ fn translate_concat() {
     let Hir::Concat(concat) = concat else {
         unreachable!()
     };
-    translator.translate_concat(&concat, sub);
+    translator.translate_concat(&concat, sub, None);
     assert_eq!(
         dsp(&graph),
         dsp(&"
