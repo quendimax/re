@@ -1,7 +1,7 @@
 use crate::arena::Arena;
+use crate::isa::Inst;
 use crate::node::Node;
 use crate::symbol::{Epsilon, SymbolSet};
-use crate::tag::Inst;
 use bumpalo::collections::Vec as BumpVec;
 use redt::{ByteIter, Legible, RangeIter, RangeU8, Step};
 use std::cell::{Ref, RefCell};

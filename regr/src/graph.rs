@@ -21,7 +21,7 @@ pub struct Graph<'a> {
     next_nid: Cell<u32>,
     start_node: Cell<Option<Node<'a>>>,
     kind: AutomatonKind,
-    tag_groups: RefCell<Map<u32, (Tag, Tag)>>,
+    tag_groups: RefCell<Map<u32, (Tag, Tag)>>, // label -> (open_tag, close_tag)
 }
 
 static NEXT_GRAPH_ID: AtomicU32 = AtomicU32::new(1);
@@ -245,6 +245,10 @@ macro_rules! impl_fmt {
                                 self.f.write_str("self")?;
                             } else {
                                 ::std::fmt::$trait::fmt(&target, self.f)?;
+                            }
+                            for inst in transition.instructs() {
+                                self.f.write_str("\n        ")?;
+                                write!(self.f, "{inst}")?;
                             }
                             is_empty = false;
                         }

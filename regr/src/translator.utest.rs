@@ -324,3 +324,32 @@ fn translate_disjunct() {
         ")
     );
 }
+
+#[test]
+fn translate_group() {
+    let group = Hir::group(1, Hir::empty());
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
+    let translator = Translator::new(&graph);
+    let sub = pair(graph.node(), graph.node());
+    let Hir::Group(group) = group else {
+        unreachable!()
+    };
+    translator.translate_group(&group, sub, None);
+    assert_eq!(
+        dsp(&graph),
+        dsp(&"
+        node(0) {
+            [Epsilon] -> node(2)
+            strpos r0
+        }
+        node(2) {
+            [Epsilon] -> node(3)
+        }
+        node(3) {
+            [Epsilon] -> node(1)
+        }
+        node(1) {}
+    ")
+    );
+}
