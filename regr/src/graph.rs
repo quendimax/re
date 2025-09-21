@@ -21,7 +21,8 @@ pub struct Graph<'a> {
     next_nid: Cell<u32>,
     start_node: Cell<Option<Node<'a>>>,
     kind: AutomatonKind,
-    tag_groups: RefCell<Map<u32, (Tag, Tag)>>, // label -> (open_tag, close_tag)
+    tag_bank: RefCell<Map<u32, Tag>>,          // id -> tag
+    tag_groups: RefCell<Map<u32, (u32, u32)>>, // label -> (open_tag_id, close_tag_id)
 }
 
 static NEXT_GRAPH_ID: AtomicU32 = AtomicU32::new(1);
@@ -41,6 +42,7 @@ impl<'a> Graph<'a> {
             next_nid: Cell::new(0),
             start_node: Cell::new(None),
             kind,
+            tag_bank: RefCell::new(Map::new()),
             tag_groups: RefCell::new(Map::new()),
         }
     }
@@ -122,12 +124,30 @@ impl<'a> Graph<'a> {
     }
 
     pub fn add_tag_group(&self, label: u32, open_tag: Tag, close_tag: Tag) {
+        let open_id = open_tag.id();
+        let close_id = close_tag.id();
+
+        let mut tag_bank = self.tag_bank.borrow_mut();
+        assert_eq!(tag_bank.entry(open_id).or_insert(open_tag).id(), open_id);
+        assert_eq!(tag_bank.entry(close_id).or_insert(close_tag).id(), close_id);
+
         let mut tag_table = self.tag_groups.borrow_mut();
-        tag_table.entry(label).or_insert((open_tag, close_tag));
+        tag_table.entry(label).or_insert((open_id, close_id));
     }
 
     pub fn tag_group(&self, label: u32) -> Option<(Tag, Tag)> {
-        self.tag_groups.borrow().get(&label).cloned()
+        if let Some((open_id, close_id)) = self.tag_groups.borrow().get(&label).cloned() {
+            let tag_bank = self.tag_bank.borrow();
+            Some((tag_bank[&open_id], tag_bank[&close_id]))
+        } else {
+            None
+        }
+    }
+
+    /// Returns an iterator over all tag groups in the graph. The iterator
+    /// yields tuples of the form `(label, (open_tag, close_tag))`.
+    pub fn tag_groups(&self) -> impl std::iter::Iterator<Item = (u32, (Tag, Tag))> {
+        TagGroupIter::new(self)
     }
 
     /// Builds a new DFA from `self` using determinization algorithm.
@@ -285,6 +305,41 @@ impl_fmt!(std::fmt::Binary);
 impl_fmt!(std::fmt::Octal);
 impl_fmt!(std::fmt::UpperHex);
 impl_fmt!(std::fmt::LowerHex);
+
+struct TagGroupIter<'a, 'g> {
+    graph: &'g Graph<'a>,
+    labels: Vec<u32>,
+    index: usize,
+}
+
+impl<'a, 'g> TagGroupIter<'a, 'g> {
+    pub fn new(graph: &'g Graph<'a>) -> Self {
+        Self {
+            graph,
+            labels: graph
+                .tag_groups
+                .borrow()
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>(),
+            index: 0,
+        }
+    }
+}
+
+impl<'a, 'g> Iterator for TagGroupIter<'a, 'g> {
+    type Item = (u32, (Tag, Tag));
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.labels.len() {
+            let label = self.labels[self.index];
+            self.index += 1;
+            Some((label, self.graph.tag_group(label).unwrap()))
+        } else {
+            None
+        }
+    }
+}
 
 #[cfg(test)]
 mod utest {

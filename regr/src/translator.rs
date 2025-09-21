@@ -102,12 +102,12 @@ impl<'a, 'g> Translator<'a, 'g> {
         };
 
         match open_tag {
-            Tag::Absolute { reg, .. } => {
-                tr_in.merge_instruct(Inst::WritePos(reg));
-                summary.absolute_tags.insert(open_tag.id());
+            Tag::Absolute { id, .. } => {
+                tr_in.merge_instruct(Inst::WritePos(id));
+                summary.absolute_tags.insert(id);
             }
-            Tag::PseudoAbsolute { .. } => {
-                summary.pseudo_absolute_tags.insert(open_tag.id());
+            Tag::PseudoAbsolute { id, .. } => {
+                summary.pseudo_absolute_tags.insert(id);
             }
             Tag::Relative { .. } => (),
         }
@@ -123,12 +123,12 @@ impl<'a, 'g> Translator<'a, 'g> {
         };
 
         match close_tag {
-            Tag::Absolute { reg, .. } => {
-                tr_out.merge_instruct(Inst::WritePos(reg));
-                summary.absolute_tags.insert(close_tag.id());
+            Tag::Absolute { id, .. } => {
+                tr_out.merge_instruct(Inst::WritePos(id));
+                summary.absolute_tags.insert(id);
             }
-            Tag::PseudoAbsolute { .. } => {
-                summary.pseudo_absolute_tags.insert(close_tag.id());
+            Tag::PseudoAbsolute { id, .. } => {
+                summary.pseudo_absolute_tags.insert(id);
             }
             Tag::Relative { .. } => (),
         }

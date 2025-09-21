@@ -1,6 +1,7 @@
 use super::{Translator, pair};
 use crate::arena::Arena;
 use crate::graph::Graph;
+use crate::tag::TagBank;
 use pretty_assertions::assert_eq;
 use redt::{Range, SetU8};
 use resy::Hir;
@@ -360,4 +361,68 @@ fn translate_group() {
         node(1) {}
     ")
     );
+    let (open_tag, close_tag) = graph.tag_group(1).unwrap();
+    assert_eq!(open_tag.to_string(), "a-tag(id=0, reg=0)");
+    assert_eq!(close_tag.to_string(), "r-tag(id=1, start_tag=0, offset=0)");
+
+    let group = Hir::group(1, Hir::literal("a"));
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
+    let mut translator = Translator::new(&graph);
+    let sub = pair(graph.node(), graph.node());
+    let Hir::Group(group) = group else {
+        unreachable!()
+    };
+    let mut tag = None;
+    translator.translate_group(&group, sub, &mut tag);
+    assert_eq!(
+        dsp(&graph),
+        dsp(&"
+        node(0) {
+            [Epsilon] -> node(2)
+            wrpos r0
+        }
+        node(2) {
+            ['a'] -> node(3)
+        }
+        node(3) {
+            [Epsilon] -> node(1)
+        }
+        node(1) {}
+    ")
+    );
+    let (open_tag, close_tag) = graph.tag_group(1).unwrap();
+    assert_eq!(open_tag.to_string(), "a-tag(id=0, reg=0)");
+    assert_eq!(close_tag.to_string(), "r-tag(id=1, start_tag=0, offset=1)");
+
+    let group = Hir::group(1, Hir::empty());
+    let mut arena = Arena::new();
+    let graph = Graph::nfa_in(&mut arena);
+    let mut translator = Translator::new(&graph);
+    let sub = pair(graph.node(), graph.node());
+    let Hir::Group(group) = group else {
+        unreachable!()
+    };
+    let mut tag_bank = TagBank::new();
+    let abs = tag_bank.absolute();
+    let mut tag = Some(tag_bank.relative(abs, 0));
+    translator.translate_group(&group, sub, &mut tag);
+    assert_eq!(
+        dsp(&graph),
+        dsp(&"
+        node(0) {
+            [Epsilon] -> node(2)
+        }
+        node(2) {
+            [Epsilon] -> node(3)
+        }
+        node(3) {
+            [Epsilon] -> node(1)
+        }
+        node(1) {}
+    ")
+    );
+    let (open_tag, close_tag) = graph.tag_group(1).unwrap();
+    assert_eq!(open_tag.to_string(), "r-tag(id=1, start_tag=0, offset=0)");
+    assert_eq!(close_tag.to_string(), "r-tag(id=0, start_tag=0, offset=0)");
 }

@@ -1,5 +1,3 @@
-use redt::Map;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tag {
     Absolute {
@@ -67,10 +65,37 @@ impl Tag {
     }
 }
 
+impl std::fmt::Display for Tag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Tag::Absolute { id, reg } => write!(f, "a-tag(id={id}, reg={reg})"),
+            Tag::PseudoAbsolute {
+                id,
+                starting_tag,
+                offset,
+            } => {
+                write!(
+                    f,
+                    "p-tag(id={id}, start_tag={starting_tag}, offset={offset})"
+                )
+            }
+            Tag::Relative {
+                id,
+                starting_tag,
+                offset,
+            } => {
+                write!(
+                    f,
+                    "r-tag(id={id}, start_tag={starting_tag}, offset={offset})"
+                )
+            }
+        }
+    }
+}
+
 pub struct TagBank {
     next_id: u32,
     next_reg: u32,
-    storage: Map<u32, Tag>,
 }
 
 impl TagBank {
@@ -78,60 +103,48 @@ impl TagBank {
         Self {
             next_id: 0,
             next_reg: 0,
-            storage: Map::new(),
         }
     }
 
     pub fn absolute(&mut self) -> Tag {
         let id = self.next_id();
         let reg = self.next_reg();
-        let tag = Tag::Absolute { id, reg };
-        self.storage.insert(id, tag);
-        tag
+        Tag::Absolute { id, reg }
     }
 
     pub fn pseudo_absolute(&mut self, tag: Tag, offset: usize) -> Tag {
         assert!(matches!(tag, Tag::Absolute { .. }));
         let id = self.next_id();
-        let tag = Tag::PseudoAbsolute {
+        Tag::PseudoAbsolute {
             id,
             starting_tag: tag.id(),
             offset,
-        };
-        self.storage.insert(id, tag);
-        tag
+        }
     }
 
     pub fn relative(&mut self, base: Tag, offset: usize) -> Tag {
         let other_offset = offset;
-        let id = self.next_id();
-        let tag = match base {
+        match base {
             Tag::Absolute { id, .. } => Tag::Relative {
-                id,
+                id: self.next_id(),
                 starting_tag: id,
                 offset,
             },
             Tag::PseudoAbsolute { id, .. } => Tag::Relative {
-                id,
+                id: self.next_id(),
                 starting_tag: id,
                 offset,
             },
             Tag::Relative {
-                id,
                 starting_tag,
                 offset,
+                ..
             } => Tag::Relative {
-                id,
+                id: self.next_id(),
                 starting_tag,
                 offset: other_offset + offset,
             },
-        };
-        self.storage.insert(id, tag);
-        tag
-    }
-
-    pub fn get(&self, id: u32) -> Option<&Tag> {
-        self.storage.get(&id)
+        }
     }
 
     fn next_id(&mut self) -> u32 {
