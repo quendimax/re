@@ -1,81 +1,155 @@
+use redt::Map;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tag {
-    Primary {
+    Absolute {
         /// the tag's id
         id: u32,
+
+        /// the tag's register id
+        reg: u32,
     },
-    Secondary {
+    PseudoAbsolute {
         /// the tag's id
         id: u32,
         /// starting primary tag id
-        start_id: u32,
+        starting_tag: u32,
         /// offset from the starting tag's value
         offset: usize,
     },
-    Tertiary {
+    Relative {
         /// the tag's id
         id: u32,
         /// starting secondary tag id
-        start_id: u32,
+        starting_tag: u32,
         /// offset from the starting tag's value
         offset: usize,
     },
 }
 
 impl Tag {
-    pub fn primary(id: u32) -> Self {
-        Self::Primary { id }
-    }
-
-    pub fn secondary(id: u32, start_tag_id: u32, offset: usize) -> Self {
-        Self::Secondary {
-            id,
-            start_id: start_tag_id,
-            offset,
-        }
-    }
-
-    pub fn tertiary(id: u32, start_tag_id: u32, offset: usize) -> Self {
-        Self::Tertiary {
-            id,
-            start_id: start_tag_id,
-            offset,
-        }
-    }
-
     pub fn id(&self) -> u32 {
         match self {
-            Self::Primary { id, .. } => *id,
-            Self::Secondary { id, .. } => *id,
-            Self::Tertiary { id, .. } => *id,
-        }
-    }
-
-    pub fn starting_tag(&self) -> u32 {
-        match self {
-            Self::Primary { id, .. } => *id,
-            Self::Secondary { start_id, .. } => *start_id,
-            Self::Tertiary { start_id, .. } => *start_id,
+            Self::Absolute { id, .. } => *id,
+            Self::PseudoAbsolute { id, .. } => *id,
+            Self::Relative { id, .. } => *id,
         }
     }
 
     pub fn offset(&self) -> usize {
         match self {
-            Self::Primary { .. } => 0,
-            Self::Secondary { offset, .. } => *offset,
-            Self::Tertiary { offset, .. } => *offset,
+            Self::Absolute { .. } => 0,
+            Self::PseudoAbsolute { offset, .. } => *offset,
+            Self::Relative { offset, .. } => *offset,
         }
     }
 
-    pub fn is_primary(&self) -> bool {
-        matches!(self, Self::Primary { .. })
+    pub fn add_offset(&mut self, offset: usize) {
+        match self {
+            Self::Absolute { .. } => panic!("Cannot add offset to absolute tag"),
+            Self::PseudoAbsolute {
+                offset: self_offset,
+                ..
+            } => {
+                *self_offset += offset;
+            }
+            Self::Relative {
+                offset: self_offset,
+                ..
+            } => {
+                *self_offset += offset;
+            }
+        };
     }
 
-    pub fn is_secondary(&self) -> bool {
-        matches!(self, Self::Secondary { .. })
+    pub fn is_absolute(&self) -> bool {
+        matches!(self, Self::Absolute { .. })
+    }
+}
+
+pub struct TagBank {
+    next_id: u32,
+    next_reg: u32,
+    storage: Map<u32, Tag>,
+}
+
+impl TagBank {
+    pub fn new() -> Self {
+        Self {
+            next_id: 0,
+            next_reg: 0,
+            storage: Map::new(),
+        }
     }
 
-    pub fn is_tertiary(&self) -> bool {
-        matches!(self, Self::Tertiary { .. })
+    pub fn absolute(&mut self) -> Tag {
+        let id = self.next_id();
+        let reg = self.next_reg();
+        let tag = Tag::Absolute { id, reg };
+        self.storage.insert(id, tag);
+        tag
+    }
+
+    pub fn pseudo_absolute(&mut self, tag: Tag, offset: usize) -> Tag {
+        assert!(matches!(tag, Tag::Absolute { .. }));
+        let id = self.next_id();
+        let tag = Tag::PseudoAbsolute {
+            id,
+            starting_tag: tag.id(),
+            offset,
+        };
+        self.storage.insert(id, tag);
+        tag
+    }
+
+    pub fn relative(&mut self, base: Tag, offset: usize) -> Tag {
+        let other_offset = offset;
+        let id = self.next_id();
+        let tag = match base {
+            Tag::Absolute { id, .. } => Tag::Relative {
+                id,
+                starting_tag: id,
+                offset,
+            },
+            Tag::PseudoAbsolute { id, .. } => Tag::Relative {
+                id,
+                starting_tag: id,
+                offset,
+            },
+            Tag::Relative {
+                id,
+                starting_tag,
+                offset,
+            } => Tag::Relative {
+                id,
+                starting_tag,
+                offset: other_offset + offset,
+            },
+        };
+        self.storage.insert(id, tag);
+        tag
+    }
+
+    pub fn get(&self, id: u32) -> Option<&Tag> {
+        self.storage.get(&id)
+    }
+
+    fn next_id(&mut self) -> u32 {
+        let id = self.next_id;
+        self.next_id = id.checked_add(1).expect("tag id overflow");
+        id
+    }
+
+    fn next_reg(&mut self) -> u32 {
+        let reg = self.next_reg;
+        self.next_reg = reg.checked_add(1).expect("register id overflow");
+        reg
+    }
+}
+
+impl std::default::Default for TagBank {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
     }
 }

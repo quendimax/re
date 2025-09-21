@@ -3,10 +3,10 @@
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Inst {
     /// Store the current position to the specified register
-    StorePos(u32),
+    WritePos(u32),
 
     /// Invalidate the specified register
-    Invalidate(u32),
+    InvalidateTag(u32),
 }
 
 macro_rules! impl_fmt {
@@ -14,8 +14,8 @@ macro_rules! impl_fmt {
         impl std::fmt::$trait for Inst {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 match self {
-                    Inst::StorePos(reg) => write!(f, "strpos r{reg}")?,
-                    Inst::Invalidate(reg) => write!(f, "invld r{reg}")?,
+                    Inst::WritePos(reg) => write!(f, "wrpos r{reg}")?,
+                    Inst::InvalidateTag(tag) => write!(f, "invd t{tag}")?,
                 }
                 Ok(())
             }

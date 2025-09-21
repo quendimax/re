@@ -7,7 +7,7 @@ fn parse(pattern: &str) -> String {
     let graph = Graph::nfa_in(&mut arena);
     let parser = Parser::new(Utf8Encoder);
     let hir = parser.parse(pattern).unwrap();
-    let translator = Translator::new(&graph);
+    let mut translator = Translator::new(&graph);
     let start_node = graph.start_node();
     let end_node = graph.node();
     translator.translate(&hir, start_node, end_node);

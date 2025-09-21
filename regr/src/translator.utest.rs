@@ -24,7 +24,8 @@ fn translate_literal() {
         let graph = Graph::nfa_in(&mut arena);
         let translator = Translator::new(&graph);
         let pair = pair(graph.node(), graph.node());
-        translator.translate_literal(literal, pair);
+        let mut tag = None;
+        translator.translate_literal(literal, pair, &mut tag);
         dsp(&graph)
     }
 
@@ -58,7 +59,8 @@ fn translate_class() {
         let graph = Graph::nfa_in(&mut arena);
         let translator = Translator::new(&graph);
         let pair = pair(graph.node(), graph.node());
-        translator.translate_class(set, pair);
+        let mut tag = None;
+        translator.translate_class(set, pair, &mut tag);
         dsp(&graph)
     }
 
@@ -82,12 +84,13 @@ fn translate_repeat() {
         assert!(repeat.is_repeat());
         let mut arena = Arena::new();
         let graph = Graph::nfa_in(&mut arena);
-        let translator = Translator::new(&graph);
+        let mut translator = Translator::new(&graph);
         let pair = pair(graph.node(), graph.node());
         let Hir::Repeat(repeat) = repeat else {
             unreachable!()
         };
-        translator.translate_repeat(repeat, pair);
+        let mut tag = None;
+        translator.translate_repeat(repeat, pair, &mut tag);
         dsp(&graph)
     }
 
@@ -228,12 +231,13 @@ fn translate_repeat_fails() {
     let repeat = Hir::repeat(literal, 3, Some(2));
     let mut arena = Arena::new();
     let graph = Graph::nfa_in(&mut arena);
-    let translator = Translator::new(&graph);
+    let mut translator = Translator::new(&graph);
     let sub = pair(graph.node(), graph.node());
     let Hir::Repeat(repeat) = repeat else {
         unreachable!()
     };
-    translator.translate_repeat(&repeat, sub);
+    let mut tag = None;
+    translator.translate_repeat(&repeat, sub, &mut tag);
 }
 
 #[test]
@@ -246,7 +250,8 @@ fn translate_concat() {
     let Hir::Literal(concat) = concat else {
         unreachable!()
     };
-    translator.translate_literal(&concat, sub);
+    let mut tag = None;
+    translator.translate_literal(&concat, sub, &mut tag);
     assert_eq!(
         dsp(&graph),
         dsp(&"
@@ -260,12 +265,13 @@ fn translate_concat() {
     let concat = Hir::concat([Hir::literal("a"), Hir::literal("b"), Hir::literal("c")]);
     let mut arena = Arena::new();
     let graph = Graph::nfa_in(&mut arena);
-    let translator = Translator::new(&graph);
+    let mut translator = Translator::new(&graph);
     let sub = pair(graph.node(), graph.node());
     let Hir::Concat(concat) = concat else {
         unreachable!()
     };
-    translator.translate_concat(&concat, sub, None);
+    let mut tag = None;
+    translator.translate_concat(&concat, sub, &mut tag);
     assert_eq!(
         dsp(&graph),
         dsp(&"
@@ -288,12 +294,13 @@ fn translate_disjunct() {
     let disjunct = Hir::disjunct([Hir::literal("a"), Hir::literal("b"), Hir::literal("c")]);
     let mut arena = Arena::new();
     let graph = Graph::nfa_in(&mut arena);
-    let translator = Translator::new(&graph);
+    let mut translator = Translator::new(&graph);
     let sub = pair(graph.node(), graph.node());
     let Hir::Disjunct(disjunct) = disjunct else {
         unreachable!()
     };
-    translator.translate_disjunct(&disjunct, sub);
+    let mut tag = None;
+    translator.translate_disjunct(&disjunct, sub, &mut tag);
     assert_eq!(
         dsp(&graph),
         dsp(&"
@@ -330,18 +337,19 @@ fn translate_group() {
     let group = Hir::group(1, Hir::empty());
     let mut arena = Arena::new();
     let graph = Graph::nfa_in(&mut arena);
-    let translator = Translator::new(&graph);
+    let mut translator = Translator::new(&graph);
     let sub = pair(graph.node(), graph.node());
     let Hir::Group(group) = group else {
         unreachable!()
     };
-    translator.translate_group(&group, sub, None);
+    let mut tag = None;
+    translator.translate_group(&group, sub, &mut tag);
     assert_eq!(
         dsp(&graph),
         dsp(&"
         node(0) {
             [Epsilon] -> node(2)
-            strpos r0
+            wrpos r0
         }
         node(2) {
             [Epsilon] -> node(3)

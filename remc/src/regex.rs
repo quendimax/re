@@ -27,7 +27,7 @@ pub(crate) fn re_impl(input: TokenStream2) -> Result<TokenStream2> {
         .parse(&lit.value())
         .map_err(|err| syn::Error::new(lit.span(), err))?;
 
-    let translator = Translator::new(&nfa);
+    let mut translator = Translator::new(&nfa);
     translator.translate(&hir, start_node, end_node);
 
     let mut dfa_arena = Arena::new();
