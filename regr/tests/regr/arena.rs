@@ -1,4 +1,5 @@
 use pretty_assertions::{assert_eq, assert_ne};
+use redt::lit;
 use regr::{Arena, Epsilon, Graph};
 
 #[test]
@@ -64,11 +65,12 @@ fn arena_fmt_display() {
 
     assert_eq!(
         format!("{}", gr.arena()),
-        "\
-node(0) {
-    [Epsilon] -> self
-    ['a'] -> node(1)
-}
-node(1) {}"
+        lit!(
+            ///node(0) {
+            ///    [Epsilon] -> self
+            ///    ['a'] -> node(1)
+            ///}
+            ///node(1) {}
+        )
     );
 }

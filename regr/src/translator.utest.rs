@@ -3,20 +3,8 @@ use crate::arena::Arena;
 use crate::graph::Graph;
 use crate::tag::TagBank;
 use pretty_assertions::assert_eq;
-use redt::{Range, SetU8};
+use redt::{Range, SetU8, lit};
 use resy::Hir;
-
-fn dsp<T: std::fmt::Display>(obj: &T) -> String {
-    let mut result = String::new();
-    for line in format!("{obj}").split('\n') {
-        if !line.ends_with('{') && !line.ends_with('}') {
-            result.push_str("    ");
-        }
-        result.push_str(line.trim());
-        result.push('\n');
-    }
-    result.trim().to_string()
-}
 
 #[test]
 fn translate_literal() {
@@ -27,29 +15,29 @@ fn translate_literal() {
         let pair = pair(graph.node(), graph.node());
         let mut tag = None;
         translator.translate_literal(literal, pair, &mut tag);
-        dsp(&graph)
+        graph.to_string()
     }
 
     assert_eq!(
         tr(b""),
-        dsp(&"
-            node(0) {
-                [Epsilon] -> node(1)
-            }
-            node(1) {}
-        ")
+        lit!(
+            ///node(0) {
+            ///    [Epsilon] -> node(1)
+            ///}
+            ///node(1) {}
+        )
     );
     assert_eq!(
         tr(b"ab"),
-        dsp(&"
-            node(0) {
-                ['a'] -> node(2)
-            }
-            node(2) {
-                ['b'] -> node(1)
-            }
-            node(1) {}
-        ")
+        lit!(
+            ///node(0) {
+            ///    ['a'] -> node(2)
+            ///}
+            ///node(2) {
+            ///    ['b'] -> node(1)
+            ///}
+            ///node(1) {}
+        )
     );
 }
 
@@ -62,7 +50,7 @@ fn translate_class() {
         let pair = pair(graph.node(), graph.node());
         let mut tag = None;
         translator.translate_class(set, pair, &mut tag);
-        dsp(&graph)
+        graph.to_string()
     }
 
     let mut set = SetU8::new();
@@ -70,12 +58,12 @@ fn translate_class() {
     set.merge_byte(100);
     assert_eq!(
         tr(&set),
-        dsp(&"
-            node(0) {
-                [04h-'2' | 'd'] -> node(1)
-            }
-            node(1) {}
-        ")
+        lit!(
+            ///node(0) {
+            ///    [04h-'2' | 'd'] -> node(1)
+            ///}
+            ///node(1) {}
+        )
     );
 }
 
@@ -92,136 +80,136 @@ fn translate_repeat() {
         };
         let mut tag = None;
         translator.translate_repeat(repeat, pair, &mut tag);
-        dsp(&graph)
+        graph.to_string()
     }
 
     let literal = Hir::literal("a");
     let hir = Hir::repeat(literal, 0, None);
     assert_eq!(
         tr(&hir),
-        dsp(&"
-            node(0) {
-                [Epsilon] -> node(1)
-                [Epsilon] -> node(2)
-            }
-            node(1) {}
-            node(2) {
-                ['a'] -> node(3)
-            }
-            node(3) {
-                [Epsilon] -> node(1)
-                [Epsilon] -> node(2)
-            }
-        ")
+        lit!(
+            ///node(0) {
+            ///    [Epsilon] -> node(1)
+            ///    [Epsilon] -> node(2)
+            ///}
+            ///node(1) {}
+            ///node(2) {
+            ///    ['a'] -> node(3)
+            ///}
+            ///node(3) {
+            ///    [Epsilon] -> node(1)
+            ///    [Epsilon] -> node(2)
+            ///}
+        )
     );
 
     let literal = Hir::literal("a");
     let hir = Hir::repeat(literal, 1, None);
     assert_eq!(
         tr(&hir),
-        dsp(&"
-            node(0) {
-                [Epsilon] -> node(2)
-            }
-            node(2) {
-                ['a'] -> node(3)
-            }
-            node(3) {
-                [Epsilon] -> node(1)
-                [Epsilon] -> node(2)
-            }
-            node(1) {}
-        ")
+        lit!(
+            ///node(0) {
+            ///    [Epsilon] -> node(2)
+            ///}
+            ///node(2) {
+            ///    ['a'] -> node(3)
+            ///}
+            ///node(3) {
+            ///    [Epsilon] -> node(1)
+            ///    [Epsilon] -> node(2)
+            ///}
+            ///node(1) {}
+        )
     );
 
     let literal = Hir::literal("a");
     let hir = Hir::repeat(literal, 3, None);
     assert_eq!(
         tr(&hir),
-        dsp(&"
-            node(0) {
-                ['a'] -> node(2)
-            }
-            node(2) {
-                ['a'] -> node(3)
-            }
-            node(3) {
-                [Epsilon] -> node(4)
-            }
-            node(4) {
-                ['a'] -> node(5)
-            }
-            node(5) {
-                [Epsilon] -> node(1)
-                [Epsilon] -> node(4)
-            }
-            node(1) {}
-        ")
+        lit!(
+            ///node(0) {
+            ///    ['a'] -> node(2)
+            ///}
+            ///node(2) {
+            ///    ['a'] -> node(3)
+            ///}
+            ///node(3) {
+            ///    [Epsilon] -> node(4)
+            ///}
+            ///node(4) {
+            ///    ['a'] -> node(5)
+            ///}
+            ///node(5) {
+            ///    [Epsilon] -> node(1)
+            ///    [Epsilon] -> node(4)
+            ///}
+            ///node(1) {}
+        )
     );
 
     let literal = Hir::literal("a");
     let hir = Hir::repeat(literal, 0, Some(0));
     assert_eq!(
         tr(&hir),
-        dsp(&"
-            node(0) {
-                [Epsilon] -> node(1)
-            }
-            node(1) {}
-        ")
+        lit!(
+            ///node(0) {
+            ///    [Epsilon] -> node(1)
+            ///}
+            ///node(1) {}
+        )
     );
 
     let literal = Hir::literal("a");
     let hir = Hir::repeat(literal, 3, Some(3));
     assert_eq!(
         tr(&hir),
-        dsp(&"
-            node(0) {
-                ['a'] -> node(2)
-            }
-            node(2) {
-                ['a'] -> node(3)
-            }
-            node(3) {
-                ['a'] -> node(1)
-            }
-            node(1) {}
-        ")
+        lit!(
+            ///node(0) {
+            ///    ['a'] -> node(2)
+            ///}
+            ///node(2) {
+            ///    ['a'] -> node(3)
+            ///}
+            ///node(3) {
+            ///    ['a'] -> node(1)
+            ///}
+            ///node(1) {}
+        )
     );
 
     let literal = Hir::literal("a");
     let hir = Hir::repeat(literal, 1, Some(3));
     assert_eq!(
         tr(&hir),
-        dsp(&"
-            node(0) {
-                ['a'] -> node(2)
-            }
-            node(2) {
-                [Epsilon] -> node(1)
-                [Epsilon] -> node(3)
-            }
-            node(1) {}
-            node(3) {
-                ['a'] -> node(4)
-            }
-            node(4) {
-                [Epsilon] -> node(5)
-            }
-            node(5) {
-                [Epsilon] -> node(1)
-                [Epsilon] -> node(6)
-            }
-            node(6) {
-                ['a'] -> node(7)
-            }
-            node(7) {
-                [Epsilon] -> node(8)
-            }
-            node(8) {
-                [Epsilon] -> node(1)
-            }
-        ")
+        lit!(
+            ///node(0) {
+            ///    ['a'] -> node(2)
+            ///}
+            ///node(2) {
+            ///    [Epsilon] -> node(1)
+            ///    [Epsilon] -> node(3)
+            ///}
+            ///node(1) {}
+            ///node(3) {
+            ///    ['a'] -> node(4)
+            ///}
+            ///node(4) {
+            ///    [Epsilon] -> node(5)
+            ///}
+            ///node(5) {
+            ///    [Epsilon] -> node(1)
+            ///    [Epsilon] -> node(6)
+            ///}
+            ///node(6) {
+            ///    ['a'] -> node(7)
+            ///}
+            ///node(7) {
+            ///    [Epsilon] -> node(8)
+            ///}
+            ///node(8) {
+            ///    [Epsilon] -> node(1)
+            ///}
+        )
     );
 }
 
@@ -254,13 +242,13 @@ fn translate_concat() {
     let mut tag = None;
     translator.translate_literal(&concat, sub, &mut tag);
     assert_eq!(
-        dsp(&graph),
-        dsp(&"
-            node(0) {
-                [Epsilon] -> node(1)
-            }
-            node(1) {}
-        ")
+        graph.to_string(),
+        lit!(
+            ///node(0) {
+            ///    [Epsilon] -> node(1)
+            ///}
+            ///node(1) {}
+        )
     );
 
     let concat = Hir::concat([Hir::literal("a"), Hir::literal("b"), Hir::literal("c")]);
@@ -274,19 +262,19 @@ fn translate_concat() {
     let mut tag = None;
     translator.translate_concat(&concat, sub, &mut tag);
     assert_eq!(
-        dsp(&graph),
-        dsp(&"
-            node(0) {
-                ['a'] -> node(2)
-            }
-            node(2) {
-                ['b'] -> node(3)
-            }
-            node(3) {
-                ['c'] -> node(1)
-            }
-            node(1) {}
-        ")
+        graph.to_string(),
+        lit!(
+            ///node(0) {
+            ///    ['a'] -> node(2)
+            ///}
+            ///node(2) {
+            ///    ['b'] -> node(3)
+            ///}
+            ///node(3) {
+            ///    ['c'] -> node(1)
+            ///}
+            ///node(1) {}
+        )
     );
 }
 
@@ -303,33 +291,33 @@ fn translate_disjunct() {
     let mut tag = None;
     translator.translate_disjunct(&disjunct, sub, &mut tag);
     assert_eq!(
-        dsp(&graph),
-        dsp(&"
-            node(0) {
-                [Epsilon] -> node(2)
-                [Epsilon] -> node(4)
-                [Epsilon] -> node(6)
-            }
-            node(2) {
-                ['a'] -> node(3)
-            }
-            node(3) {
-                [Epsilon] -> node(1)
-            }
-            node(1) {}
-            node(4) {
-                ['b'] -> node(5)
-            }
-            node(5) {
-                [Epsilon] -> node(1)
-            }
-            node(6) {
-                ['c'] -> node(7)
-            }
-            node(7) {
-                [Epsilon] -> node(1)
-            }
-        ")
+        graph.to_string(),
+        lit!(
+            ///node(0) {
+            ///    [Epsilon] -> node(2)
+            ///    [Epsilon] -> node(4)
+            ///    [Epsilon] -> node(6)
+            ///}
+            ///node(2) {
+            ///    ['a'] -> node(3)
+            ///}
+            ///node(3) {
+            ///    [Epsilon] -> node(1)
+            ///}
+            ///node(1) {}
+            ///node(4) {
+            ///    ['b'] -> node(5)
+            ///}
+            ///node(5) {
+            ///    [Epsilon] -> node(1)
+            ///}
+            ///node(6) {
+            ///    ['c'] -> node(7)
+            ///}
+            ///node(7) {
+            ///    [Epsilon] -> node(1)
+            ///}
+        )
     );
 }
 
@@ -346,20 +334,20 @@ fn translate_group() {
     let mut tag = None;
     translator.translate_group(&group, sub, &mut tag);
     assert_eq!(
-        dsp(&graph),
-        dsp(&"
-        node(0) {
-            [Epsilon] -> node(2)
-            wrpos r0
-        }
-        node(2) {
-            [Epsilon] -> node(3)
-        }
-        node(3) {
-            [Epsilon] -> node(1)
-        }
-        node(1) {}
-    ")
+        graph.to_string(),
+        lit!(
+            ///node(0) {
+            ///    [Epsilon] -> node(2)
+            ///        wrpos r0
+            ///}
+            ///node(2) {
+            ///    [Epsilon] -> node(3)
+            ///}
+            ///node(3) {
+            ///    [Epsilon] -> node(1)
+            ///}
+            ///node(1) {}
+        )
     );
     let (open_tag, close_tag) = graph.tag_group(1).unwrap();
     assert_eq!(open_tag.to_string(), "a-tag(id=0, reg=0)");
@@ -376,20 +364,20 @@ fn translate_group() {
     let mut tag = None;
     translator.translate_group(&group, sub, &mut tag);
     assert_eq!(
-        dsp(&graph),
-        dsp(&"
-        node(0) {
-            [Epsilon] -> node(2)
-            wrpos r0
-        }
-        node(2) {
-            ['a'] -> node(3)
-        }
-        node(3) {
-            [Epsilon] -> node(1)
-        }
-        node(1) {}
-    ")
+        graph.to_string(),
+        lit!(
+            ///node(0) {
+            ///    [Epsilon] -> node(2)
+            ///        wrpos r0
+            ///}
+            ///node(2) {
+            ///    ['a'] -> node(3)
+            ///}
+            ///node(3) {
+            ///    [Epsilon] -> node(1)
+            ///}
+            ///node(1) {}
+        )
     );
     let (open_tag, close_tag) = graph.tag_group(1).unwrap();
     assert_eq!(open_tag.to_string(), "a-tag(id=0, reg=0)");
@@ -408,19 +396,19 @@ fn translate_group() {
     let mut tag = Some(tag_bank.relative(abs, 0));
     translator.translate_group(&group, sub, &mut tag);
     assert_eq!(
-        dsp(&graph),
-        dsp(&"
-        node(0) {
-            [Epsilon] -> node(2)
-        }
-        node(2) {
-            [Epsilon] -> node(3)
-        }
-        node(3) {
-            [Epsilon] -> node(1)
-        }
-        node(1) {}
-    ")
+        graph.to_string(),
+        lit!(
+            ///node(0) {
+            ///    [Epsilon] -> node(2)
+            ///}
+            ///node(2) {
+            ///    [Epsilon] -> node(3)
+            ///}
+            ///node(3) {
+            ///    [Epsilon] -> node(1)
+            ///}
+            ///node(1) {}
+        )
     );
     let (open_tag, close_tag) = graph.tag_group(1).unwrap();
     assert_eq!(open_tag.to_string(), "r-tag(id=1, start_tag=0, offset=0)");

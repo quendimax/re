@@ -1,30 +1,7 @@
 use pretty_assertions::assert_eq;
+use redt::lit;
 use redt::{RangeU8, range};
 use regr::{Arena, AutomatonKind, Epsilon, Graph};
-
-fn dsp<T: std::fmt::Display>(obj: &T) -> String {
-    let mut result = String::new();
-    for line in format!("{obj}").split('\n') {
-        if !line.ends_with('{') && !line.ends_with('}') {
-            result.push_str("    ");
-        }
-        result.push_str(line.trim());
-        result.push('\n');
-    }
-    result.trim().to_string()
-}
-
-fn dbg<T: std::fmt::Debug>(obj: &T) -> String {
-    let mut result = String::new();
-    for line in format!("{obj:?}").split('\n') {
-        if !line.ends_with('{') && !line.ends_with('}') {
-            result.push_str("    ");
-        }
-        result.push_str(line.trim());
-        result.push('\n');
-    }
-    result.trim().to_string()
-}
 
 #[test]
 fn graph_ctor() {
@@ -87,12 +64,12 @@ fn graph_determine_0() {
     let a = nfa.node();
     a.connect(a).merge(Epsilon);
     assert_eq!(
-        dsp(&nfa),
-        dsp(&"
-            node(0) {
-                [Epsilon] -> self
-            }
-        ")
+        nfa.to_string(),
+        lit!(
+            ///node(0) {
+            ///    [Epsilon] -> self
+            ///}
+        )
     );
 
     let mut dfa_arena = Arena::new();
@@ -113,41 +90,41 @@ fn graph_determine_1() {
     b.connect(c).merge(b'a');
     c.connect(d).merge(b'b');
     assert_eq!(
-        dsp(&nfa),
-        dsp(&"
-            node(0) {
-                [01h-FFh] -> self
-                [Epsilon] -> node(1)
-            }
-            node(1) {
-                ['a'] -> node(2)
-            }
-            node(2) {
-                ['b'] -> node(3)
-            }
-            node(3) {}
-        ")
+        nfa.to_string(),
+        lit!(
+            ///node(0) {
+            ///    [01h-FFh] -> self
+            ///    [Epsilon] -> node(1)
+            ///}
+            ///node(1) {
+            ///    ['a'] -> node(2)
+            ///}
+            ///node(2) {
+            ///    ['b'] -> node(3)
+            ///}
+            ///node(3) {}
+        )
     );
 
     let mut dfa_arena = Arena::new();
     let dfa = nfa.determinize_in(&mut dfa_arena);
     assert_eq!(
-        dsp(&dfa),
-        dsp(&"
-            node(0) {
-                [01h-'`' | 'b'-FFh] -> self
-                ['a'] -> node(1)
-            }
-            node(1) {
-                [01h-'`' | 'c'-FFh] -> node(0)
-                ['a'] -> self
-                ['b'] -> node(2)
-            }
-            node(2) {
-                [01h-'`' | 'b'-FFh] -> node(0)
-                ['a'] -> node(1)
-            }
-        ")
+        dfa.to_string(),
+        lit!(
+            ///node(0) {
+            ///    [01h-'`' | 'b'-FFh] -> self
+            ///    ['a'] -> node(1)
+            ///}
+            ///node(1) {
+            ///    [01h-'`' | 'c'-FFh] -> node(0)
+            ///    ['a'] -> self
+            ///    ['b'] -> node(2)
+            ///}
+            ///node(2) {
+            ///    [01h-'`' | 'b'-FFh] -> node(0)
+            ///    ['a'] -> node(1)
+            ///}
+        )
     );
 }
 
@@ -165,35 +142,35 @@ fn graph_determine_klenee_star() {
     c.connect(b).merge(Epsilon);
     c.connect(d).merge(Epsilon);
     assert_eq!(
-        dsp(&nfa),
-        dsp(&"
-            node(0) {
-                [Epsilon] -> node(1)
-                [Epsilon] -> node(3)
-            }
-            node(1) {
-                ['a'] -> node(2)
-            }
-            node(2) {
-                [Epsilon] -> node(1)
-                [Epsilon] -> node(3)
-            }
-            node(3) {}
-        ")
+        nfa.to_string(),
+        lit!(
+            ///node(0) {
+            ///    [Epsilon] -> node(1)
+            ///    [Epsilon] -> node(3)
+            ///}
+            ///node(1) {
+            ///    ['a'] -> node(2)
+            ///}
+            ///node(2) {
+            ///    [Epsilon] -> node(1)
+            ///    [Epsilon] -> node(3)
+            ///}
+            ///node(3) {}
+        )
     );
 
     let mut dfa_arena = Arena::new();
     let dfa = nfa.determinize_in(&mut dfa_arena);
     assert_eq!(
-        dsp(&dfa),
-        dsp(&"
-            node(0) {
-                ['a'] -> node(1)
-            }
-            node(1) {
-                ['a'] -> self
-            }
-        ")
+        dfa.to_string(),
+        lit!(
+            ///node(0) {
+            ///    ['a'] -> node(1)
+            ///}
+            ///node(1) {
+            ///    ['a'] -> self
+            ///}
+        )
     );
 }
 
@@ -241,24 +218,24 @@ fn graph_display_fmt_0() {
     d.connect(b).merge(Epsilon);
     d.connect(c).merge(Epsilon);
     assert_eq!(
-        dsp(&graph),
-        dsp(&"
-            node(0) {
-                ['a'-FFh | Epsilon] -> node(1)
-            }
-            node(1) {
-                [Epsilon] -> node(0)
-                [Epsilon] -> node(2)
-            }
-            node(2) {
-                ['c'] -> node(3)
-            }
-            node(3) {
-                [Epsilon] -> node(0)
-                [Epsilon] -> node(1)
-                [Epsilon] -> node(2)
-            }
-        ")
+        graph.to_string(),
+        lit!(
+            ///node(0) {
+            ///    ['a'-FFh | Epsilon] -> node(1)
+            ///}
+            ///node(1) {
+            ///    [Epsilon] -> node(0)
+            ///    [Epsilon] -> node(2)
+            ///}
+            ///node(2) {
+            ///    ['c'] -> node(3)
+            ///}
+            ///node(3) {
+            ///    [Epsilon] -> node(0)
+            ///    [Epsilon] -> node(1)
+            ///    [Epsilon] -> node(2)
+            ///}
+        )
     );
 }
 
@@ -279,24 +256,24 @@ fn graph_display_fmt_1() {
     n3.connect(n4).merge(Epsilon);
     n3.connect(n2).merge(Epsilon);
     assert_eq!(
-        dsp(&graph),
-        dsp(&"
-        node(0) {
-            ['a'-'b' | 'd'-'z'] -> node(1)
-        }
-        node(1) {
-            [Epsilon] -> node(2)
-            [Epsilon] -> node(4)
-        }
-        node(2) {
-            ['a'] -> node(3)
-        }
-        node(3) {
-            [Epsilon] -> node(2)
-            [Epsilon] -> node(4)
-        }
-        node(4) {}
-        ")
+        graph.to_string(),
+        lit!(
+            ///node(0) {
+            ///    ['a'-'b' | 'd'-'z'] -> node(1)
+            ///}
+            ///node(1) {
+            ///    [Epsilon] -> node(2)
+            ///    [Epsilon] -> node(4)
+            ///}
+            ///node(2) {
+            ///    ['a'] -> node(3)
+            ///}
+            ///node(3) {
+            ///    [Epsilon] -> node(2)
+            ///    [Epsilon] -> node(4)
+            ///}
+            ///node(4) {}
+        )
     );
 }
 
@@ -321,32 +298,32 @@ fn graph_display_fmt_2() {
     n6.connect(n7).merge(b'd');
     n7.connect(n1).merge(Epsilon);
     assert_eq!(
-        dsp(&graph),
-        dsp(&"
-            node(0) {
-                [Epsilon] -> node(2)
-                [Epsilon] -> node(5)
-            }
-            node(2) {
-                ['a'] -> node(3)
-            }
-            node(3) {
-                ['b'] -> node(4)
-            }
-            node(4) {
-                [Epsilon] -> node(1)
-            }
-            node(1) {}
-            node(5) {
-                ['c'] -> node(6)
-            }
-            node(6) {
-                ['d'] -> node(7)
-            }
-            node(7) {
-                [Epsilon] -> node(1)
-            }
-        ")
+        graph.to_string(),
+        lit!(
+            ///node(0) {
+            ///    [Epsilon] -> node(2)
+            ///    [Epsilon] -> node(5)
+            ///}
+            ///node(2) {
+            ///    ['a'] -> node(3)
+            ///}
+            ///node(3) {
+            ///    ['b'] -> node(4)
+            ///}
+            ///node(4) {
+            ///    [Epsilon] -> node(1)
+            ///}
+            ///node(1) {}
+            ///node(5) {
+            ///    ['c'] -> node(6)
+            ///}
+            ///node(6) {
+            ///    ['d'] -> node(7)
+            ///}
+            ///node(7) {
+            ///    [Epsilon] -> node(1)
+            ///}
+        )
     );
 }
 
@@ -361,16 +338,16 @@ fn graph_display_fmt_3() {
     b.connect(b).merge(3);
     b.connect(c).merge(1);
     assert_eq!(
-        dbg(&graph),
-        dsp(&"
-            node(0) {
-                [1] -> node(1)
-            }
-            node(1) {
-                [3] -> self
-                [1] -> node(2)
-            }
-            node(2) {}
-        ")
+        format!("{graph:?}"),
+        lit!(
+            ///node(0) {
+            ///    [1] -> node(1)
+            ///}
+            ///node(1) {
+            ///    [3] -> self
+            ///    [1] -> node(2)
+            ///}
+            ///node(2) {}
+        )
     );
 }
