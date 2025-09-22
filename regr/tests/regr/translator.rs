@@ -102,3 +102,23 @@ fn translate_class() {
         )
     );
 }
+
+#[test]
+fn translate_group() {
+    assert_eq!(
+        parse("(?<1>)"),
+        lit!(
+            ///node(0) {
+            ///    [Epsilon] -> node(2)
+            ///        wrpos r0
+            ///}
+            ///node(2) {
+            ///    [Epsilon] -> node(3)
+            ///}
+            ///node(3) {
+            ///    [Epsilon] -> node(1)
+            ///}
+            ///node(1) {}
+        )
+    );
+}
