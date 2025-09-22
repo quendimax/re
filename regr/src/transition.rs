@@ -58,6 +58,11 @@ impl<'a> Transition<'a> {
 }
 
 impl<'a> Transition<'a> {
+    /// Checks if these transitions are two references to the same transition.
+    pub fn is(self, other: Self) -> bool {
+        std::ptr::eq(self.0, other.0)
+    }
+
     /// Returns iterator over all symbols in this trasition instance in
     /// ascendent order.
     pub fn symbols(self) -> impl Iterator<Item = u8> {

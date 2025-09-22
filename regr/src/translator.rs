@@ -310,7 +310,7 @@ impl<'a, 'g> Translator<'a, 'g> {
             let tr_out = last.connect(sub.last);
             tr_out.merge(Epsilon);
             tr_outs.push(tr_out);
-            let mut tag = tag.map(|t| self.tag_bank.pseudo_absolute(t, 0));
+            let mut tag = tag.map(|t| self.tag_bank.pseudo_absolute(t));
             let sum = self.translate_hir(hir, pair(first, last), &mut tag);
             summaries.push(sum);
         }
@@ -318,7 +318,7 @@ impl<'a, 'g> Translator<'a, 'g> {
         for (tr, sum) in tr_outs.iter().zip(summaries.iter()) {
             summary.merge(sum);
             for (other_tr, sum) in tr_outs.iter().zip(summaries.iter()) {
-                if tr != other_tr {
+                if !tr.is(*other_tr) {
                     for tag in &sum.absolute_tags {
                         tr.merge_instruct(Inst::InvalidateTag(*tag));
                     }
@@ -346,8 +346,8 @@ impl<'a, 'g> Translator<'a, 'g> {
     }
 }
 
+#[derive(Debug)]
 struct Summary {
-    // tag: Option<Tag>,
     absolute_tags: redt::Set<u32>,
     pseudo_absolute_tags: redt::Set<u32>,
 }

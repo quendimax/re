@@ -112,21 +112,25 @@ impl TagBank {
         Tag::Absolute { id, reg }
     }
 
-    pub fn pseudo_absolute(&mut self, tag: Tag, offset: usize) -> Tag {
+    pub fn pseudo_absolute(&mut self, tag: Tag) -> Tag {
         let next_id = self.next_id();
         match tag {
-            Tag::Absolute { id, .. } => Tag::PseudoAbsolute {
-                id: next_id,
-                starting_tag: id,
-                offset,
-            },
-            Tag::PseudoAbsolute { .. } => tag,
-            Tag::Relative {
-                id,
+            Tag::Absolute { .. } => panic!("cannot convert absolute tag to pseudo absolute"),
+            Tag::PseudoAbsolute {
                 starting_tag,
                 offset,
+                ..
             } => Tag::PseudoAbsolute {
-                id,
+                id: next_id,
+                starting_tag,
+                offset,
+            },
+            Tag::Relative {
+                starting_tag,
+                offset,
+                ..
+            } => Tag::PseudoAbsolute {
+                id: next_id,
                 starting_tag,
                 offset,
             },
