@@ -104,13 +104,13 @@ fn translate_class() {
 }
 
 #[test]
-fn translate_group() {
+fn translate_group_0() {
     assert_eq!(
         parse("(?<1>)"),
         lit!(
             ///node(0) {
             ///    [Epsilon] -> node(2)
-            ///        wrpos r0
+            ///        wrpos t0
             ///}
             ///node(2) {
             ///    [Epsilon] -> node(3)
@@ -119,6 +119,117 @@ fn translate_group() {
             ///    [Epsilon] -> node(1)
             ///}
             ///node(1) {}
+        )
+    );
+    assert_eq!(
+        parse("(?<1>a)b(?<2>c)"),
+        lit!(
+            ///node(0) {
+            ///    [Epsilon] -> node(3)
+            ///        wrpos t0
+            ///}
+            ///node(3) {
+            ///    ['a'] -> node(4)
+            ///}
+            ///node(4) {
+            ///    [Epsilon] -> node(2)
+            ///}
+            ///node(2) {
+            ///    ['b'] -> node(5)
+            ///}
+            ///node(5) {
+            ///    [Epsilon] -> node(6)
+            ///}
+            ///node(6) {
+            ///    ['c'] -> node(7)
+            ///}
+            ///node(7) {
+            ///    [Epsilon] -> node(1)
+            ///}
+            ///node(1) {}
+        )
+    );
+    assert_eq!(
+        parse("(?<1>)(?<2>)(?<234>)"),
+        lit!(
+            ///node(0) {
+            ///    [Epsilon] -> node(3)
+            ///        wrpos t0
+            ///}
+            ///node(3) {
+            ///    [Epsilon] -> node(4)
+            ///}
+            ///node(4) {
+            ///    [Epsilon] -> node(2)
+            ///}
+            ///node(2) {
+            ///    [Epsilon] -> node(6)
+            ///}
+            ///node(6) {
+            ///    [Epsilon] -> node(7)
+            ///}
+            ///node(7) {
+            ///    [Epsilon] -> node(5)
+            ///}
+            ///node(5) {
+            ///    [Epsilon] -> node(8)
+            ///}
+            ///node(8) {
+            ///    [Epsilon] -> node(9)
+            ///}
+            ///node(9) {
+            ///    [Epsilon] -> node(1)
+            ///}
+            ///node(1) {}
+        )
+    );
+}
+
+#[test]
+fn translate_group_1() {
+    assert_eq!(
+        parse("(?<1>)(a|bc)(?<2>)"),
+        lit!(
+            ///node(0) {
+            ///    [Epsilon] -> node(3)
+            ///        wrpos t0
+            ///}
+            ///node(3) {
+            ///    [Epsilon] -> node(4)
+            ///}
+            ///node(4) {
+            ///    [Epsilon] -> node(2)
+            ///}
+            ///node(2) {
+            ///    [Epsilon] -> node(6)
+            ///    [Epsilon] -> node(8)
+            ///}
+            ///node(6) {
+            ///    ['a'] -> node(7)
+            ///}
+            ///node(7) {
+            ///    [Epsilon] -> node(5)
+            ///}
+            ///node(5) {
+            ///    [Epsilon] -> node(11)
+            ///        wrpos t5
+            ///}
+            ///node(11) {
+            ///    [Epsilon] -> node(12)
+            ///}
+            ///node(12) {
+            ///    [Epsilon] -> node(1)
+            ///}
+            ///node(1) {}
+            ///node(8) {
+            ///    ['b'] -> node(10)
+            ///}
+            ///node(10) {
+            ///    ['c'] -> node(9)
+            ///}
+            ///node(9) {
+            ///    [Epsilon] -> node(5)
+            ///}
         )
     );
 }

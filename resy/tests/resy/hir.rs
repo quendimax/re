@@ -151,6 +151,10 @@ fn hir_disjunct() {
     assert_eq!(disjunct.len_hint(), (2, Some(2)));
     assert_eq!(disjunct.exact_len(), Some(2));
     assert_str_eq!(disjunct.to_string(), r#""ab" | "cd""#);
+    if let Hir::Disjunct(hir) = disjunct {
+        assert_eq!(hir.alternatives().len(), 2);
+        assert_eq!(hir.exact_len(), Some(2));
+    }
 
     let concat = Hir::concat(vec![
         Hir::literal(b"ab"),
@@ -163,6 +167,7 @@ fn hir_disjunct() {
     assert_str_eq!(disjunct.to_string(), r#""ab" | ("ab" & "cde"*)"#);
     if let Hir::Disjunct(hir) = disjunct {
         assert_eq!(hir.alternatives().len(), 2);
+        assert_eq!(hir.exact_len(), None);
     }
 }
 

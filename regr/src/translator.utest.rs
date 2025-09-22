@@ -338,7 +338,7 @@ fn translate_group() {
         lit!(
             ///node(0) {
             ///    [Epsilon] -> node(2)
-            ///        wrpos r0
+            ///        wrpos t0
             ///}
             ///node(2) {
             ///    [Epsilon] -> node(3)
@@ -368,7 +368,7 @@ fn translate_group() {
         lit!(
             ///node(0) {
             ///    [Epsilon] -> node(2)
-            ///        wrpos r0
+            ///        wrpos t0
             ///}
             ///node(2) {
             ///    ['a'] -> node(3)

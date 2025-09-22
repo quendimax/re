@@ -14,7 +14,7 @@ macro_rules! impl_fmt {
         impl std::fmt::$trait for Inst {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 match self {
-                    Inst::WritePos(tag) => write!(f, "wrpos r{tag}")?,
+                    Inst::WritePos(tag) => write!(f, "wrpos t{tag}")?,
                     Inst::InvalidateTag(tag) => write!(f, "invd t{tag}")?,
                 }
                 Ok(())

@@ -113,12 +113,23 @@ impl TagBank {
     }
 
     pub fn pseudo_absolute(&mut self, tag: Tag, offset: usize) -> Tag {
-        assert!(matches!(tag, Tag::Absolute { .. }));
-        let id = self.next_id();
-        Tag::PseudoAbsolute {
-            id,
-            starting_tag: tag.id(),
-            offset,
+        let next_id = self.next_id();
+        match tag {
+            Tag::Absolute { id, .. } => Tag::PseudoAbsolute {
+                id: next_id,
+                starting_tag: id,
+                offset,
+            },
+            Tag::PseudoAbsolute { .. } => tag,
+            Tag::Relative {
+                id,
+                starting_tag,
+                offset,
+            } => Tag::PseudoAbsolute {
+                id,
+                starting_tag,
+                offset,
+            },
         }
     }
 

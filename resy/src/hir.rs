@@ -181,6 +181,11 @@ impl DisjunctHir {
     pub fn len_hint(&self) -> (usize, Option<usize>) {
         (self.min_len, self.max_len)
     }
+
+    pub fn exact_len(&self) -> Option<usize> {
+        let (lower, upper) = self.len_hint();
+        if Some(lower) == upper { upper } else { None }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -328,6 +328,13 @@ impl<'a, 'g> Translator<'a, 'g> {
                 }
             }
         }
+        if let Some(len) = disjunct.exact_len()
+            && let Some(tag) = tag
+        {
+            tag.add_offset(len);
+        } else {
+            *tag = None;
+        }
         summary
     }
 
