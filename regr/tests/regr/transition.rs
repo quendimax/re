@@ -161,28 +161,29 @@ fn tr_ranges() {
 
 #[test]
 fn tr_instructs_for() {
+    let t0 = 0;
+    let t1 = 1;
     let r0 = 0;
     let r1 = 1;
     let mut arena = Arena::new();
     let gr = Graph::nfa_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
     tr_a.merge(0);
-    tr_a.merge_instruct(WritePos(r0));
+    tr_a.merge_instruct(WritePos(t0, r0));
     tr_a.merge_instruct(InvalidateTag(r0));
 
     let tr_b = gr.node().connect(gr.node());
     tr_b.merge(1);
-    tr_b.merge_instruct(WritePos(r1));
+    tr_b.merge_instruct(WritePos(t1, r1));
     tr_b.merge(tr_a);
 
     assert_eq!(
         tr_b.instructs_for(0).collect::<Vec<_>>(),
-        &[WritePos(r0), InvalidateTag(r0)]
+        &[WritePos(t0, r0), InvalidateTag(t0)]
     );
-    assert_eq!(tr_b.instructs_for(1).collect::<Vec<_>>(), &[WritePos(r1)]);
     assert_eq!(
         tr_b.instructs().collect::<Vec<_>>(),
-        &[WritePos(r0), WritePos(r1), InvalidateTag(r0)]
+        &[WritePos(t0, r0), WritePos(t1, r1), InvalidateTag(r0)]
     );
     assert_eq!(tr_b.instructs_for(2).collect::<Vec<_>>(), &[]);
 }
@@ -366,6 +367,8 @@ fn tr_merge_range() {
 
 #[test]
 fn tr_merge_transition() {
+    let t0 = 0;
+    let t1 = 1;
     let r0 = 0;
     let r1 = 1;
     let mut arena = Arena::new();
@@ -389,15 +392,17 @@ fn tr_merge_transition() {
     tr_a.merge(&tr_b);
     assert_eq!(tr_a, tr_c);
 
-    tr_a.merge_instructs([WritePos(r0), WritePos(r1)]);
+    tr_a.merge_instructs([WritePos(t0, r0), WritePos(t1, r1)]);
     let tr_d = gr.node().connect(gr.node());
-    tr_d.merge_instruct(WritePos(r0));
+    tr_d.merge_instruct(WritePos(t0, r0));
     tr_d.merge(tr_a);
     assert_eq!(tr_a, tr_d);
 }
 
 #[test]
 fn tr_merge_instruct() {
+    let t0 = 0;
+    let t1 = 1;
     let r0 = 0;
     let r1 = 1;
     let mut arena = Arena::new();
@@ -406,12 +411,12 @@ fn tr_merge_instruct() {
     tr_a.merge(b'a');
     tr_a.merge(b'b');
     tr_a.merge(b'c');
-    tr_a.merge_instruct(WritePos(r0));
-    tr_a.merge_instruct(WritePos(r1));
+    tr_a.merge_instruct(WritePos(t0, r0));
+    tr_a.merge_instruct(WritePos(t1, r1));
     tr_a.merge(b'e');
     assert_eq!(
         tr_a.instructs().collect::<Vec<_>>(),
-        &[WritePos(r0), WritePos(r1)]
+        &[WritePos(t0, r0), WritePos(t1, r1)]
     );
 
     let tr_b = gr.node().connect(gr.node());
@@ -419,12 +424,12 @@ fn tr_merge_instruct() {
     tr_b.merge(b'c');
     tr_b.merge(b'd');
     tr_b.merge(b'e');
-    tr_b.merge_instruct(WritePos(r0));
-    tr_b.merge_instruct(WritePos(r0));
-    tr_b.merge_instruct(WritePos(r1));
+    tr_b.merge_instruct(WritePos(t0, r0));
+    tr_b.merge_instruct(WritePos(t0, r0));
+    tr_b.merge_instruct(WritePos(t1, r1));
     assert_eq!(
         tr_b.instructs().collect::<Vec<_>>(),
-        &[WritePos(r0), WritePos(r1)]
+        &[WritePos(t0, r0), WritePos(t1, r1)]
     );
     assert_eq!(
         tr_a.instructs().collect::<Vec<_>>(),
@@ -435,6 +440,8 @@ fn tr_merge_instruct() {
 
 #[test]
 fn tr_merge_instructs() {
+    let t0 = 0;
+    let t1 = 1;
     let r0 = 0;
     let r1 = 1;
     let mut arena = Arena::new();
@@ -443,12 +450,12 @@ fn tr_merge_instructs() {
     tr_a.merge(b'a');
     tr_a.merge(b'b');
     tr_a.merge(b'c');
-    tr_a.merge_instructs([WritePos(r0), WritePos(r1)]);
-    tr_a.merge_instructs([WritePos(r0), WritePos(r1)]);
+    tr_a.merge_instructs([WritePos(t0, r0), WritePos(t1, r1)]);
+    tr_a.merge_instructs([WritePos(t0, r0), WritePos(t1, r1)]);
     tr_a.merge(b'e');
     assert_eq!(
         tr_a.instructs().collect::<Vec<_>>(),
-        &[WritePos(r0), WritePos(r1)]
+        &[WritePos(t0, r0), WritePos(t1, r1)]
     );
 
     let tr_b = gr.node().connect(gr.node());
@@ -456,10 +463,10 @@ fn tr_merge_instructs() {
     tr_b.merge(b'c');
     tr_b.merge(b'd');
     tr_b.merge(b'e');
-    tr_b.merge_instructs([WritePos(r0), WritePos(r0), WritePos(r1)]);
+    tr_b.merge_instructs([WritePos(t0, r0), WritePos(t0, r0), WritePos(t1, r1)]);
     assert_eq!(
         tr_b.instructs().collect::<Vec<_>>(),
-        &[WritePos(r0), WritePos(r1)]
+        &[WritePos(t0, r0), WritePos(t1, r1)]
     );
     assert_eq!(
         tr_a.instructs().collect::<Vec<_>>(),

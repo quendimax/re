@@ -110,7 +110,7 @@ fn translate_group_0() {
         lit!(
             ///node(0) {
             ///    [Epsilon] -> node(2)
-            ///        wrpos t0
+            ///        wrpos t0/r0
             ///}
             ///node(2) {
             ///    [Epsilon] -> node(3)
@@ -126,7 +126,7 @@ fn translate_group_0() {
         lit!(
             ///node(0) {
             ///    [Epsilon] -> node(3)
-            ///        wrpos t0
+            ///        wrpos t0/r0
             ///}
             ///node(3) {
             ///    ['a'] -> node(4)
@@ -154,7 +154,7 @@ fn translate_group_0() {
         lit!(
             ///node(0) {
             ///    [Epsilon] -> node(3)
-            ///        wrpos t0
+            ///        wrpos t0/r0
             ///}
             ///node(3) {
             ///    [Epsilon] -> node(4)
@@ -192,7 +192,7 @@ fn translate_group_1() {
         lit!(
             ///node(0) {
             ///    [Epsilon] -> node(3)
-            ///        wrpos t0
+            ///        wrpos t0/r0
             ///}
             ///node(3) {
             ///    [Epsilon] -> node(4)
@@ -212,7 +212,7 @@ fn translate_group_1() {
             ///}
             ///node(5) {
             ///    [Epsilon] -> node(11)
-            ///        wrpos t5
+            ///        wrpos t5/r1
             ///}
             ///node(11) {
             ///    [Epsilon] -> node(12)
