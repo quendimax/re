@@ -14,8 +14,8 @@ pub type RangeU32 = Range<u32>;
 mod range_list;
 pub use range_list::RangeList;
 
-mod set;
-pub use set::{ByteIter, RangeIter, SetU8};
+mod set_u8;
+pub use set_u8::{ByteIter, RangeIter, SetU8};
 
 mod step;
 pub use step::Step;
