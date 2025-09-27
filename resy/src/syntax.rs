@@ -1,7 +1,7 @@
 use crate::error::{Result, err};
 use crate::hir::Hir;
 use crate::lexis::{Lexer, tok};
-use redt::{RangeSet, SetU8};
+use redt::{RangeList, SetU8};
 use renc::Encoder;
 
 /// A regex pattern parser that converts string patterns into high-level
@@ -318,16 +318,16 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     }
 
     /// Parses a dot (`.`) character class that matches any character.
-    fn parse_dot(&mut self) -> Result<RangeSet<u32>> {
+    fn parse_dot(&mut self) -> Result<RangeList<u32>> {
         self.lexer.expect(tok::dot)?;
         let encoding = self.coder.encoding();
-        Ok(RangeSet::from(encoding.codepoint_ranges()))
+        Ok(RangeList::from(encoding.codepoint_ranges()))
     }
 
     /// Parses a character class with square brackets `[...]`.
-    fn parse_squares(&mut self) -> Result<RangeSet<u32>> {
+    fn parse_squares(&mut self) -> Result<RangeList<u32>> {
         self.lexer.expect(tok::l_square)?;
-        let mut ranges = RangeSet::default();
+        let mut ranges = RangeList::default();
         loop {
             let token = self.lexer.peek();
             let range_set = match token.kind() {
@@ -346,10 +346,10 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     }
 
     /// Parses a negated character class with square brackets `[^...]`.
-    fn parse_squares_negated(&mut self) -> Result<RangeSet<u32>> {
+    fn parse_squares_negated(&mut self) -> Result<RangeList<u32>> {
         self.lexer.expect(tok::l_square_caret)?;
         let encoding = self.coder.encoding();
-        let mut ranges = RangeSet::from(encoding.codepoint_ranges());
+        let mut ranges = RangeList::from(encoding.codepoint_ranges());
         loop {
             let token = self.lexer.peek();
             let range_set = match token.kind() {
@@ -372,14 +372,14 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
     /// This can parse either:
     /// - A single character: `a`
     /// - A character range: `a-z`
-    fn parse_range(&mut self) -> Result<RangeSet<u32>> {
+    fn parse_range(&mut self) -> Result<RangeList<u32>> {
         let start_codepoint = self.parse_term()?;
         if let tok::minus = self.lexer.peek().kind() {
             self.lexer.consume_peeked();
             let last_codepoint = self.parse_term()?;
-            Ok(RangeSet::new(start_codepoint, last_codepoint))
+            Ok(RangeList::new(start_codepoint, last_codepoint))
         } else {
-            Ok(RangeSet::new(start_codepoint, start_codepoint))
+            Ok(RangeList::new(start_codepoint, start_codepoint))
         }
     }
 

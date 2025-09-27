@@ -1,5 +1,5 @@
 mod legible;
 mod range;
-mod range_set;
+mod range_list;
 mod set;
 mod step;

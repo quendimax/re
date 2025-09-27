@@ -3,7 +3,7 @@ use crate::hir::Hir;
 use crate::lexis::Lexer;
 use crate::syntax::ParserImpl;
 use pretty_assertions::assert_eq;
-use redt::{Range, RangeSet};
+use redt::{Range, RangeList};
 use renc::Utf8Encoder;
 
 #[test]
@@ -180,7 +180,7 @@ fn parse_dot() {
     };
     assert_eq!(
         parse("."),
-        Ok(RangeSet::from(&[
+        Ok(RangeList::from(&[
             Range::new(0, 0xD7FF),
             Range::new(0xE000, 0x10FFFF)
         ]))

@@ -1,13 +1,14 @@
 use crate::range::Range;
 use crate::step::Step;
 
+/// A set of non-overlapping inclusive ranges, stored in increasing order.
 #[derive(PartialEq, Eq)]
-pub struct RangeSet<T> {
+pub struct RangeList<T> {
     ranges: Vec<Range<T>>,
 }
 
-impl<T: PartialOrd> RangeSet<T> {
-    /// Creates a new range set from the given start and last values.
+impl<T: PartialOrd> RangeList<T> {
+    /// Creates a new range list from the given start and last values.
     #[inline]
     pub fn new(start: T, last: T) -> Self {
         Self {
@@ -16,24 +17,38 @@ impl<T: PartialOrd> RangeSet<T> {
     }
 }
 
-impl<T> RangeSet<T> {
+impl<T> RangeList<T> {
+    /// Returns the number of ranges in this range list.
     #[inline]
     pub fn len(&self) -> usize {
         self.ranges.len()
     }
 
+    /// Returns `true` if the range list contains no ranges.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.ranges.is_empty()
     }
 
+    /// Returns a slice of all ranges in this range list.
+    ///
+    /// The ranges are guaranteed to be non-overlapping and in increasing order.
     #[inline]
     pub fn ranges(&self) -> &[Range<T>] {
         &self.ranges
     }
 }
 
-impl<T: Step + Ord> RangeSet<T> {
+impl<T: Step + Ord> RangeList<T> {
+    /// Merges the given range into this range list.
+    ///
+    /// If the new range overlaps with or is adjacent to existing ranges, they
+    /// will be combined into a single range. The range list maintains its
+    /// invariant of non-overlapping ranges in increasing order.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The range to merge into this range list
     pub fn merge(&mut self, other: impl AsRef<Range<T>>) {
         let other = other.as_ref();
         let i = match self
@@ -96,6 +111,15 @@ impl<T: Step + Ord> RangeSet<T> {
         }
     }
 
+    /// Removes the given range from this range list.
+    ///
+    /// Any existing ranges that overlap with the given range will be modified
+    /// or removed to exclude the overlapping portions. This may result in
+    /// ranges being split into multiple ranges.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The range to exclude from this range list
     pub fn exclude(&mut self, other: impl AsRef<Range<T>>) {
         if self.is_empty() {
             return;
@@ -166,14 +190,16 @@ impl<T: Step + Ord> RangeSet<T> {
     }
 }
 
-impl<T> std::default::Default for RangeSet<T> {
+impl<T> std::default::Default for RangeList<T> {
+    /// Creates an empty range list.
     #[inline]
     fn default() -> Self {
         Self { ranges: Vec::new() }
     }
 }
 
-impl<T> std::convert::From<Range<T>> for RangeSet<T> {
+impl<T> std::convert::From<Range<T>> for RangeList<T> {
+    /// Creates a range list containing a single range.
     fn from(range: Range<T>) -> Self {
         Self {
             ranges: vec![range],
@@ -181,14 +207,18 @@ impl<T> std::convert::From<Range<T>> for RangeSet<T> {
     }
 }
 
-impl<T, R, I> std::convert::From<I> for RangeSet<T>
+impl<T, R, I> std::convert::From<I> for RangeList<T>
 where
     T: Step + Ord,
     R: AsRef<Range<T>>,
     I: IntoIterator<Item = R>,
 {
+    /// Creates a range list from an iterator of ranges.
+    ///
+    /// The ranges will be merged together to maintain the invariant of
+    /// non-overlapping ranges in increasing order.
     fn from(iter: I) -> Self {
-        let mut set = RangeSet::default();
+        let mut set = RangeList::default();
         for range in iter.into_iter() {
             set.merge(range.as_ref());
         }
@@ -198,7 +228,8 @@ where
 
 macro_rules! impl_fmt {
     (std::fmt::$trait:ident) => {
-        impl<T: Copy + PartialEq + std::fmt::$trait> std::fmt::$trait for RangeSet<T> {
+        impl<T: Copy + PartialEq + std::fmt::$trait> std::fmt::$trait for RangeList<T> {
+            /// Formats the range list by displaying each range separated by " | ".
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 for (i, range) in self.ranges.iter().enumerate() {
                     std::fmt::$trait::fmt(&range, f)?;
@@ -218,7 +249,12 @@ impl_fmt!(std::fmt::Octal);
 impl_fmt!(std::fmt::LowerHex);
 impl_fmt!(std::fmt::UpperHex);
 
-impl std::fmt::Display for RangeSet<u8> {
+impl std::fmt::Display for RangeList<u8> {
+    /// Formats the range list for display by showing each range separated by
+    /// ` | `.
+    ///
+    /// This implementation is specialized for `u8` ranges to provide more
+    /// readable output for byte ranges.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (i, range) in self.ranges.iter().enumerate() {
             std::fmt::Display::fmt(&range, f)?;
