@@ -7,8 +7,8 @@ type Chunk = u64;
 /// Quantity of `Chunk` values in the `chunks` member for symbols' bits.
 const BITMAP_LEN: usize = (u8::MAX as usize + 1) / Chunk::BITS as usize;
 
-/// A set of symbols that can be used to represent a language alphabet + Epsilon.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// A set of symbols that can be used to represent any byte.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SetU8 {
     chunks: [Chunk; BITMAP_LEN],
 }
@@ -17,6 +17,12 @@ impl SetU8 {
     /// Creates a new empty symbol set.
     #[inline]
     pub fn new() -> Self {
+        Self::empty()
+    }
+
+    /// Creates a new empty symbol set.
+    #[inline]
+    pub fn empty() -> Self {
         Self {
             chunks: [0; BITMAP_LEN],
         }
@@ -24,6 +30,7 @@ impl SetU8 {
 }
 
 impl std::default::Default for SetU8 {
+    /// Creates a new empty symbol set.
     #[inline]
     fn default() -> Self {
         Self::new()
@@ -34,6 +41,22 @@ impl std::convert::From<u8> for SetU8 {
     fn from(value: u8) -> Self {
         let mut set = Self::default();
         set.merge_byte(value);
+        set
+    }
+}
+
+impl std::convert::From<RangeU8> for SetU8 {
+    fn from(value: RangeU8) -> Self {
+        let mut set = Self::empty();
+        set |= value;
+        set
+    }
+}
+
+impl std::convert::From<&RangeU8> for SetU8 {
+    fn from(value: &RangeU8) -> Self {
+        let mut set = Self::empty();
+        set |= value;
         set
     }
 }
@@ -54,7 +77,189 @@ impl<const N: usize> std::convert::From<&[u8; N]> for SetU8 {
     }
 }
 
+impl std::convert::AsRef<SetU8> for SetU8 {
+    #[inline]
+    fn as_ref(&self) -> &SetU8 {
+        self
+    }
+}
+
+macro_rules! impl_ops {
+    ($op_assign_trait:ident, $op_assign_fn:ident, $op_trait:ident, $op_fn:ident) => {
+        impl ::std::ops::$op_assign_trait<&SetU8> for SetU8 {
+            #[inline]
+            fn $op_assign_fn(&mut self, rhs: &SetU8) {
+                self.chunks[0].$op_assign_fn(&rhs.chunks[0]);
+                self.chunks[1].$op_assign_fn(&rhs.chunks[1]);
+                self.chunks[2].$op_assign_fn(&rhs.chunks[2]);
+                self.chunks[3].$op_assign_fn(&rhs.chunks[3]);
+            }
+        }
+
+        impl ::std::ops::$op_assign_trait<SetU8> for SetU8 {
+            #[inline]
+            fn $op_assign_fn(&mut self, rhs: SetU8) {
+                self.$op_assign_fn(&rhs);
+            }
+        }
+
+        impl ::std::ops::$op_assign_trait<&RangeU8> for SetU8 {
+            #[inline]
+            fn $op_assign_fn(&mut self, range: &RangeU8) {
+                let mut ls_mask = 1 << (range.start() & (u8::MAX >> 2));
+                ls_mask = !(ls_mask - 1);
+
+                let mut ms_mask = 1 << (range.last() & (u8::MAX >> 2));
+                ms_mask |= ms_mask - 1;
+
+                let ls_index = (range.start() >> 6) as usize;
+                let ms_index = (range.last() >> 6) as usize;
+
+                unsafe {
+                    match ms_index - ls_index {
+                        0 => {
+                            let mask = ls_mask & ms_mask;
+                            self.chunks.get_unchecked_mut(ls_index).$op_assign_fn(mask);
+                        }
+                        1 => {
+                            self.chunks
+                                .get_unchecked_mut(ls_index)
+                                .$op_assign_fn(ls_mask);
+                            self.chunks
+                                .get_unchecked_mut(ls_index + 1)
+                                .$op_assign_fn(ms_mask);
+                        }
+                        2 => {
+                            self.chunks
+                                .get_unchecked_mut(ls_index)
+                                .$op_assign_fn(ls_mask);
+                            self.chunks
+                                .get_unchecked_mut(ls_index + 1)
+                                .$op_assign_fn(Chunk::MAX);
+                            self.chunks
+                                .get_unchecked_mut(ls_index + 2)
+                                .$op_assign_fn(ms_mask);
+                        }
+                        3 => {
+                            self.chunks.get_unchecked_mut(0).$op_assign_fn(ls_mask);
+                            self.chunks.get_unchecked_mut(1).$op_assign_fn(Chunk::MAX);
+                            self.chunks.get_unchecked_mut(2).$op_assign_fn(Chunk::MAX);
+                            self.chunks.get_unchecked_mut(3).$op_assign_fn(ms_mask);
+                        }
+                        _ => std::hint::unreachable_unchecked(),
+                    };
+                };
+            }
+        }
+
+        impl ::std::ops::$op_assign_trait<RangeU8> for SetU8 {
+            #[inline]
+            fn $op_assign_fn(&mut self, rhs: RangeU8) {
+                self.$op_assign_fn(&rhs);
+            }
+        }
+
+        impl ::std::ops::$op_assign_trait<&u8> for SetU8 {
+            #[inline]
+            fn $op_assign_fn(&mut self, byte: &u8) {
+                self.chunks[*byte as usize >> 6].$op_assign_fn(1 << (*byte & (u8::MAX >> 2)));
+            }
+        }
+
+        impl ::std::ops::$op_assign_trait<u8> for SetU8 {
+            #[inline]
+            fn $op_assign_fn(&mut self, byte: u8) {
+                self.$op_assign_fn(&byte);
+            }
+        }
+
+        impl ::std::ops::$op_trait<SetU8> for SetU8 {
+            type Output = Self;
+
+            #[inline]
+            fn $op_fn(self, rhs: SetU8) -> Self {
+                let mut result = self.clone();
+                ::std::ops::$op_assign_trait::$op_assign_fn(&mut result, &rhs);
+                result
+            }
+        }
+
+        impl ::std::ops::$op_trait<RangeU8> for SetU8 {
+            type Output = Self;
+
+            #[inline]
+            fn $op_fn(self, rhs: RangeU8) -> Self {
+                let mut result = self.clone();
+                ::std::ops::$op_assign_trait::$op_assign_fn(&mut result, &rhs);
+                result
+            }
+        }
+
+        impl ::std::ops::$op_trait<u8> for SetU8 {
+            type Output = Self;
+
+            #[inline]
+            fn $op_fn(self, rhs: u8) -> Self {
+                let mut result = self.clone();
+                ::std::ops::$op_assign_trait::$op_assign_fn(&mut result, &rhs);
+                result
+            }
+        }
+    };
+}
+
+impl_ops!(BitAndAssign, bitand_assign, BitAnd, bitand);
+impl_ops!(BitOrAssign, bitor_assign, BitOr, bitor);
+impl_ops!(BitXorAssign, bitxor_assign, BitXor, bitxor);
+
+impl std::ops::Not for SetU8 {
+    type Output = Self;
+
+    #[inline]
+    fn not(self) -> Self {
+        Self {
+            chunks: [
+                !self.chunks[0],
+                !self.chunks[1],
+                !self.chunks[2],
+                !self.chunks[3],
+            ],
+        }
+    }
+}
+
+macro_rules! impl_sub_op {
+    (for $($ty:ident),+) => {
+        impl std::ops::SubAssign for SetU8 {
+            #[inline]
+            fn sub_assign(&mut self, rhs: Self) {
+                let rhs = SetU8::from(rhs);
+                *self &= !rhs;
+            }
+        }
+
+        impl std::ops::Sub for SetU8 {
+            type Output = Self;
+
+            #[inline]
+            fn sub(self, rhs: Self) -> Self {
+                let rhs = SetU8::from(rhs);
+                self & !rhs
+            }
+        }
+    };
+}
+
+impl_sub_op!(for u8, RangeU8, SetU8);
+
 impl SetU8 {
+    /// Checks if the set is empty.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.chunks.iter().all(|&chunk| chunk == 0)
+    }
+
+    #[inline]
     pub fn contains_byte(&self, byte: u8) -> bool {
         self.chunks[byte as usize >> 6] & (1 << (byte & (u8::MAX >> 2))) != 0
     }
@@ -188,11 +393,14 @@ impl SetU8 {
         }
     }
 
+    #[inline]
     pub fn merge_set(&mut self, other: &SetU8) {
-        self.chunks[0] |= other.chunks[0];
-        self.chunks[1] |= other.chunks[1];
-        self.chunks[2] |= other.chunks[2];
-        self.chunks[3] |= other.chunks[3];
+        *self |= other;
+    }
+
+    #[inline]
+    pub fn exclude_set(&mut self, other: &SetU8) {
+        *self -= other.clone();
     }
 
     pub fn bytes(&self) -> impl Iterator<Item = u8> {
