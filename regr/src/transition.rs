@@ -178,7 +178,7 @@ pub trait TransitionOps<T>: redt::ops::ContainOp<T> + redt::ops::IntersectOp<T> 
 }
 
 macro_rules! impl_merge_op {
-    ($($type:ty),*) => {
+    ($($type:ty),* $(,)?) => {
         $(
             impl TransitionOps<$type> for Transition<'_> {
                 fn merge(&self, other: $type) {
@@ -189,15 +189,7 @@ macro_rules! impl_merge_op {
     };
 }
 
-impl_merge_op!(
-    u8,
-    Epsilon,
-    RangeU8,
-    SetU8,
-    &SetU8,
-    &SymbolSet,
-    &mut SymbolSet
-);
+impl_merge_op!(u8, RangeU8, SetU8, &SetU8, Epsilon, &SymbolSet);
 
 impl<'a, 'b> TransitionOps<Transition<'b>> for Transition<'a> {
     fn merge(&self, other: Transition<'b>) {
@@ -211,7 +203,7 @@ impl<'a, 'b> TransitionOps<Transition<'b>> for Transition<'a> {
                 .iter_mut()
                 .find(|(self_inst, _)| self_inst == other_insts)
             {
-                redt::ops::IncludeOp::<&SymbolSet>::include(*self_symset, other_symset);
+                self_symset.include((*other_symset) as &SymbolSet);
             } else {
                 let self_symset = self.0.arena.alloc_with(|| (*other_symset).clone());
                 self_insts.push((*other_insts, self_symset));

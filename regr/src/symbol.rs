@@ -127,13 +127,6 @@ impl redt::ops::IncludeOp<&Self> for SymbolSet {
     }
 }
 
-impl redt::ops::IncludeOp<&mut Self> for SymbolSet {
-    #[inline]
-    fn include(&mut self, rhs: &mut Self) {
-        redt::ops::IncludeOp::<&Self>::include(self, rhs);
-    }
-}
-
 impl redt::ops::ExcludeOp<Epsilon> for SymbolSet {
     fn exclude(&mut self, _: Epsilon) {
         self.epsilon = false;
