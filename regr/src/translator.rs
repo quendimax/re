@@ -57,11 +57,11 @@ impl<'a, 'g> Translator<'a, 'g> {
         let mut first = sub.first;
         for byte in &literal[..literal.len() - 1] {
             let next = self.graph.node();
-            first.connect(next).merge(byte);
+            first.connect(next).merge(*byte);
             first = next;
         }
         let last_byte = literal.last().unwrap();
-        first.connect(sub.last).merge(last_byte);
+        first.connect(sub.last).merge(*last_byte);
         if let Some(tag) = tag {
             tag.add_offset(literal.len());
         }

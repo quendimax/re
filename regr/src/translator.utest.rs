@@ -54,8 +54,8 @@ fn translate_class() {
     }
 
     let mut set = SetU8::new();
-    set.merge_range(Range::new(4, 50));
-    set.merge_byte(100);
+    set.include(Range::new(4, 50));
+    set.include(100);
     assert_eq!(
         tr(&set),
         lit!(

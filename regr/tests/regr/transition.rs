@@ -194,7 +194,7 @@ fn tr_contains_symbol() {
         assert_eq!(tr.contains(0), true);
         assert_eq!(tr.contains(255), true);
         assert_eq!(tr.contains(b'b'), true);
-        assert_eq!(tr.contains(&b'c'), true);
+        assert_eq!(tr.contains(b'c'), true);
         assert_eq!(tr.contains(b'f'), false);
         assert_eq!(tr.contains(254), false);
     });
@@ -205,10 +205,10 @@ fn tr_contains_range() {
     handle_tr_from_symbols(&[0, 1, 5, 6, 7, 255], |tr| {
         assert!(tr.contains(single(0)));
         assert!(tr.contains(range(0, 1)));
-        assert!(tr.contains(&range(5, 7)));
+        assert!(tr.contains(range(5, 7)));
         assert!(tr.contains(single(255)));
         assert!(!tr.contains(range(0, 3)));
-        assert!(!tr.contains(&range(2, 4)));
+        assert!(!tr.contains(range(2, 4)));
         assert!(!tr.contains(single(254)));
     });
 
@@ -268,8 +268,8 @@ fn tr_intersects_symbol() {
         assert_eq!(tr.intersects(255), true);
         assert_eq!(tr.intersects(b'b'), true);
         assert_eq!(tr.intersects(b'c'), true);
-        assert_eq!(tr.intersects(&b'f'), false);
-        assert_eq!(tr.intersects(&254), false);
+        assert_eq!(tr.intersects(b'f'), false);
+        assert_eq!(tr.intersects(254), false);
     });
 }
 
@@ -279,8 +279,8 @@ fn tr_intersects_range() {
         assert_eq!(tr.intersects(range(0, 255)), true);
         assert_eq!(tr.intersects(single(0)), true);
         assert_eq!(tr.intersects(range(b'a', b'b')), true);
-        assert_eq!(tr.intersects(&single(255)), true);
-        assert_eq!(tr.intersects(&range(102, 254)), false);
+        assert_eq!(tr.intersects(single(255)), true);
+        assert_eq!(tr.intersects(range(102, 254)), false);
         assert_eq!(tr.intersects(254), false);
     });
 

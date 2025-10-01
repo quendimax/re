@@ -620,7 +620,7 @@ impl<'s, 'c, C: Encoder, const UNICODE: bool> ParserImpl<'s, 'c, C, UNICODE> {
                 let mut items = Vec::new();
                 for b_range in seq {
                     let mut b_set = SetU8::new();
-                    b_set.merge_range(*b_range);
+                    b_set.include(*b_range);
                     items.push(Hir::class(b_set));
                 }
                 if items.len() == 1 {

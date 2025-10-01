@@ -3,7 +3,8 @@ use crate::isa::Inst;
 use crate::node::Node;
 use crate::symbol::{Epsilon, SymbolSet};
 use bumpalo::collections::Vec as BumpVec;
-use redt::{ByteIter, Legible, RangeIter, RangeU8, Step};
+use redt::ops::{ContainOp, IncludeOp, IntersectOp};
+use redt::{ByteIter, Legible, RangeIter, RangeU8, SetU8, Step};
 use std::cell::{Ref, RefCell};
 use std::fmt::Write;
 use std::ops::Deref;
@@ -121,76 +122,88 @@ impl<'a> Transition<'a> {
 
     pub fn intersects<T>(&self, other: T) -> bool
     where
-        Self: TransitionOps<T>,
+        Self: IntersectOp<T>,
     {
-        TransitionOps::intersects(self, other)
+        IntersectOp::intersects(self, other)
     }
 
     pub fn contains<T>(&self, other: T) -> bool
     where
-        Self: TransitionOps<T>,
+        Self: ContainOp<T>,
     {
-        TransitionOps::contains(self, other)
+        ContainOp::contains(self, other)
     }
 }
 
-pub trait TransitionOps<T> {
-    fn contains(&self, other: T) -> bool;
-    fn intersects(&self, other: T) -> bool;
-    fn merge(&self, other: T);
+impl<T> ContainOp<T> for Transition<'_>
+where
+    SymbolSet: ContainOp<T>,
+{
+    fn contains(&self, rhs: T) -> bool {
+        self.0.symset.borrow().contains(rhs)
+    }
 }
 
-macro_rules! impl_transition_ops {
-    ($other:ident: $other_ty:ty [ $($prefix:tt)? ]) => {
-        paste::paste! {
-            impl<'a> TransitionOps<$other_ty> for Transition<'a> {
-                #[inline]
-                fn contains(&self, $other: $other_ty) -> bool {
-                    self.0.symset.borrow().[<contains_$other>]($($prefix)? $other)
-                }
-
-                #[inline]
-                fn intersects(&self, $other: $other_ty) -> bool {
-                    self.0.symset.borrow().[<intersects_$other>]($($prefix)? $other)
-                }
-
-                #[inline]
-                fn merge(&self, $other: $other_ty) {
-                    self.0.symset.borrow_mut().[<merge_$other>]($($prefix)? $other);
-                }
-            }
-        }
-    };
-}
-
-impl_transition_ops!(epsilon: Epsilon []);
-impl_transition_ops!(epsilon: &Epsilon [*]);
-impl_transition_ops!(symbol: u8 []);
-impl_transition_ops!(symbol: &u8 [*]);
-impl_transition_ops!(range: RangeU8 []);
-impl_transition_ops!(range: &RangeU8 [*]);
-
-impl<'a, 'b> TransitionOps<Transition<'b>> for Transition<'a> {
+impl<'a, 'b> ContainOp<Transition<'b>> for Transition<'a> {
     #[inline]
     fn contains(&self, other: Transition<'b>) -> bool {
         self.0
             .symset
             .borrow()
-            .contains_symset(other.0.symset.borrow().deref())
+            .contains(other.0.symset.borrow().deref())
     }
+}
 
+impl<T> IntersectOp<T> for Transition<'_>
+where
+    SymbolSet: IntersectOp<T>,
+{
+    fn intersects(&self, rhs: T) -> bool {
+        self.0.symset.borrow().intersects(rhs)
+    }
+}
+
+impl<'a, 'b> redt::ops::IntersectOp<Transition<'b>> for Transition<'a> {
     #[inline]
     fn intersects(&self, other: Transition<'b>) -> bool {
         self.0
             .symset
             .borrow()
-            .intersects_symset(other.0.symset.borrow().deref())
+            .intersects(other.0.symset.borrow().deref())
     }
+}
 
+pub trait TransitionOps<T>: redt::ops::ContainOp<T> + redt::ops::IntersectOp<T> {
+    fn merge(&self, other: T);
+}
+
+macro_rules! impl_merge_op {
+    ($($type:ty),*) => {
+        $(
+            impl TransitionOps<$type> for Transition<'_> {
+                fn merge(&self, other: $type) {
+                    self.0.symset.borrow_mut().include(other);
+                }
+            }
+        )*
+    };
+}
+
+impl_merge_op!(
+    u8,
+    Epsilon,
+    RangeU8,
+    SetU8,
+    &SetU8,
+    &SymbolSet,
+    &mut SymbolSet
+);
+
+impl<'a, 'b> TransitionOps<Transition<'b>> for Transition<'a> {
     fn merge(&self, other: Transition<'b>) {
         let other_symset = other.0.symset.borrow();
         let other_symset = other_symset.deref();
-        self.0.symset.borrow_mut().merge_symset(other_symset);
+        self.0.symset.borrow_mut().include(other_symset);
 
         let mut self_insts = self.0.insts.borrow_mut();
         for (other_insts, other_symset) in other.0.insts.borrow().iter() {
@@ -198,7 +211,7 @@ impl<'a, 'b> TransitionOps<Transition<'b>> for Transition<'a> {
                 .iter_mut()
                 .find(|(self_inst, _)| self_inst == other_insts)
             {
-                self_symset.merge_symset(other_symset);
+                redt::ops::IncludeOp::<&SymbolSet>::include(*self_symset, other_symset);
             } else {
                 let self_symset = self.0.arena.alloc_with(|| (*other_symset).clone());
                 self_insts.push((*other_insts, self_symset));
@@ -208,17 +221,21 @@ impl<'a, 'b> TransitionOps<Transition<'b>> for Transition<'a> {
     }
 }
 
-impl<'a, 'b> TransitionOps<&Transition<'b>> for Transition<'a> {
+impl<'a, 'b> ContainOp<&Transition<'b>> for Transition<'a> {
     #[inline]
     fn contains(&self, other: &Transition<'b>) -> bool {
-        TransitionOps::contains(self, *other)
+        ContainOp::contains(self, *other)
     }
+}
 
+impl<'a, 'b> IntersectOp<&Transition<'b>> for Transition<'a> {
     #[inline]
     fn intersects(&self, other: &Transition<'b>) -> bool {
-        TransitionOps::intersects(self, *other)
+        IntersectOp::intersects(self, *other)
     }
+}
 
+impl<'a, 'b> TransitionOps<&Transition<'b>> for Transition<'a> {
     fn merge(&self, other: &Transition<'b>) {
         TransitionOps::merge(self, *other);
     }
@@ -264,7 +281,7 @@ impl std::fmt::Display for Transition<'_> {
                 break;
             }
         }
-        if self.contains(crate::symbol::Epsilon) {
+        if self.contains(Epsilon) {
             if has_symbols {
                 f.write_str(" | ")?;
             }
@@ -289,7 +306,7 @@ macro_rules! impl_fmt {
                     ::std::fmt::$trait::fmt(&range, f)?;
                 }
 
-                if self.contains(crate::symbol::Epsilon) {
+                if self.contains(Epsilon) {
                     if !first_iter {
                         f.write_str(" | ")?;
                     }
@@ -352,7 +369,7 @@ impl std::iter::Iterator for InstructForIter<'_> {
     fn next(&mut self) -> Option<Self::Item> {
         for index in &mut self.index_iter {
             let (_, symset) = &self.insts[index];
-            if symset.contains_symbol(self.symbol) {
+            if symset.contains(self.symbol) {
                 return Some(self.insts[index].0);
             }
         }

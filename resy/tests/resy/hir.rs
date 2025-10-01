@@ -30,8 +30,8 @@ fn hir_literal() {
 #[test]
 fn hir_class() {
     let mut set = SetU8::new();
-    set.merge_byte(0);
-    set.merge_range((27..=39).into());
+    set.include(0);
+    set.include(27..=39);
     let class = Hir::class(set);
     assert!(class.is_class());
     assert!(!class.is_literal());

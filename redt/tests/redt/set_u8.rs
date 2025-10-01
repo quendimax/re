@@ -9,17 +9,16 @@ fn setu8_new() {
 
     let a = SetU8::from(&[1, 2, 3]);
     let mut b = SetU8::from(2);
-    b.merge_byte(1);
-    b.merge_byte(3);
+    b.include(1);
+    b.include(3);
     assert_eq!(a, b);
 }
 
 #[test]
 fn setu8_contains_byte() {
-    let mut a = SetU8::new();
-    a.merge_range((4..=30).into());
-    assert!(a.contains_byte(30));
-    assert!(!a.contains_byte(31));
+    let a = SetU8::from(4..=30);
+    assert!(a.contains(30));
+    assert!(!a.contains(31));
 }
 
 #[test]
@@ -30,90 +29,85 @@ fn setu8_contains_range() {
     let r02 = RangeU8::new(10, 180);
     let r03 = RangeU8::new(10, 220);
 
-    a.merge_range((4..=30).into());
-    assert!(a.contains_range(r00));
+    a.include(4..=30);
+    assert!(a.contains(r00));
 
-    a.merge_range((31..=122).into());
-    assert!(a.contains_range(r01));
+    a.include(31..=122);
+    assert!(a.contains(r01));
 
-    a.merge_range((123..=189).into());
-    assert!(a.contains_range(r02));
+    a.include(123..=189);
+    assert!(a.contains(r02));
 
-    a.merge_range((190..=250).into());
-    assert!(a.contains_range(r03));
+    a.include(190..=250);
+    assert!(a.contains(r03));
 }
 
 #[test]
 fn setu8_contains_set() {
     let mut a = SetU8::new();
-    a.merge_range((0..=240).into());
+    a.include(0..=240);
 
     let mut b = SetU8::new();
-    b.merge_byte(3);
-    b.merge_byte(80);
-    b.merge_byte(160);
-    b.merge_byte(220);
+    b.include(3);
+    b.include(80);
+    b.include(160);
+    b.include(220);
 
-    assert!(a.contains_set(&b));
+    assert!(a.contains(&b));
 }
 
 #[test]
 fn setu8_intersects_byte() {
     let mut a = SetU8::new();
-    a.merge_range((4..=30).into());
-    assert!(a.intersects_byte(30));
-    assert!(!a.intersects_byte(31));
+    a.include(4..=30);
+    assert!(a.intersects(30));
+    assert!(!a.intersects(31));
 }
 
 #[test]
 fn setu8_intersects_range() {
     let mut a = SetU8::new();
-    a.merge_range((198..=250).into());
+    a.include(198..=250);
 
     let r33 = RangeU8::new(210, 220);
     let r23 = RangeU8::new(180, 220);
     let r13 = RangeU8::new(100, 220);
     let r03 = RangeU8::new(20, 220);
 
-    assert!(a.intersects_range(r33));
-    assert!(a.intersects_range(r23));
-    assert!(a.intersects_range(r13));
-    assert!(a.intersects_range(r03));
+    assert!(a.intersects(r33));
+    assert!(a.intersects(r23));
+    assert!(a.intersects(r13));
+    assert!(a.intersects(r03));
 }
 
 #[test]
 fn setu8_intersects_set() {
-    let mut a = SetU8::new();
-    a.merge_range((0..=240).into());
+    let a = SetU8::from(0..=240);
+    let b = SetU8::from(220);
 
-    let mut b = SetU8::new();
-    b.merge_byte(220);
-
-    assert!(a.intersects_set(&b));
+    assert!(a.intersects(&b));
 }
 
 #[test]
 fn setu8_merge_byte() {
     let mut a = SetU8::new();
-    a.merge_byte(3);
+    a.include(3);
 }
 
 #[test]
 fn setu8_merge_range() {
     let mut a = SetU8::new();
-    a.merge_range((198..=250).into());
-    a.merge_range((150..=250).into());
-    a.merge_range((98..=250).into());
-    a.merge_range((8..=250).into());
+    a.include(198..=250);
+    a.include(150..=250);
+    a.include(98..=250);
+    a.include(8..=250);
 }
 
 #[test]
 fn setu8_merge_set() {
-    let mut a = SetU8::new();
-    a.merge_range((0..=240).into());
-
+    let a = SetU8::from(0..=240);
     let mut b = SetU8::new();
-    b.merge_set(&a);
+    b.include(&a);
 
     assert_eq!(a, b);
 }
@@ -121,24 +115,22 @@ fn setu8_merge_set() {
 #[test]
 fn setu8_display_fmt() {
     let mut a = SetU8::new();
-    a.merge_range((0..=200).into());
-    a.merge_range((210..=240).into());
+    a.include(0..=200);
+    a.include(210..=240);
 
     assert_eq!(format!("{}", a), "[00h-C8h | D2h-F0h]");
 }
 
 #[test]
 fn setu8_bytes() {
-    let mut a = SetU8::new();
-    a.merge_range((0..=240).into());
-
+    let a = SetU8::from(0..=240);
     assert_eq!(a.bytes().collect::<Vec<_>>(), (0..=240).collect::<Vec<_>>());
 }
 
 #[test]
 fn setu8_ranges() {
     let mut a = SetU8::new();
-    a.merge_range((0..=240).into());
+    a.include(RangeU8::from(0..=240));
 
     assert_eq!(
         a.ranges().collect::<Vec<_>>(),

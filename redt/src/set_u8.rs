@@ -1,6 +1,8 @@
+use crate::ops;
 use crate::{Legible, RangeU8, Step};
 use std::fmt::Write;
 use std::ops::Deref;
+use std::ops::RangeInclusive;
 
 type Chunk = u64;
 
@@ -39,8 +41,16 @@ impl std::default::Default for SetU8 {
 
 impl std::convert::From<u8> for SetU8 {
     fn from(value: u8) -> Self {
-        let mut set = Self::default();
-        set.merge_byte(value);
+        let mut set = Self::empty();
+        set |= value;
+        set
+    }
+}
+
+impl std::convert::From<std::ops::RangeInclusive<u8>> for SetU8 {
+    fn from(value: std::ops::RangeInclusive<u8>) -> Self {
+        let mut set = Self::empty();
+        set |= RangeU8::from(value);
         set
     }
 }
@@ -65,7 +75,7 @@ impl std::convert::From<&[u8]> for SetU8 {
     fn from(value: &[u8]) -> Self {
         let mut set = Self::default();
         for byte in value {
-            set.merge_byte(*byte);
+            set |= *byte;
         }
         set
     }
@@ -342,6 +352,13 @@ impl crate::ops::IncludeOp<RangeU8> for SetU8 {
     }
 }
 
+impl crate::ops::IncludeOp<RangeInclusive<u8>> for SetU8 {
+    #[inline]
+    fn include(&mut self, range: RangeInclusive<u8>) {
+        *self |= RangeU8::from(range);
+    }
+}
+
 impl crate::ops::IncludeOp<&SetU8> for SetU8 {
     #[inline]
     fn include(&mut self, rhs: &SetU8) {
@@ -393,6 +410,12 @@ impl crate::ops::ExcludeOp<RangeU8> for SetU8 {
     }
 }
 
+impl crate::ops::ExcludeOp<RangeInclusive<u8>> for SetU8 {
+    fn exclude(&mut self, rhs: RangeInclusive<u8>) {
+        self.exclude(RangeU8::from(rhs));
+    }
+}
+
 impl crate::ops::ExcludeOp<&SetU8> for SetU8 {
     #[inline]
     fn exclude(&mut self, rhs: &SetU8) {
@@ -414,141 +437,40 @@ impl SetU8 {
         self.chunks.iter().all(|&chunk| chunk == 0)
     }
 
-    #[inline]
-    pub fn contains_byte(&self, byte: u8) -> bool {
-        self.chunks[byte as usize >> 6] & (1 << (byte & (u8::MAX >> 2))) != 0
+    pub fn contains<Rhs>(&self, rhs: Rhs) -> bool
+    where
+        Self: ops::ContainOp<Rhs>,
+    {
+        ops::ContainOp::contains(self, rhs)
     }
 
-    pub fn contains_range(&self, range: RangeU8) -> bool {
-        let (ls_mask, ms_mask, ls_index, ms_index) = find_masks_indices(range);
-        unsafe {
-            match ms_index - ls_index {
-                0 => {
-                    let mask = ls_mask & ms_mask;
-                    *self.chunks.get_unchecked(ls_index) & mask == mask
-                }
-                1 => {
-                    *self.chunks.get_unchecked(ls_index) & ls_mask == ls_mask
-                        && *self.chunks.get_unchecked(ls_index + 1) & ms_mask == ms_mask
-                }
-                2 => {
-                    *self.chunks.get_unchecked(ls_index) & ls_mask == ls_mask
-                        && *self.chunks.get_unchecked(ls_index + 1) == Chunk::MAX
-                        && *self.chunks.get_unchecked(ls_index + 2) & ms_mask == ms_mask
-                }
-                3 => {
-                    *self.chunks.get_unchecked(0) & ls_mask == ls_mask
-                        && *self.chunks.get_unchecked(1) == Chunk::MAX
-                        && *self.chunks.get_unchecked(2) == Chunk::MAX
-                        && *self.chunks.get_unchecked(3) & ms_mask == ms_mask
-                }
-                _ => std::hint::unreachable_unchecked(),
-            }
-        }
+    pub fn intersects<Rhs>(&self, rhs: Rhs) -> bool
+    where
+        Self: ops::IntersectOp<Rhs>,
+    {
+        ops::IntersectOp::intersects(self, rhs)
     }
 
-    pub fn contains_set(&self, other: &Self) -> bool {
-        self.chunks[0] & other.chunks[0] == other.chunks[0]
-            && self.chunks[1] & other.chunks[1] == other.chunks[1]
-            && self.chunks[2] & other.chunks[2] == other.chunks[2]
-            && self.chunks[3] & other.chunks[3] == other.chunks[3]
+    pub fn include<Rhs>(&mut self, rhs: Rhs)
+    where
+        Self: ops::IncludeOp<Rhs>,
+    {
+        ops::IncludeOp::include(self, rhs);
     }
 
-    pub fn intersects_byte(&self, byte: u8) -> bool {
-        self.chunks[byte as usize >> 6] & (1 << (byte & (u8::MAX >> 2))) != 0
+    pub fn exclude<Rhs>(&mut self, rhs: Rhs)
+    where
+        Self: ops::ExcludeOp<Rhs>,
+    {
+        ops::ExcludeOp::exclude(self, rhs);
     }
 
-    pub fn intersects_range(&self, range: RangeU8) -> bool {
-        let mut ls_mask = 1 << (range.start() & (u8::MAX >> 2));
-        ls_mask = !(ls_mask - 1);
-
-        let mut ms_mask = 1 << (range.last() & (u8::MAX >> 2));
-        ms_mask |= ms_mask - 1;
-
-        let ls_index = (range.start() >> 6) as usize;
-        let ms_index = (range.last() >> 6) as usize;
-
-        unsafe {
-            match ms_index - ls_index {
-                0 => {
-                    let mask = ls_mask & ms_mask;
-                    *self.chunks.get_unchecked(ls_index) & mask != 0
-                }
-                1 => {
-                    *self.chunks.get_unchecked(ls_index) & ls_mask != 0
-                        || *self.chunks.get_unchecked(ls_index + 1) & ms_mask != 0
-                }
-                2 => {
-                    *self.chunks.get_unchecked(ls_index) & ls_mask != 0
-                        || *self.chunks.get_unchecked(ls_index + 1) != 0
-                        || *self.chunks.get_unchecked(ls_index + 2) & ms_mask != 0
-                }
-                3 => {
-                    *self.chunks.get_unchecked(0) & ls_mask != 0
-                        || *self.chunks.get_unchecked(1) != 0
-                        || *self.chunks.get_unchecked(2) != 0
-                        || *self.chunks.get_unchecked(3) & ms_mask != 0
-                }
-                _ => std::hint::unreachable_unchecked(),
-            }
-        }
-    }
-
-    pub fn intersects_set(&self, other: &SetU8) -> bool {
-        self.chunks[0] & other.chunks[0] != 0
-            || self.chunks[1] & other.chunks[1] != 0
-            || self.chunks[2] & other.chunks[2] != 0
-            || self.chunks[3] & other.chunks[3] != 0
-    }
-
-    pub fn merge_byte(&mut self, byte: u8) {
-        self.chunks[byte as usize >> 6] |= 1 << (byte & (u8::MAX >> 2));
-    }
-
-    pub fn merge_range(&mut self, range: RangeU8) {
-        let mut ls_mask = 1 << (range.start() & (u8::MAX >> 2));
-        ls_mask = !(ls_mask - 1);
-
-        let mut ms_mask = 1 << (range.last() & (u8::MAX >> 2));
-        ms_mask |= ms_mask - 1;
-
-        let ls_index = (range.start() >> 6) as usize;
-        let ms_index = (range.last() >> 6) as usize;
-
-        unsafe {
-            match ms_index - ls_index {
-                0 => {
-                    *self.chunks.get_unchecked_mut(ls_index) |= ls_mask & ms_mask;
-                }
-                1 => {
-                    *self.chunks.get_unchecked_mut(ls_index) |= ls_mask;
-                    *self.chunks.get_unchecked_mut(ls_index + 1) |= ms_mask;
-                }
-                2 => {
-                    *self.chunks.get_unchecked_mut(ls_index) |= ls_mask;
-                    *self.chunks.get_unchecked_mut(ls_index + 1) |= Chunk::MAX;
-                    *self.chunks.get_unchecked_mut(ls_index + 2) |= ms_mask;
-                }
-                3 => {
-                    *self.chunks.get_unchecked_mut(0) |= ls_mask;
-                    *self.chunks.get_unchecked_mut(1) |= Chunk::MAX;
-                    *self.chunks.get_unchecked_mut(2) |= Chunk::MAX;
-                    *self.chunks.get_unchecked_mut(3) |= ms_mask;
-                }
-                _ => std::hint::unreachable_unchecked(),
-            }
-        }
-    }
-
-    #[inline]
-    pub fn merge_set(&mut self, other: &SetU8) {
-        *self |= other;
-    }
-
+    /// Returns an iterator over the bytes in the set.
     pub fn bytes(&self) -> impl Iterator<Item = u8> {
         ByteIter::new(self)
     }
 
+    /// Returns an iterator over the inclusive byte ranges in the set.
     pub fn ranges(&self) -> impl Iterator<Item = RangeU8> {
         RangeIter::new(self)
     }
