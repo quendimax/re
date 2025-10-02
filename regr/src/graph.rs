@@ -237,63 +237,54 @@ impl std::ops::Drop for Graph<'_> {
 macro_rules! impl_fmt {
     (std::fmt::$trait:ident) => {
         impl ::std::fmt::$trait for Graph<'_> {
+            #[allow(clippy::mutable_key_type)]
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                struct Lambda<'b, 'c> {
-                    first: bool,
-                    f: &'b mut std::fmt::Formatter<'c>,
-                    visited: ::redt::Set<u64>,
+                fn recurse<'a>(node: Node<'a>, visited: &mut BTreeSet<Node<'a>>) {
+                    visited.insert(node);
+                    for target in node.targets().keys().copied() {
+                        if !visited.contains(&target) {
+                            recurse(target, visited);
+                        }
+                    }
                 }
-                impl<'a, 'b, 'c> Lambda<'b, 'c> {
-                    fn call(&mut self, node: Node<'a>) -> std::fmt::Result {
-                        self.visited.insert(node.uid());
-                        if self.first {
-                            self.first = false;
+                if let Some(start_node) = self.start_node.get() {
+                    let mut visited = BTreeSet::new();
+                    recurse(start_node, &mut visited);
+                    let mut first = true;
+                    for node in visited.iter().copied() {
+                        if first {
+                            first = false;
                         } else {
-                            self.f.write_char('\n')?;
+                            f.write_char('\n')?;
                         }
                         let mut is_empty = true;
-                        ::std::fmt::$trait::fmt(&node, self.f)?;
-                        self.f.write_str(" {")?;
+                        ::std::fmt::$trait::fmt(&node, f)?;
+                        f.write_str(" {")?;
                         let refer = node.targets();
                         let mut targets: Vec<_> = refer.iter().collect();
                         targets.sort_by_key(|(target, _)| target.uid()); // make order consistent
                         for (target, transition) in targets.iter() {
-                            self.f.write_str("\n    ")?;
-                            ::std::fmt::$trait::fmt(transition, self.f)?;
-                            self.f.write_str(" -> ")?;
+                            f.write_str("\n    ")?;
+                            ::std::fmt::$trait::fmt(transition, f)?;
+                            f.write_str(" -> ")?;
                             if node == **target {
-                                self.f.write_str("self")?;
+                                f.write_str("self")?;
                             } else {
-                                ::std::fmt::$trait::fmt(&target, self.f)?;
+                                ::std::fmt::$trait::fmt(&target, f)?;
                             }
                             for inst in transition.instructs() {
-                                self.f.write_str("\n        ")?;
-                                write!(self.f, "{inst}")?;
+                                f.write_str("\n        ")?;
+                                write!(f, "{inst}")?;
                             }
                             is_empty = false;
                         }
                         if !is_empty {
-                            self.f.write_char('\n')?;
+                            f.write_char('\n')?;
                         }
-                        self.f.write_char('}')?;
-                        for target in node.targets().keys().copied() {
-                            if !self.visited.contains(&target.uid()) {
-                                self.call(target)?;
-                            }
-                        }
-                        Ok(())
+                        f.write_char('}')?;
                     }
                 }
-                if let Some(start_node) = self.start_node.get() {
-                    Lambda {
-                        first: true,
-                        f,
-                        visited: ::redt::Set::new(),
-                    }
-                    .call(start_node)
-                } else {
-                    Ok(())
-                }
+                Ok(())
             }
         }
     };

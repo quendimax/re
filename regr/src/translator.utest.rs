@@ -33,10 +33,10 @@ fn translate_literal() {
             ///node(0) {
             ///    ['a'] -> node(2)
             ///}
+            ///node(1) {}
             ///node(2) {
             ///    ['b'] -> node(1)
             ///}
-            ///node(1) {}
         )
     );
 }
@@ -111,6 +111,7 @@ fn translate_repeat() {
             ///node(0) {
             ///    [Epsilon] -> node(2)
             ///}
+            ///node(1) {}
             ///node(2) {
             ///    ['a'] -> node(3)
             ///}
@@ -118,7 +119,6 @@ fn translate_repeat() {
             ///    [Epsilon] -> node(1)
             ///    [Epsilon] -> node(2)
             ///}
-            ///node(1) {}
         )
     );
 
@@ -130,6 +130,7 @@ fn translate_repeat() {
             ///node(0) {
             ///    ['a'] -> node(2)
             ///}
+            ///node(1) {}
             ///node(2) {
             ///    ['a'] -> node(3)
             ///}
@@ -143,7 +144,6 @@ fn translate_repeat() {
             ///    [Epsilon] -> node(1)
             ///    [Epsilon] -> node(4)
             ///}
-            ///node(1) {}
         )
     );
 
@@ -167,13 +167,13 @@ fn translate_repeat() {
             ///node(0) {
             ///    ['a'] -> node(2)
             ///}
+            ///node(1) {}
             ///node(2) {
             ///    ['a'] -> node(3)
             ///}
             ///node(3) {
             ///    ['a'] -> node(1)
             ///}
-            ///node(1) {}
         )
     );
 
@@ -185,11 +185,11 @@ fn translate_repeat() {
             ///node(0) {
             ///    ['a'] -> node(2)
             ///}
+            ///node(1) {}
             ///node(2) {
             ///    [Epsilon] -> node(1)
             ///    [Epsilon] -> node(3)
             ///}
-            ///node(1) {}
             ///node(3) {
             ///    ['a'] -> node(4)
             ///}
@@ -267,13 +267,13 @@ fn translate_concat() {
             ///node(0) {
             ///    ['a'] -> node(2)
             ///}
+            ///node(1) {}
             ///node(2) {
             ///    ['b'] -> node(3)
             ///}
             ///node(3) {
             ///    ['c'] -> node(1)
             ///}
-            ///node(1) {}
         )
     );
 }
@@ -298,13 +298,13 @@ fn translate_disjunct() {
             ///    [Epsilon] -> node(4)
             ///    [Epsilon] -> node(6)
             ///}
+            ///node(1) {}
             ///node(2) {
             ///    ['a'] -> node(3)
             ///}
             ///node(3) {
             ///    [Epsilon] -> node(1)
             ///}
-            ///node(1) {}
             ///node(4) {
             ///    ['b'] -> node(5)
             ///}
@@ -340,13 +340,13 @@ fn translate_group() {
             ///    [Epsilon] -> node(2)
             ///        wrpos t0/r0
             ///}
+            ///node(1) {}
             ///node(2) {
             ///    [Epsilon] -> node(3)
             ///}
             ///node(3) {
             ///    [Epsilon] -> node(1)
             ///}
-            ///node(1) {}
         )
     );
     let (open_tag, close_tag) = graph.tag_group(1).unwrap();
@@ -370,13 +370,13 @@ fn translate_group() {
             ///    [Epsilon] -> node(2)
             ///        wrpos t0/r0
             ///}
+            ///node(1) {}
             ///node(2) {
             ///    ['a'] -> node(3)
             ///}
             ///node(3) {
             ///    [Epsilon] -> node(1)
             ///}
-            ///node(1) {}
         )
     );
     let (open_tag, close_tag) = graph.tag_group(1).unwrap();
@@ -401,13 +401,13 @@ fn translate_group() {
             ///node(0) {
             ///    [Epsilon] -> node(2)
             ///}
+            ///node(1) {}
             ///node(2) {
             ///    [Epsilon] -> node(3)
             ///}
             ///node(3) {
             ///    [Epsilon] -> node(1)
             ///}
-            ///node(1) {}
         )
     );
     let (open_tag, close_tag) = graph.tag_group(1).unwrap();
