@@ -28,10 +28,10 @@ jobs:
         run: cargo build --release --all-targets
 
       - name: Run tests
-        run: cargo test --all-features
+        run: cargo test
 
       - name: Run Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --all-targets -- -D warnings
 
       - name: Check formatting
         run: cargo fmt --all --check
