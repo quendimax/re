@@ -9,18 +9,11 @@ use std::fmt::Write;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum AutomatonKind {
-    NFA,
-    DFA,
-}
-
 pub struct Graph<'a> {
     gid: u64,
     arena: &'a Arena,
     next_nid: Cell<u32>,
     start_node: Cell<Option<Node<'a>>>,
-    kind: AutomatonKind,
     tag_bank: RefCell<Map<u32, Tag>>,          // id -> tag
     tag_groups: RefCell<Map<u32, (u32, u32)>>, // label -> (open_tag_id, close_tag_id)
 }
@@ -28,7 +21,7 @@ pub struct Graph<'a> {
 static NEXT_GRAPH_ID: AtomicU32 = AtomicU32::new(1);
 
 impl<'a> Graph<'a> {
-    pub fn new_in(arena: &'a mut Arena, kind: AutomatonKind) -> Self {
+    pub fn new_in(arena: &'a mut Arena) -> Self {
         let gid = NEXT_GRAPH_ID.fetch_add(1, Ordering::Relaxed) as u64;
         if gid == 0 {
             panic!("graph id overflow");
@@ -41,7 +34,6 @@ impl<'a> Graph<'a> {
             arena,
             next_nid: Cell::new(0),
             start_node: Cell::new(None),
-            kind,
             tag_bank: RefCell::new(Map::new()),
             tag_groups: RefCell::new(Map::new()),
         }
@@ -51,39 +43,6 @@ impl<'a> Graph<'a> {
     #[inline]
     pub fn gid(&self) -> u64 {
         self.gid
-    }
-
-    /// Creates a new DFA graph.
-    pub fn dfa_in(arena: &'a mut Arena) -> Self {
-        Self::new_in(arena, AutomatonKind::DFA)
-    }
-
-    /// Creates a new NFA graph.
-    pub fn nfa_in(arena: &'a mut Arena) -> Self {
-        Self::new_in(arena, AutomatonKind::NFA)
-    }
-
-    /// Returns the graph's kind.
-    pub fn kind(&self) -> AutomatonKind {
-        self.kind
-    }
-
-    /// Checks if this graph is DFA.
-    #[inline]
-    pub fn is_dfa(&self) -> bool {
-        match self.kind {
-            AutomatonKind::DFA => true,
-            AutomatonKind::NFA => false,
-        }
-    }
-
-    /// Checks if this graph is NFA.
-    #[inline]
-    pub fn is_nfa(&self) -> bool {
-        match self.kind {
-            AutomatonKind::DFA => false,
-            AutomatonKind::NFA => true,
-        }
     }
 
     /// Creates a new node.
@@ -189,7 +148,7 @@ impl<'a> Graph<'a> {
             }
         }
 
-        let dfa = Graph::dfa_in(arena);
+        let dfa = Graph::new_in(arena);
         let start_e_closure = Rc::new(self.start_node().closure(Epsilon));
         Lambda {
             convert_map: ConvertMap::new(),
@@ -341,7 +300,7 @@ mod utest {
     fn graph_ctor_panic() {
         NEXT_GRAPH_ID.store(u32::MAX, Ordering::Relaxed);
         let mut arena = Arena::new();
-        _ = Graph::nfa_in(&mut arena);
-        _ = Graph::nfa_in(&mut arena);
+        _ = Graph::new_in(&mut arena);
+        _ = Graph::new_in(&mut arena);
     }
 }

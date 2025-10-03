@@ -12,7 +12,7 @@ fn arena_ctor() {
 #[test]
 fn arena_alloc_node() {
     let mut arena = Arena::new();
-    let gr = Graph::nfa_in(&mut arena);
+    let gr = Graph::new_in(&mut arena);
     // ERROR: mutable borrow: _ = arena.alloc_node();
     _ = gr.node();
 }
@@ -20,11 +20,11 @@ fn arena_alloc_node() {
 #[test]
 fn arena_binds_graph() {
     let mut arena = Arena::new();
-    let gr = Graph::nfa_in(&mut arena);
+    let gr = Graph::new_in(&mut arena);
     let first_gid = gr.gid();
     drop(gr);
 
-    let gr = Graph::nfa_in(&mut arena);
+    let gr = Graph::new_in(&mut arena);
     let second_gid = gr.gid();
     assert_ne!(first_gid, second_gid);
 }
@@ -32,7 +32,7 @@ fn arena_binds_graph() {
 #[test]
 fn arena_alloc_during_iteration() {
     let mut arena = Arena::with_capacity(0);
-    let gr = Graph::nfa_in(&mut arena);
+    let gr = Graph::new_in(&mut arena);
     let mut items = Vec::new();
     for _ in 0..5 {
         let node = gr.node();
@@ -57,7 +57,7 @@ fn arena_alloc_during_iteration() {
 #[test]
 fn arena_fmt_display() {
     let mut arena = Arena::new();
-    let gr = Graph::nfa_in(&mut arena);
+    let gr = Graph::new_in(&mut arena);
     let a = gr.node();
     a.connect(a).merge(Epsilon);
     let b = gr.node();

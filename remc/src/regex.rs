@@ -18,7 +18,7 @@ pub(crate) fn re_impl(input: TokenStream2) -> Result<TokenStream2> {
     }
 
     let mut nfa_arena = Arena::new();
-    let nfa = Graph::nfa_in(&mut nfa_arena);
+    let nfa = Graph::new_in(&mut nfa_arena);
     let start_node = nfa.start_node();
     let end_node = nfa.node();
 

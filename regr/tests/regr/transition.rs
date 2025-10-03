@@ -17,7 +17,7 @@ where
     F: Fn(Transition<'_>) -> R,
 {
     let mut arena = Arena::new();
-    let gr = Graph::nfa_in(&mut arena);
+    let gr = Graph::new_in(&mut arena);
     let tr = gr.node().connect(gr.node());
     f(tr)
 }
@@ -27,7 +27,7 @@ where
     F: Fn(Transition<'_>) -> R,
 {
     let mut arena = Arena::new();
-    let gr = Graph::nfa_in(&mut arena);
+    let gr = Graph::new_in(&mut arena);
     let tr = gr.node().connect(gr.node());
     let mut sym = 0u8;
     for chunk in chunks {
@@ -48,7 +48,7 @@ where
     F: Fn(Transition<'_>) -> R,
 {
     let mut arena = Arena::new();
-    let gr = Graph::nfa_in(&mut arena);
+    let gr = Graph::new_in(&mut arena);
     let tr = gr.node().connect(gr.node());
     for sym in symbols {
         tr.merge(*sym);
@@ -61,7 +61,7 @@ where
     F: Fn(Transition<'_>) -> R,
 {
     let mut arena = Arena::new();
-    let gr = Graph::nfa_in(&mut arena);
+    let gr = Graph::new_in(&mut arena);
     let tr = gr.node().connect(gr.node());
     tr.merge(Epsilon);
     f(tr)
@@ -72,8 +72,8 @@ where
 fn tr_new() {
     let mut arena_1 = Arena::new();
     let mut arena_2 = Arena::new();
-    let gr_1 = Graph::nfa_in(&mut arena_1);
-    let gr_2 = Graph::nfa_in(&mut arena_2);
+    let gr_1 = Graph::new_in(&mut arena_1);
+    let gr_2 = Graph::new_in(&mut arena_2);
     gr_1.node().connect(gr_2.node());
 }
 
@@ -166,7 +166,7 @@ fn tr_instructs_for() {
     let r0 = 0;
     let r1 = 1;
     let mut arena = Arena::new();
-    let gr = Graph::nfa_in(&mut arena);
+    let gr = Graph::new_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
     tr_a.merge(0);
     tr_a.merge_instruct(WritePos(t0, r0));
@@ -222,7 +222,7 @@ fn tr_contains_range() {
 #[test]
 fn tr_contains_transition() {
     let mut arena = Arena::new();
-    let gr = Graph::nfa_in(&mut arena);
+    let gr = Graph::new_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
     tr_a.merge(b'a');
     tr_a.merge(b'c');
@@ -300,7 +300,7 @@ fn tr_intersects_range() {
 #[test]
 fn tr_intersects_transition() {
     let mut arena = Arena::new();
-    let gr = Graph::nfa_in(&mut arena);
+    let gr = Graph::new_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
     tr_a.merge(b'a');
     tr_a.merge(b'c');
@@ -342,7 +342,7 @@ fn tr_merge_range() {
     fn check(range: impl Into<RangeU8>) -> Option<RangeU8> {
         let range = range.into();
         let mut arena = Arena::new();
-        let gr = Graph::nfa_in(&mut arena);
+        let gr = Graph::new_in(&mut arena);
         let tr = gr.node().connect(gr.node());
         tr.merge(range);
         let mut range: Option<RangeU8> = None;
@@ -372,7 +372,7 @@ fn tr_merge_transition() {
     let r0 = 0;
     let r1 = 1;
     let mut arena = Arena::new();
-    let gr = Graph::nfa_in(&mut arena);
+    let gr = Graph::new_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
     tr_a.merge(b'a');
     tr_a.merge(b'b');
@@ -406,7 +406,7 @@ fn tr_merge_instruct() {
     let r0 = 0;
     let r1 = 1;
     let mut arena = Arena::new();
-    let gr = Graph::nfa_in(&mut arena);
+    let gr = Graph::new_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
     tr_a.merge(b'a');
     tr_a.merge(b'b');
@@ -445,7 +445,7 @@ fn tr_merge_instructs() {
     let r0 = 0;
     let r1 = 1;
     let mut arena = Arena::new();
-    let gr = Graph::nfa_in(&mut arena);
+    let gr = Graph::new_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
     tr_a.merge(b'a');
     tr_a.merge(b'b');

@@ -1,7 +1,7 @@
 use crate::arena::Arena;
-use crate::graph::{AutomatonKind, Graph};
+use crate::graph::Graph;
 use crate::symbol::Epsilon;
-use crate::transition::{Transition, TransitionOps};
+use crate::transition::Transition;
 use redt::Map;
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeSet;
@@ -19,15 +19,7 @@ pub(crate) struct NodeInner<'a> {
     is_final: Cell<bool>,
     targets: RefCell<Map<Node<'a>, Transition<'a>>>,
     arena: &'a Arena,
-    variant: NodeVariant<'a>,
 }
-
-enum NodeVariant<'a> {
-    DfaNode(Transition<'a>),
-    NfaNode,
-}
-
-use NodeVariant::{DfaNode, NfaNode};
 
 /// Public API
 impl<'a> Node<'a> {
@@ -50,23 +42,6 @@ impl<'a> Node<'a> {
     #[inline]
     pub fn uid(self) -> u64 {
         self.0.uid
-    }
-
-    pub fn kind(self) -> AutomatonKind {
-        match self.0.variant {
-            DfaNode(_) => AutomatonKind::DFA,
-            NfaNode => AutomatonKind::NFA,
-        }
-    }
-
-    /// Checks if the node is an DFA node.
-    pub fn is_dfa(self) -> bool {
-        matches!(self.0.variant, DfaNode(_))
-    }
-
-    /// Checks if the node is an NFA node.
-    pub fn is_nfa(self) -> bool {
-        matches!(self.0.variant, NfaNode)
     }
 
     /// Checks if the node is a final N/DFA state.
@@ -137,9 +112,6 @@ impl<'a> Node<'a> {
     /// Iterates over epsilon target nodes, i.e. nodes that this node is
     /// connected to with Epsilon transition.
     pub fn for_each_epsilon_target(self, f: impl FnMut(Node<'a>)) {
-        if matches!(self.0.variant, DfaNode(_)) {
-            panic!("iteration over Epsilon targets is possible for NFA nodes only");
-        }
         let mut f = f;
         for (target, transition) in self.0.targets.borrow().iter() {
             if transition.contains(Epsilon) {
@@ -151,9 +123,6 @@ impl<'a> Node<'a> {
     /// Collects epsilon target nodes, i.e. nodes that this node is
     /// connected to with Epsilon transition.
     pub fn collect_epsilon_targets<B: FromIterator<Node<'a>>>(self) -> B {
-        if matches!(self.0.variant, DfaNode(_)) {
-            panic!("iteration over Epsilon targets is possible for NFA nodes only");
-        }
         let targets = self.0.targets.borrow();
         let iter = targets.iter().filter_map(|(target, tr)| {
             if tr.contains(Epsilon) {
@@ -169,37 +138,11 @@ impl<'a> Node<'a> {
 /// Crate API
 impl<'a> Node<'a> {
     pub(crate) fn new_inner(uid: u64, graph: &Graph<'a>) -> NodeInner<'a> {
-        match graph.kind() {
-            AutomatonKind::NFA => NodeInner {
-                uid,
-                is_final: Cell::new(false),
-                targets: Default::default(),
-                arena: graph.arena(),
-                variant: NfaNode,
-            },
-            AutomatonKind::DFA => NodeInner {
-                uid,
-                is_final: Cell::new(false),
-                targets: Default::default(),
-                arena: graph.arena(),
-                variant: DfaNode(Transition::without_source_in(graph.arena())),
-            },
-        }
-    }
-
-    pub(crate) fn assert_dfa<T>(&self, tr: T)
-    where
-        T: Copy,
-        Transition<'a>: TransitionOps<T> + TransitionOps<Epsilon>,
-    {
-        if let DfaNode(tr_mask) = self.0.variant {
-            if tr_mask.intersects(tr) {
-                panic!("DFA {self} already has an outgoing transition");
-            }
-            tr_mask.merge(tr);
-            if tr_mask.contains(Epsilon) {
-                panic!("DFA {self} can't be connected with Epsilon");
-            }
+        NodeInner {
+            uid,
+            is_final: Cell::new(false),
+            targets: Default::default(),
+            arena: graph.arena(),
         }
     }
 }

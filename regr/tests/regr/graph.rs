@@ -1,32 +1,19 @@
 use pretty_assertions::assert_eq;
 use redt::lit;
 use redt::{RangeU8, range};
-use regr::{Arena, AutomatonKind, Epsilon, Graph, Tag, TagBank};
-
-#[test]
-fn graph_ctor() {
-    let mut arena = Arena::new();
-    let gr = Graph::nfa_in(&mut arena);
-    assert!(gr.is_nfa());
-    assert!(!gr.is_dfa());
-
-    let mut arena = Arena::with_capacity(150);
-    let gr = Graph::new_in(&mut arena, AutomatonKind::DFA);
-    assert!(!gr.is_nfa());
-    assert!(gr.is_dfa());
-}
+use regr::{Arena, Epsilon, Graph, Tag, TagBank};
 
 #[test]
 fn graph_node() {
     let mut arena = Arena::new();
-    let graph = Graph::new_in(&mut arena, AutomatonKind::NFA);
+    let graph = Graph::new_in(&mut arena);
     assert_eq!(graph.node().nid(), 0);
     assert_eq!(graph.node().nid(), 1);
     assert_eq!(graph.node().nid(), 2);
     drop(graph);
 
     let mut arena = Arena::with_capacity(9);
-    let graph = Graph::new_in(&mut arena, AutomatonKind::NFA);
+    let graph = Graph::new_in(&mut arena);
     assert_eq!(graph.node().nid(), 0);
     assert_eq!(graph.node().nid(), 1);
     assert_eq!(graph.node().nid(), 2);
@@ -35,13 +22,13 @@ fn graph_node() {
 #[test]
 fn graph_start_node() {
     let mut arena = Arena::new();
-    let graph = Graph::nfa_in(&mut arena);
+    let graph = Graph::new_in(&mut arena);
     assert_eq!(graph.start_node().nid(), 0);
     assert_eq!(graph.node().nid(), 1);
     assert_eq!(graph.node().nid(), 2);
     drop(graph);
 
-    let graph = Graph::nfa_in(&mut arena);
+    let graph = Graph::new_in(&mut arena);
     assert_eq!(graph.node(), graph.start_node());
     assert_eq!(graph.start_node().nid(), 0);
     assert_eq!(graph.node().nid(), 1);
@@ -53,14 +40,14 @@ fn graph_start_node() {
 fn graph_arena() {
     let mut arena = Arena::new();
     let arena_ptr = &arena as *const Arena;
-    let graph = Graph::nfa_in(&mut arena);
+    let graph = Graph::new_in(&mut arena);
     assert_eq!(graph.arena() as *const Arena, arena_ptr);
 }
 
 #[test]
 fn graph_determine_0() {
     let mut arena = Arena::new();
-    let nfa = Graph::nfa_in(&mut arena);
+    let nfa = Graph::new_in(&mut arena);
     let a = nfa.node();
     a.connect(a).merge(Epsilon);
     assert_eq!(
@@ -80,7 +67,7 @@ fn graph_determine_0() {
 #[test]
 fn graph_determine_1() {
     let mut arena = Arena::new();
-    let nfa = Graph::nfa_in(&mut arena);
+    let nfa = Graph::new_in(&mut arena);
     let a = nfa.node();
     let b = nfa.node();
     let c = nfa.node();
@@ -131,7 +118,7 @@ fn graph_determine_1() {
 #[test]
 fn graph_determine_klenee_star() {
     let mut arena = Arena::new();
-    let nfa = Graph::nfa_in(&mut arena);
+    let nfa = Graph::new_in(&mut arena);
     let a = nfa.node();
     let b = nfa.node();
     let c = nfa.node();
@@ -177,7 +164,7 @@ fn graph_determine_klenee_star() {
 #[test]
 fn graph_for_each_node() {
     let mut arena = Arena::with_capacity(1);
-    let graph = Graph::new_in(&mut arena, AutomatonKind::NFA);
+    let graph = Graph::new_in(&mut arena);
     let a = graph.node();
     let b = graph.node();
     let c = graph.node();
@@ -203,7 +190,7 @@ fn graph_for_each_node() {
 #[test]
 fn graph_display_fmt_0() {
     let mut arena = Arena::with_capacity(1);
-    let graph = Graph::new_in(&mut arena, AutomatonKind::NFA);
+    let graph = Graph::new_in(&mut arena);
     let a = graph.node();
     let b = graph.node();
     let c = graph.node();
@@ -242,7 +229,7 @@ fn graph_display_fmt_0() {
 #[test]
 fn graph_display_fmt_1() {
     let mut arena = Arena::new();
-    let graph = Graph::nfa_in(&mut arena);
+    let graph = Graph::new_in(&mut arena);
     let n0 = graph.node();
     let n1 = graph.node();
     let n2 = graph.node();
@@ -280,7 +267,7 @@ fn graph_display_fmt_1() {
 #[test]
 fn graph_display_fmt_2() {
     let mut arena = Arena::new();
-    let graph = Graph::nfa_in(&mut arena);
+    let graph = Graph::new_in(&mut arena);
     let n0 = graph.node();
     let n1 = graph.node();
     let n2 = graph.node();
@@ -330,7 +317,7 @@ fn graph_display_fmt_2() {
 #[test]
 fn graph_display_fmt_3() {
     let mut arena = Arena::new();
-    let graph = Graph::dfa_in(&mut arena);
+    let graph = Graph::new_in(&mut arena);
     let a = graph.node();
     let b = graph.node();
     let c = graph.node();
@@ -355,7 +342,7 @@ fn graph_display_fmt_3() {
 #[test]
 fn graph_tags() {
     let mut arena = Arena::new();
-    let graph = Graph::dfa_in(&mut arena);
+    let graph = Graph::new_in(&mut arena);
     let mut tag_bank = TagBank::default();
     graph.add_tag_group(0, tag_bank.absolute(), tag_bank.absolute());
     graph.add_tag_group(1, tag_bank.absolute(), tag_bank.absolute());

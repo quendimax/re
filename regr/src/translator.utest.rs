@@ -10,7 +10,7 @@ use resy::Hir;
 fn translate_literal() {
     fn tr(literal: &[u8]) -> String {
         let mut arena = Arena::new();
-        let graph = Graph::nfa_in(&mut arena);
+        let graph = Graph::new_in(&mut arena);
         let translator = Translator::new(&graph);
         let pair = pair(graph.node(), graph.node());
         let mut tag = None;
@@ -45,7 +45,7 @@ fn translate_literal() {
 fn translate_class() {
     fn tr(set: &SetU8) -> String {
         let mut arena = Arena::new();
-        let graph = Graph::nfa_in(&mut arena);
+        let graph = Graph::new_in(&mut arena);
         let translator = Translator::new(&graph);
         let pair = pair(graph.node(), graph.node());
         let mut tag = None;
@@ -72,7 +72,7 @@ fn translate_repeat() {
     fn tr(repeat: &Hir) -> String {
         assert!(repeat.is_repeat());
         let mut arena = Arena::new();
-        let graph = Graph::nfa_in(&mut arena);
+        let graph = Graph::new_in(&mut arena);
         let mut translator = Translator::new(&graph);
         let pair = pair(graph.node(), graph.node());
         let Hir::Repeat(repeat) = repeat else {
@@ -219,7 +219,7 @@ fn translate_repeat_fails() {
     let literal = Hir::literal("a");
     let repeat = Hir::repeat(literal, 3, Some(2));
     let mut arena = Arena::new();
-    let graph = Graph::nfa_in(&mut arena);
+    let graph = Graph::new_in(&mut arena);
     let mut translator = Translator::new(&graph);
     let sub = pair(graph.node(), graph.node());
     let Hir::Repeat(repeat) = repeat else {
@@ -233,7 +233,7 @@ fn translate_repeat_fails() {
 fn translate_concat() {
     let concat = Hir::concat([]);
     let mut arena = Arena::new();
-    let graph = Graph::nfa_in(&mut arena);
+    let graph = Graph::new_in(&mut arena);
     let translator = Translator::new(&graph);
     let sub = pair(graph.node(), graph.node());
     let Hir::Literal(concat) = concat else {
@@ -253,7 +253,7 @@ fn translate_concat() {
 
     let concat = Hir::concat([Hir::literal("a"), Hir::literal("b"), Hir::literal("c")]);
     let mut arena = Arena::new();
-    let graph = Graph::nfa_in(&mut arena);
+    let graph = Graph::new_in(&mut arena);
     let mut translator = Translator::new(&graph);
     let sub = pair(graph.node(), graph.node());
     let Hir::Concat(concat) = concat else {
@@ -282,7 +282,7 @@ fn translate_concat() {
 fn translate_disjunct() {
     let disjunct = Hir::disjunct([Hir::literal("a"), Hir::literal("b"), Hir::literal("c")]);
     let mut arena = Arena::new();
-    let graph = Graph::nfa_in(&mut arena);
+    let graph = Graph::new_in(&mut arena);
     let mut translator = Translator::new(&graph);
     let sub = pair(graph.node(), graph.node());
     let Hir::Disjunct(disjunct) = disjunct else {
@@ -325,7 +325,7 @@ fn translate_disjunct() {
 fn translate_group() {
     let group = Hir::group(1, Hir::empty());
     let mut arena = Arena::new();
-    let graph = Graph::nfa_in(&mut arena);
+    let graph = Graph::new_in(&mut arena);
     let mut translator = Translator::new(&graph);
     let sub = pair(graph.node(), graph.node());
     let Hir::Group(group) = group else {
@@ -355,7 +355,7 @@ fn translate_group() {
 
     let group = Hir::group(1, Hir::literal("a"));
     let mut arena = Arena::new();
-    let graph = Graph::nfa_in(&mut arena);
+    let graph = Graph::new_in(&mut arena);
     let mut translator = Translator::new(&graph);
     let sub = pair(graph.node(), graph.node());
     let Hir::Group(group) = group else {
@@ -385,7 +385,7 @@ fn translate_group() {
 
     let group = Hir::group(1, Hir::empty());
     let mut arena = Arena::new();
-    let graph = Graph::nfa_in(&mut arena);
+    let graph = Graph::new_in(&mut arena);
     let mut translator = Translator::new(&graph);
     let sub = pair(graph.node(), graph.node());
     let Hir::Group(group) = group else {

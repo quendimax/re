@@ -25,7 +25,7 @@ pub struct Translator<'a, 'g> {
 
 impl<'a, 'g> Translator<'a, 'g> {
     pub fn new(graph: &'g Graph<'a>) -> Self {
-        assert!(graph.is_nfa(), "translator can build only NFA graphs");
+        // TODO: add optional checker for DFA graph
         Self {
             graph,
             next_reg: Cell::new(0),

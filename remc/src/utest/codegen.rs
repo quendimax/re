@@ -11,16 +11,8 @@ fn pretty(tok_stream: TokenStream) -> String {
 #[test]
 fn codegen_new() {
     let mut ar = Arena::new();
-    let gr = Graph::dfa_in(&mut ar);
+    let gr = Graph::new_in(&mut ar);
     let _ = gr.node();
-    let _ = CodeGen::new(&gr);
-}
-
-#[test]
-#[should_panic(expected = "only DFA graphs are supported")]
-fn codgen_new_panics() {
-    let mut ar = Arena::new();
-    let gr = Graph::nfa_in(&mut ar);
     let _ = CodeGen::new(&gr);
 }
 
@@ -28,14 +20,14 @@ fn codgen_new_panics() {
 #[should_panic(expected = "can't generate code for an empty graph")]
 fn codgen_produce_for_empty_graph() {
     let mut ar = Arena::new();
-    let gr = Graph::dfa_in(&mut ar);
+    let gr = Graph::new_in(&mut ar);
     let _ = CodeGen::new(&gr);
 }
 
 #[test]
 fn codgen_produce() {
     let mut ar = Arena::new();
-    let gr = Graph::dfa_in(&mut ar);
+    let gr = Graph::new_in(&mut ar);
     let _ = gr.node();
     let cd = CodeGen::new(&gr);
 

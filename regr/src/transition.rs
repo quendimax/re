@@ -22,7 +22,6 @@ pub(crate) struct TransitionInner<'a> {
     symset: RefCell<SymbolSet>,
     insts: RefCell<BumpVec<'a, (Inst, &'a mut SymbolSet)>>,
     arena: &'a Arena,
-    source: Option<Node<'a>>,
 }
 
 /// Crate API
@@ -39,21 +38,6 @@ impl<'a> Transition<'a> {
             symset: RefCell::new(SymbolSet::default()),
             insts: RefCell::new(BumpVec::new_in(&arena.shared_bump)),
             arena,
-            source: Some(source),
-        }))
-    }
-
-    /// Creates a new empty transition without source.
-    ///
-    /// This constructor is needed for DFA graph only. A transition without
-    /// source node is used as mask of already used symbols in the transition by
-    /// a DFA source node.
-    pub(crate) fn without_source_in(arena: &'a Arena) -> Self {
-        Self(arena.alloc_with(|| TransitionInner {
-            symset: RefCell::new(SymbolSet::default()),
-            insts: RefCell::new(BumpVec::new_in(&arena.shared_bump)),
-            arena,
-            source: None,
         }))
     }
 }
@@ -94,9 +78,6 @@ impl<'a> Transition<'a> {
         T: Copy,
         Self: TransitionOps<T>,
     {
-        if let Some(source) = self.0.source {
-            source.assert_dfa(other);
-        }
         TransitionOps::merge(self, other);
     }
 
@@ -379,8 +360,8 @@ mod utest {
     fn transition_new() {
         let mut arena_a = Arena::new();
         let mut arena_b = Arena::new();
-        let gr_a = Graph::nfa_in(&mut arena_a);
-        let gr_b = Graph::nfa_in(&mut arena_b);
+        let gr_a = Graph::new_in(&mut arena_a);
+        let gr_b = Graph::new_in(&mut arena_b);
         let _ = Transition::new(gr_a.node(), gr_b.node());
     }
 }

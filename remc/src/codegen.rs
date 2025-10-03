@@ -15,7 +15,6 @@ pub struct CodeGen {
 
 impl<'a> CodeGen {
     pub fn new(graph: &Graph<'a>) -> Self {
-        assert!(graph.is_dfa(), "only DFA graphs are supported");
         assert!(!graph.is_empty(), "can't generate code for an empty graph");
 
         let (id_map, invalid_id, start_id, first_non_final_id) = Self::build_id_map(graph);

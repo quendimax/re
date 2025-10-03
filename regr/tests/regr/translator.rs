@@ -5,7 +5,7 @@ use resy::{Parser, enc::Utf8Encoder};
 
 fn parse(pattern: &str) -> String {
     let mut arena = Arena::new();
-    let graph = Graph::nfa_in(&mut arena);
+    let graph = Graph::new_in(&mut arena);
     let parser = Parser::new(Utf8Encoder);
     let hir = parser.parse(pattern).unwrap();
     let mut translator = Translator::new(&graph);
@@ -13,14 +13,6 @@ fn parse(pattern: &str) -> String {
     let end_node = graph.node();
     translator.translate(&hir, start_node, end_node);
     graph.to_string()
-}
-
-#[test]
-#[should_panic]
-fn translator_new_fails() {
-    let mut arena = Arena::new();
-    let graph = Graph::dfa_in(&mut arena);
-    let _ = Translator::new(&graph);
 }
 
 #[test]

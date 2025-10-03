@@ -2,7 +2,7 @@ mod arena;
 pub use arena::Arena;
 
 mod graph;
-pub use graph::{AutomatonKind, Graph};
+pub use graph::Graph;
 
 mod isa;
 pub use isa::Inst;
