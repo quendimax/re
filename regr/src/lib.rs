@@ -1,3 +1,5 @@
+pub mod algo;
+
 mod arena;
 pub use arena::Arena;
 

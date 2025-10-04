@@ -108,6 +108,18 @@ impl<'a> Node<'a> {
         self.0.targets.borrow()
     }
 
+    /// Calls a function for each target node, i.e. nodes that this node is
+    /// connected to.
+    ///
+    /// This iterator walks over pairs (`Node`, `TransitionRef`).
+    #[inline]
+    pub fn for_each_target(self, f: impl FnMut(Node<'a>, Transition<'a>)) {
+        let mut f = f;
+        for (target, tr) in self.0.targets.borrow().iter() {
+            f(*target, *tr);
+        }
+    }
+
     /// Iterates over epsilon target nodes, i.e. nodes that this node is
     /// connected to with Epsilon transition.
     pub fn for_each_epsilon_target(self, f: impl FnMut(Node<'a>)) {

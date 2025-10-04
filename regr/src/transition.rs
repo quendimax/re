@@ -64,6 +64,13 @@ impl<'a> Transition<'a> {
         RangeIter::new(borrow)
     }
 
+    /// Returns a clone of the symbol set in this transition instance.
+    pub fn set(&self) -> SetU8 {
+        let borrow = self.0.symset.borrow();
+        let set: &SetU8 = borrow.deref();
+        set.clone()
+    }
+
     pub fn instructs(self) -> impl Iterator<Item = Inst> {
         InstructIter::new(self.0.insts.borrow())
     }
