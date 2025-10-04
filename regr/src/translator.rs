@@ -1,7 +1,6 @@
 use crate::graph::Graph;
 use crate::isa::Inst;
 use crate::node::Node;
-use crate::symbol::Epsilon;
 use crate::tag::{Tag, TagBank};
 use redt::SetU8;
 use resy::{ConcatHir, DisjunctHir, GroupHir, Hir, RepeatHir};
@@ -51,7 +50,7 @@ impl<'a, 'g> Translator<'a, 'g> {
 
     fn translate_literal(&self, literal: &[u8], sub: Pair<'a>, tag: &mut Option<Tag>) -> Summary {
         if literal.is_empty() {
-            sub.first.connect(sub.last).merge(Epsilon);
+            sub.first.connect(sub.last);
             return Summary::empty();
         }
         let mut first = sub.first;
@@ -87,11 +86,9 @@ impl<'a, 'g> Translator<'a, 'g> {
     ) -> Summary {
         let first = self.graph.node();
         let tr_in = sub.first.connect(first);
-        tr_in.merge(Epsilon);
 
         let last = self.graph.node();
         let tr_out = last.connect(sub.last);
-        tr_out.merge(Epsilon);
 
         let mut summary = Summary::empty();
 
@@ -156,10 +153,10 @@ impl<'a, 'g> Translator<'a, 'g> {
             (0, None) => {
                 let first = self.graph.node();
                 let last = self.graph.node();
-                sub.first.connect(first).merge(Epsilon);
-                last.connect(sub.last).merge(Epsilon);
-                last.connect(first).merge(Epsilon);
-                sub.first.connect(sub.last).merge(Epsilon);
+                sub.first.connect(first);
+                last.connect(sub.last);
+                last.connect(first);
+                sub.first.connect(sub.last);
                 *tag = None;
                 self.translate_hir(repeat.inner(), pair(first, last), tag)
             }
@@ -171,9 +168,9 @@ impl<'a, 'g> Translator<'a, 'g> {
             (1, None) => {
                 let first = self.graph.node();
                 let last = self.graph.node();
-                sub.first.connect(first).merge(Epsilon);
-                last.connect(sub.last).merge(Epsilon);
-                last.connect(first).merge(Epsilon);
+                sub.first.connect(first);
+                last.connect(sub.last);
+                last.connect(first);
                 *tag = None;
                 self.translate_hir(repeat.inner(), pair(first, last), tag)
             }
@@ -198,9 +195,9 @@ impl<'a, 'g> Translator<'a, 'g> {
                 *tag = None;
                 let s = self.translate_hir(repeat.inner(), pair(first, last), tag);
                 summary.merge(&s);
-                sub.first.connect(first).merge(Epsilon);
-                last.connect(sub.last).merge(Epsilon);
-                last.connect(first).merge(Epsilon);
+                sub.first.connect(first);
+                last.connect(sub.last);
+                last.connect(first);
                 summary
             }
             //
@@ -209,7 +206,7 @@ impl<'a, 'g> Translator<'a, 'g> {
             (n, Some(m)) if n == m => {
                 let mut summary = Summary::empty();
                 if n == 0 {
-                    sub.first.connect(sub.last).merge(Epsilon);
+                    sub.first.connect(sub.last);
                 } else {
                     let mut first = sub.first;
                     for _ in 0..n - 1 {
@@ -244,17 +241,17 @@ impl<'a, 'g> Translator<'a, 'g> {
                 }
                 for _ in n..m {
                     let mid_one = self.graph.node();
-                    first.connect(mid_one).merge(Epsilon);
+                    first.connect(mid_one);
                     let mid_two = self.graph.node();
                     *tag = None;
                     let s = self.translate_hir(repeat.inner(), pair(mid_one, mid_two), tag);
                     summary.merge(&s);
                     let last = self.graph.node();
-                    mid_two.connect(last).merge(Epsilon);
-                    first.connect(sub.last).merge(Epsilon);
+                    mid_two.connect(last);
+                    first.connect(sub.last);
                     first = last;
                 }
-                first.connect(sub.last).merge(Epsilon);
+                first.connect(sub.last);
                 summary
             }
             (n, Some(m)) => {
@@ -271,7 +268,7 @@ impl<'a, 'g> Translator<'a, 'g> {
     ) -> Summary {
         let items = concat.items();
         if items.is_empty() {
-            sub.first.connect(sub.last).merge(Epsilon);
+            sub.first.connect(sub.last);
             return Summary::empty();
         }
         let mut summary = Summary::empty();
@@ -306,9 +303,8 @@ impl<'a, 'g> Translator<'a, 'g> {
         for hir in disjunct.alternatives() {
             let first = self.graph.node();
             let last = self.graph.node();
-            sub.first.connect(first).merge(Epsilon);
+            sub.first.connect(first);
             let tr_out = last.connect(sub.last);
-            tr_out.merge(Epsilon);
             tr_outs.push(tr_out);
             let mut tag = tag.map(|t| self.tag_bank.pseudo_absolute(t));
             let sum = self.translate_hir(hir, pair(first, last), &mut tag);

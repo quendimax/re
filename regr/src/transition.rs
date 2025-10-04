@@ -1,7 +1,7 @@
 use crate::arena::Arena;
 use crate::isa::Inst;
 use crate::node::Node;
-use crate::symbol::{Epsilon, SymbolSet};
+use crate::symbol::Epsilon;
 use bumpalo::collections::Vec as BumpVec;
 use redt::ops::{ContainOp, IncludeOp, IntersectOp};
 use redt::{ByteIter, Legible, RangeIter, RangeU8, SetU8, Step};
@@ -19,8 +19,8 @@ use std::ops::Deref;
 pub struct Transition<'a>(&'a TransitionInner<'a>);
 
 pub(crate) struct TransitionInner<'a> {
-    symset: RefCell<SymbolSet>,
-    insts: RefCell<BumpVec<'a, (Inst, &'a mut SymbolSet)>>,
+    symset: RefCell<SetU8>,
+    insts: RefCell<BumpVec<'a, (Inst, &'a mut SetU8)>>,
     arena: &'a Arena,
 }
 
@@ -35,7 +35,7 @@ impl<'a> Transition<'a> {
         );
         let arena = source.arena();
         Self(arena.alloc_with(|| TransitionInner {
-            symset: RefCell::new(SymbolSet::default()),
+            symset: RefCell::new(SetU8::empty()),
             insts: RefCell::new(BumpVec::new_in(&arena.shared_bump)),
             arena,
         }))
@@ -44,15 +44,20 @@ impl<'a> Transition<'a> {
 
 impl<'a> Transition<'a> {
     /// Checks if these transitions are two references to the same transition.
+    #[inline]
     pub fn is(self, other: Self) -> bool {
         std::ptr::eq(self.0, other.0)
+    }
+
+    #[inline]
+    pub fn is_epsilon(&self) -> bool {
+        self.0.symset.borrow().is_empty()
     }
 
     /// Returns iterator over all symbols in this trasition instance in
     /// ascendent order.
     pub fn symbols(self) -> impl Iterator<Item = u8> {
         let borrow = self.0.symset.borrow();
-        let borrow = Ref::map(borrow, |set| set.deref());
         ByteIter::new(borrow)
     }
 
@@ -60,15 +65,12 @@ impl<'a> Transition<'a> {
     /// ascendent order.
     pub fn ranges(self) -> impl Iterator<Item = RangeU8> {
         let borrow = self.0.symset.borrow();
-        let borrow = Ref::map(borrow, |set| set.deref());
         RangeIter::new(borrow)
     }
 
     /// Returns a clone of the symbol set in this transition instance.
-    pub fn set(&self) -> SetU8 {
-        let borrow = self.0.symset.borrow();
-        let set: &SetU8 = borrow.deref();
-        set.clone()
+    pub fn as_set(&self) -> Ref<'_, SetU8> {
+        self.0.symset.borrow()
     }
 
     pub fn instructs(self) -> impl Iterator<Item = Inst> {
@@ -125,10 +127,16 @@ impl<'a> Transition<'a> {
 
 impl<T> ContainOp<T> for Transition<'_>
 where
-    SymbolSet: ContainOp<T>,
+    SetU8: ContainOp<T>,
 {
     fn contains(&self, rhs: T) -> bool {
         self.0.symset.borrow().contains(rhs)
+    }
+}
+
+impl ContainOp<Epsilon> for Transition<'_> {
+    fn contains(&self, _: Epsilon) -> bool {
+        self.0.symset.borrow().is_empty()
     }
 }
 
@@ -144,10 +152,16 @@ impl<'a, 'b> ContainOp<Transition<'b>> for Transition<'a> {
 
 impl<T> IntersectOp<T> for Transition<'_>
 where
-    SymbolSet: IntersectOp<T>,
+    SetU8: IntersectOp<T>,
 {
     fn intersects(&self, rhs: T) -> bool {
         self.0.symset.borrow().intersects(rhs)
+    }
+}
+
+impl IntersectOp<Epsilon> for Transition<'_> {
+    fn intersects(&self, _: Epsilon) -> bool {
+        self.0.symset.borrow().is_empty()
     }
 }
 
@@ -177,7 +191,7 @@ macro_rules! impl_merge_op {
     };
 }
 
-impl_merge_op!(u8, RangeU8, SetU8, &SetU8, Epsilon, &SymbolSet);
+impl_merge_op!(u8, RangeU8, SetU8, &SetU8);
 
 impl<'a, 'b> TransitionOps<Transition<'b>> for Transition<'a> {
     fn merge(&self, other: Transition<'b>) {
@@ -191,7 +205,7 @@ impl<'a, 'b> TransitionOps<Transition<'b>> for Transition<'a> {
                 .iter_mut()
                 .find(|(self_inst, _)| self_inst == other_insts)
             {
-                self_symset.include((*other_symset) as &SymbolSet);
+                self_symset.include((*other_symset) as &SetU8);
             } else {
                 let self_symset = self.0.arena.alloc_with(|| (*other_symset).clone());
                 self_insts.push((*other_insts, self_symset));
@@ -305,12 +319,12 @@ impl_fmt!(std::fmt::LowerHex);
 impl_fmt!(std::fmt::UpperHex);
 
 struct InstructIter<'a> {
-    insts: Ref<'a, BumpVec<'a, (Inst, &'a mut SymbolSet)>>,
+    insts: Ref<'a, BumpVec<'a, (Inst, &'a mut SetU8)>>,
     index_iter: std::ops::Range<usize>,
 }
 
 impl<'a> InstructIter<'a> {
-    fn new(insts: Ref<'a, BumpVec<'a, (Inst, &'a mut SymbolSet)>>) -> Self {
+    fn new(insts: Ref<'a, BumpVec<'a, (Inst, &'a mut SetU8)>>) -> Self {
         let index_iter = 0..insts.len();
         Self { insts, index_iter }
     }
@@ -326,13 +340,13 @@ impl std::iter::Iterator for InstructIter<'_> {
 }
 
 struct InstructForIter<'a> {
-    insts: Ref<'a, BumpVec<'a, (Inst, &'a mut SymbolSet)>>,
+    insts: Ref<'a, BumpVec<'a, (Inst, &'a mut SetU8)>>,
     index_iter: std::ops::Range<usize>,
     symbol: u8,
 }
 
 impl<'a> InstructForIter<'a> {
-    fn new(insts: Ref<'a, BumpVec<'a, (Inst, &'a mut SymbolSet)>>, symbol: u8) -> Self {
+    fn new(insts: Ref<'a, BumpVec<'a, (Inst, &'a mut SetU8)>>, symbol: u8) -> Self {
         let index_iter = 0..insts.len();
         Self {
             insts,

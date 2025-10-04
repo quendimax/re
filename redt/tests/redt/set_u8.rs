@@ -1,4 +1,5 @@
 use pretty_assertions::assert_eq;
+use redt::ops::*;
 use redt::{RangeU8, SetU8};
 
 #[test]

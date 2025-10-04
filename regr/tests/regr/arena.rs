@@ -1,6 +1,6 @@
 use pretty_assertions::{assert_eq, assert_ne};
 use redt::lit;
-use regr::{Arena, Epsilon, Graph};
+use regr::{Arena, Graph};
 
 #[test]
 fn arena_ctor() {
@@ -59,7 +59,7 @@ fn arena_fmt_display() {
     let mut arena = Arena::new();
     let gr = Graph::new_in(&mut arena);
     let a = gr.node();
-    a.connect(a).merge(Epsilon);
+    a.connect(a);
     let b = gr.node();
     a.connect(b).merge(b'a');
 

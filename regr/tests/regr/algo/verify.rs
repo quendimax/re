@@ -1,6 +1,6 @@
 use redt::range;
 use regr::algo;
-use regr::{Arena, Epsilon, Graph};
+use regr::{Arena, Graph};
 
 #[test]
 fn verify_dfa() {
@@ -11,7 +11,7 @@ fn verify_dfa() {
     let c = nfa.node();
     let d = nfa.node();
     a.connect(a).merge(range(1, 255));
-    a.connect(b).merge(Epsilon);
+    a.connect(b);
     b.connect(c).merge(b'a');
     c.connect(d).merge(b'b');
     assert!(algo::verify_dfa(&nfa));

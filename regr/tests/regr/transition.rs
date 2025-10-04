@@ -63,7 +63,6 @@ where
     let mut arena = Arena::new();
     let gr = Graph::new_in(&mut arena);
     let tr = gr.node().connect(gr.node());
-    tr.merge(Epsilon);
     f(tr)
 }
 
@@ -227,7 +226,6 @@ fn tr_contains_transition() {
     tr_a.merge(b'a');
     tr_a.merge(b'c');
     tr_a.merge(b'e');
-    tr_a.merge(Epsilon);
     let tr_b = gr.node().connect(gr.node());
     tr_b.merge(b'b');
     tr_b.merge(b'd');
@@ -240,7 +238,6 @@ fn tr_contains_transition() {
     tr_c.merge(b'e');
     tr_c.merge(b'f');
     tr_c.merge(b'g');
-    tr_c.merge(Epsilon);
     assert!(tr_a.contains(&tr_a));
     assert!(tr_b.contains(&tr_b));
     assert!(tr_c.contains(&tr_c));
@@ -256,8 +253,6 @@ fn tr_contains_transition() {
 fn tr_contains_epsilon() {
     handle_tr_from_symbols(b"ace", |tr| {
         assert!(!tr.contains(Epsilon));
-        tr.merge(Epsilon);
-        assert!(tr.contains(Epsilon));
     });
 }
 
@@ -305,7 +300,6 @@ fn tr_intersects_transition() {
     tr_a.merge(b'a');
     tr_a.merge(b'c');
     tr_a.merge(b'e');
-    tr_a.merge(Epsilon);
     let tr_b = gr.node().connect(gr.node());
     tr_b.merge(b'b');
     tr_b.merge(b'd');
@@ -317,7 +311,6 @@ fn tr_intersects_transition() {
     tr_c.merge(b'd');
     tr_c.merge(b'e');
     tr_c.merge(b'f');
-    tr_c.merge(Epsilon);
     assert_eq!(tr_a.intersects(&tr_b), false);
     assert_eq!(tr_a.intersects(&tr_c), true);
     assert_eq!(tr_b.intersects(&tr_c), true);
@@ -480,7 +473,7 @@ fn tr_display_fmt() {
     fn tr(bytes: &[u8]) -> String {
         handle_tr_from_symbols(bytes, |tr| format!("{tr}"))
     }
-    assert_eq!(tr(b""), "[]");
+    assert_eq!(tr(b""), "[Epsilon]");
     assert_eq!(tr(b"abc"), "['a'-'c']");
     assert_eq!(tr(b"abc"), "['a'-'c']");
     assert_eq!(tr(b"abcE"), "['E' | 'a'-'c']");
@@ -497,10 +490,9 @@ fn tr_display_fmt() {
 fn tr_display_fmt_with_epsilon() {
     handle_epsilon(|tr| assert_eq!(format!("{}", tr), "[Epsilon]"));
     handle_tr_from_symbols(b"abc", |tr| {
-        tr.merge(Epsilon);
-        assert_eq!(format!("{tr}"), "['a'-'c' | Epsilon]");
+        assert_eq!(format!("{tr}"), "['a'-'c']");
         tr.merge(u8::MAX);
-        assert_eq!(format!("{tr}"), "['a'-'c' | FFh | Epsilon]");
+        assert_eq!(format!("{tr}"), "['a'-'c' | FFh]");
     });
 }
 
@@ -509,7 +501,7 @@ fn tr_debug_fmt() {
     fn tr(bytes: &[u8]) -> String {
         handle_tr_from_symbols(bytes, |tr| format!("{tr:?}"))
     }
-    assert_eq!(tr(b""), "[]");
+    assert_eq!(tr(b""), "[Epsilon]");
     assert_eq!(tr(b"abc"), "[97-99]");
     assert_eq!(tr(b"abc"), "[97-99]");
     assert_eq!(tr(b"abcE"), "[69 | 97-99]");
@@ -526,9 +518,8 @@ fn tr_debug_fmt() {
 fn tr_debug_fmt_with_epsilon() {
     handle_epsilon(|tr| assert_eq!(format!("{tr:?}"), "[Epsilon]"));
     handle_tr_from_symbols(b"?@ABC", |tr| {
-        tr.merge(Epsilon);
-        assert_eq!(format!("{tr:?}"), "[63 | 64-67 | Epsilon]");
+        assert_eq!(format!("{tr:?}"), "[63 | 64-67]");
         tr.merge(u8::MAX);
-        assert_eq!(format!("{tr:?}"), "[63 | 64-67 | 255 | Epsilon]");
+        assert_eq!(format!("{tr:?}"), "[63 | 64-67 | 255]");
     });
 }

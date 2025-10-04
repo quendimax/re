@@ -3,7 +3,7 @@ use crate::arena::Arena;
 use crate::graph::Graph;
 use crate::tag::TagBank;
 use pretty_assertions::assert_eq;
-use redt::{Range, SetU8, lit};
+use redt::{Range, SetU8, lit, ops::*};
 use resy::Hir;
 
 #[test]

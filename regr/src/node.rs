@@ -67,14 +67,7 @@ impl<'a> Node<'a> {
         self.0.arena
     }
 
-    /// Connects this node to another node with a specified edge rule.
-    /// If a connection to the target node already exists, it merges
-    /// the new edge rule with the existing one.
-    ///
-    /// # Arguments
-    ///
-    /// * `to` - The target node to connect to
-    /// * `with` - The edge rule describing valid transitions to the target
+    /// Connects this node to another node with an Epsilon transition.
     pub fn connect(self, to: Node<'a>) -> Transition<'a> {
         assert_eq!(
             self.gid(),

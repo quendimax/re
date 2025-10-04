@@ -1,7 +1,7 @@
 use crate::Epsilon;
 use crate::graph::Graph;
 use crate::node::Node;
-use redt::{Set, SetU8};
+use redt::{Set, SetU8, ops::*};
 
 /// Checks if the given graph represents a valid DFA.
 #[allow(clippy::mutable_key_type)]
@@ -37,10 +37,10 @@ fn verify_dfa_node<'a>(node: Node<'a>) -> bool {
                 return false;
             }
         } else {
-            if sym_mask.contains(tr.set()) {
+            if sym_mask.contains(tr.as_set().as_ref()) {
                 return false;
             }
-            sym_mask.include(tr.set());
+            sym_mask.include(tr.as_set().as_ref());
         }
     }
     true

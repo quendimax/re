@@ -1,7 +1,7 @@
 use crate::error::{Result, err};
 use crate::hir::Hir;
 use crate::lexis::{Lexer, tok};
-use redt::{RangeList, SetU8};
+use redt::{RangeList, SetU8, ops::*};
 use renc::Encoder;
 
 /// A regex pattern parser that converts string patterns into high-level

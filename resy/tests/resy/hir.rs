@@ -1,6 +1,6 @@
 use ntest::assert_panics;
 use pretty_assertions::{assert_eq, assert_str_eq};
-use redt::SetU8;
+use redt::{SetU8, ops::*};
 use resy::Hir;
 
 #[test]

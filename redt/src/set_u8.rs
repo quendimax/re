@@ -1,4 +1,3 @@
-use crate::ops;
 use crate::{Legible, RangeU8, Step};
 use std::fmt::Write;
 use std::ops::Deref;
@@ -435,34 +434,6 @@ impl SetU8 {
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.chunks.iter().all(|&chunk| chunk == 0)
-    }
-
-    pub fn contains<Rhs>(&self, rhs: Rhs) -> bool
-    where
-        Self: ops::ContainOp<Rhs>,
-    {
-        ops::ContainOp::contains(self, rhs)
-    }
-
-    pub fn intersects<Rhs>(&self, rhs: Rhs) -> bool
-    where
-        Self: ops::IntersectOp<Rhs>,
-    {
-        ops::IntersectOp::intersects(self, rhs)
-    }
-
-    pub fn include<Rhs>(&mut self, rhs: Rhs)
-    where
-        Self: ops::IncludeOp<Rhs>,
-    {
-        ops::IncludeOp::include(self, rhs);
-    }
-
-    pub fn exclude<Rhs>(&mut self, rhs: Rhs)
-    where
-        Self: ops::ExcludeOp<Rhs>,
-    {
-        ops::ExcludeOp::exclude(self, rhs);
     }
 
     /// Returns an iterator over the bytes in the set.
