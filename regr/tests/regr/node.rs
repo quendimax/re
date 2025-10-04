@@ -27,10 +27,10 @@ fn node_id() {
     let b = graph_0.node();
 
     assert_eq!(a.nid(), 0);
-    assert_eq!(a.uid(), a.gid() << (u64::BITS / 2));
+    assert_eq!(a.uid(), (a.gid() as u64) << (u64::BITS / 2));
 
     assert_eq!(b.nid(), 1);
-    assert_eq!(b.uid(), (b.gid() << (u64::BITS / 2)) | 1);
+    assert_eq!(b.uid(), ((b.gid() as u64) << (u64::BITS / 2)) | 1);
 
     let mut arena_1 = Arena::new();
     let graph_1 = Graph::new_in(&mut arena_1);
@@ -39,11 +39,11 @@ fn node_id() {
 
     assert_eq!(c.nid(), 0);
     assert_ne!(c.gid(), a.gid());
-    assert_eq!(c.uid(), c.gid() << (u64::BITS / 2));
+    assert_eq!(c.uid(), (c.gid() as u64) << (u64::BITS / 2));
 
     assert_eq!(d.nid(), 1);
     assert_ne!(d.gid(), a.gid());
-    assert_eq!(d.uid(), (c.gid() << (u64::BITS / 2)) | 1);
+    assert_eq!(d.uid(), ((c.gid() as u64) << (u64::BITS / 2)) | 1);
 }
 
 #[test]

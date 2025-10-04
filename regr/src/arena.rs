@@ -9,7 +9,7 @@ use std::fmt::Write;
 pub struct Arena {
     node_bump: Bump,
     nodes_len: Cell<usize>,
-    bound_gid: Cell<Option<u64>>,
+    bound_gid: Cell<Option<u32>>,
     pub(crate) shared_bump: Bump,
 }
 
@@ -72,7 +72,7 @@ impl Arena {
     ///
     /// We run nodes dropping here because I can't save mutable referance to the
     /// arena in the graph, but can have it in the graph constructor.
-    pub(crate) fn bind_graph(&mut self, gid: u64) {
+    pub(crate) fn bind_graph(&mut self, gid: u32) {
         if let Some(gid) = self.bound_gid.get() {
             panic!("this arena is already bound to a graph(gid={gid})");
         }

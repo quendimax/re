@@ -10,7 +10,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 pub struct Graph<'a> {
-    gid: u64,
+    gid: u32,
     arena: &'a Arena,
     next_nid: Cell<u32>,
     start_node: Cell<Option<Node<'a>>>,
@@ -22,7 +22,7 @@ static NEXT_GRAPH_ID: AtomicU32 = AtomicU32::new(1);
 
 impl<'a> Graph<'a> {
     pub fn new_in(arena: &'a mut Arena) -> Self {
-        let gid = NEXT_GRAPH_ID.fetch_add(1, Ordering::Relaxed) as u64;
+        let gid = NEXT_GRAPH_ID.fetch_add(1, Ordering::Relaxed);
         if gid == 0 {
             panic!("graph id overflow");
         }
@@ -41,7 +41,7 @@ impl<'a> Graph<'a> {
 
     /// This graph's ID.
     #[inline]
-    pub fn gid(&self) -> u64 {
+    pub fn gid(&self) -> u32 {
         self.gid
     }
 
@@ -53,10 +53,7 @@ impl<'a> Graph<'a> {
                 .checked_add(1)
                 .expect("node id overflow"),
         );
-        let node: Node<'a> = self.arena.alloc_node_with(|| {
-            let uid = (self.gid << Node::ID_BITS) | nid as u64;
-            Node::new_inner(uid, self)
-        });
+        let node = Node::new_in(self.arena, self.gid, nid);
         if self.start_node.get().is_none() {
             self.start_node.set(Some(node));
         }

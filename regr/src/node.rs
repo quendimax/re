@@ -1,5 +1,4 @@
 use crate::arena::Arena;
-use crate::graph::Graph;
 use crate::symbol::Epsilon;
 use crate::transition::Transition;
 use redt::Map;
@@ -34,8 +33,8 @@ impl<'a> Node<'a> {
 
     /// Returns the node's graph owner identifier.
     #[inline]
-    pub fn gid(self) -> u64 {
-        self.0.uid >> Self::ID_BITS
+    pub fn gid(self) -> u32 {
+        (self.0.uid >> Self::ID_BITS) as u32
     }
 
     /// Returns the node's identifier unique within the running process.
@@ -137,13 +136,14 @@ impl<'a> Node<'a> {
 
 /// Crate API
 impl<'a> Node<'a> {
-    pub(crate) fn new_inner(uid: u64, graph: &Graph<'a>) -> NodeInner<'a> {
-        NodeInner {
+    pub(crate) fn new_in(arena: &'a Arena, gid: u32, nid: u32) -> Node<'a> {
+        let uid = ((gid as u64) << Node::ID_BITS) | nid as u64;
+        arena.alloc_node_with(|| NodeInner {
             uid,
             is_final: Cell::new(false),
             targets: Default::default(),
-            arena: graph.arena(),
-        }
+            arena,
+        })
     }
 }
 
