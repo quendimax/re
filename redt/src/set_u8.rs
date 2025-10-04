@@ -229,14 +229,14 @@ impl std::ops::Not for SetU8 {
     }
 }
 
-impl crate::ops::ContainOp<u8> for SetU8 {
+impl crate::ops::Containable<u8> for SetU8 {
     #[inline]
     fn contains(&self, byte: u8) -> bool {
         self.chunks[byte as usize >> 6] & (1 << (byte & (u8::MAX >> 2))) != 0
     }
 }
 
-impl crate::ops::ContainOp<RangeU8> for SetU8 {
+impl crate::ops::Containable<RangeU8> for SetU8 {
     fn contains(&self, range: RangeU8) -> bool {
         let (ls_mask, ms_mask, ls_index, ms_index) = find_masks_indices(range);
         unsafe {
@@ -266,7 +266,7 @@ impl crate::ops::ContainOp<RangeU8> for SetU8 {
     }
 }
 
-impl crate::ops::ContainOp<&SetU8> for SetU8 {
+impl crate::ops::Containable<&SetU8> for SetU8 {
     #[inline]
     fn contains(&self, rhs: &SetU8) -> bool {
         self.chunks[0] & rhs.chunks[0] == rhs.chunks[0]
@@ -276,21 +276,21 @@ impl crate::ops::ContainOp<&SetU8> for SetU8 {
     }
 }
 
-impl crate::ops::ContainOp for SetU8 {
+impl crate::ops::Containable for SetU8 {
     #[inline]
     fn contains(&self, rhs: Self) -> bool {
         self.contains(&rhs)
     }
 }
 
-impl crate::ops::IntersectOp<u8> for SetU8 {
+impl crate::ops::Intersectable<u8> for SetU8 {
     #[inline]
     fn intersects(&self, byte: u8) -> bool {
         self.chunks[byte as usize >> 6] & (1 << (byte & (u8::MAX >> 2))) != 0
     }
 }
 
-impl crate::ops::IntersectOp<RangeU8> for SetU8 {
+impl crate::ops::Intersectable<RangeU8> for SetU8 {
     fn intersects(&self, range: RangeU8) -> bool {
         let (ls_mask, ms_mask, ls_index, ms_index) = find_masks_indices(range);
         unsafe {
@@ -320,7 +320,7 @@ impl crate::ops::IntersectOp<RangeU8> for SetU8 {
     }
 }
 
-impl crate::ops::IntersectOp<&SetU8> for SetU8 {
+impl crate::ops::Intersectable<&SetU8> for SetU8 {
     #[inline]
     fn intersects(&self, rhs: &SetU8) -> bool {
         self.chunks[0] & rhs.chunks[0] != 0
@@ -330,58 +330,64 @@ impl crate::ops::IntersectOp<&SetU8> for SetU8 {
     }
 }
 
-impl crate::ops::IntersectOp for SetU8 {
+impl crate::ops::Intersectable for SetU8 {
     #[inline]
     fn intersects(&self, rhs: Self) -> bool {
         self.intersects(&rhs)
     }
 }
 
-impl crate::ops::IncludeOp<u8> for SetU8 {
+impl crate::ops::Includable<u8> for SetU8 {
     #[inline]
-    fn include(&mut self, byte: u8) {
+    fn include(&mut self, byte: u8) -> &mut Self {
         *self |= byte;
+        self
     }
 }
 
-impl crate::ops::IncludeOp<RangeU8> for SetU8 {
+impl crate::ops::Includable<RangeU8> for SetU8 {
     #[inline]
-    fn include(&mut self, range: RangeU8) {
+    fn include(&mut self, range: RangeU8) -> &mut Self {
         *self |= range;
+        self
     }
 }
 
-impl crate::ops::IncludeOp<RangeInclusive<u8>> for SetU8 {
+impl crate::ops::Includable<RangeInclusive<u8>> for SetU8 {
     #[inline]
-    fn include(&mut self, range: RangeInclusive<u8>) {
+    fn include(&mut self, range: RangeInclusive<u8>) -> &mut Self {
         *self |= RangeU8::from(range);
+        self
     }
 }
 
-impl crate::ops::IncludeOp<&SetU8> for SetU8 {
+impl crate::ops::Includable<&SetU8> for SetU8 {
     #[inline]
-    fn include(&mut self, rhs: &SetU8) {
+    fn include(&mut self, rhs: &SetU8) -> &mut Self {
         *self |= rhs;
+        self
     }
 }
 
-impl crate::ops::IncludeOp for SetU8 {
+impl crate::ops::Includable for SetU8 {
     #[inline]
-    fn include(&mut self, rhs: SetU8) {
+    fn include(&mut self, rhs: SetU8) -> &mut Self {
         *self |= rhs;
+        self
     }
 }
 
-impl crate::ops::ExcludeOp<u8> for SetU8 {
+impl crate::ops::Excludable<u8> for SetU8 {
     #[inline]
-    fn exclude(&mut self, byte: u8) {
+    fn exclude(&mut self, byte: u8) -> &mut Self {
         self.chunks[byte as usize >> 6] &= !(1 << (byte & (u8::MAX >> 2)));
+        self
     }
 }
 
-impl crate::ops::ExcludeOp<RangeU8> for SetU8 {
+impl crate::ops::Excludable<RangeU8> for SetU8 {
     #[inline]
-    fn exclude(&mut self, range: RangeU8) {
+    fn exclude(&mut self, range: RangeU8) -> &mut Self {
         let (ls_mask, ms_mask, ls_index, ms_index) = find_masks_indices(range);
         unsafe {
             match ms_index - ls_index {
@@ -406,26 +412,30 @@ impl crate::ops::ExcludeOp<RangeU8> for SetU8 {
                 _ => std::hint::unreachable_unchecked(),
             }
         }
+        self
     }
 }
 
-impl crate::ops::ExcludeOp<RangeInclusive<u8>> for SetU8 {
-    fn exclude(&mut self, rhs: RangeInclusive<u8>) {
+impl crate::ops::Excludable<RangeInclusive<u8>> for SetU8 {
+    fn exclude(&mut self, rhs: RangeInclusive<u8>) -> &mut Self {
         self.exclude(RangeU8::from(rhs));
+        self
     }
 }
 
-impl crate::ops::ExcludeOp<&SetU8> for SetU8 {
+impl crate::ops::Excludable<&SetU8> for SetU8 {
     #[inline]
-    fn exclude(&mut self, rhs: &SetU8) {
+    fn exclude(&mut self, rhs: &SetU8) -> &mut Self {
         *self &= !rhs.clone();
+        self
     }
 }
 
-impl crate::ops::ExcludeOp for SetU8 {
+impl crate::ops::Excludable for SetU8 {
     #[inline]
-    fn exclude(&mut self, rhs: SetU8) {
+    fn exclude(&mut self, rhs: SetU8) -> &mut Self {
         *self &= !rhs;
+        self
     }
 }
 

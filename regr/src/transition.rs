@@ -1,9 +1,9 @@
 use crate::arena::Arena;
 use crate::isa::Inst;
 use crate::node::Node;
+use crate::ops::*;
 use crate::symbol::Epsilon;
 use bumpalo::collections::Vec as BumpVec;
-use redt::ops::{ContainOp, IncludeOp, IntersectOp};
 use redt::{ByteIter, Legible, RangeIter, RangeU8, SetU8, Step};
 use std::cell::{Ref, RefCell};
 use std::fmt::Write;
@@ -84,10 +84,9 @@ impl<'a> Transition<'a> {
     /// Merges the `other` object into this transition.
     pub fn merge<T>(&self, other: T)
     where
-        T: Copy,
-        Self: TransitionOps<T>,
+        Self: Mergeable<T>,
     {
-        TransitionOps::merge(self, other);
+        Mergeable::merge(self, other);
     }
 
     /// Adds the specified instruction to the all transition's symbols.
@@ -112,35 +111,35 @@ impl<'a> Transition<'a> {
 
     pub fn intersects<T>(&self, other: T) -> bool
     where
-        Self: IntersectOp<T>,
+        Self: Intersectable<T>,
     {
-        IntersectOp::intersects(self, other)
+        Intersectable::intersects(self, other)
     }
 
     pub fn contains<T>(&self, other: T) -> bool
     where
-        Self: ContainOp<T>,
+        Self: Containable<T>,
     {
-        ContainOp::contains(self, other)
+        Containable::contains(self, other)
     }
 }
 
-impl<T> ContainOp<T> for Transition<'_>
+impl<T> Containable<T> for Transition<'_>
 where
-    SetU8: ContainOp<T>,
+    SetU8: Containable<T>,
 {
     fn contains(&self, rhs: T) -> bool {
         self.0.symset.borrow().contains(rhs)
     }
 }
 
-impl ContainOp<Epsilon> for Transition<'_> {
+impl Containable<Epsilon> for Transition<'_> {
     fn contains(&self, _: Epsilon) -> bool {
         self.0.symset.borrow().is_empty()
     }
 }
 
-impl<'a, 'b> ContainOp<Transition<'b>> for Transition<'a> {
+impl<'a, 'b> Containable<Transition<'b>> for Transition<'a> {
     #[inline]
     fn contains(&self, other: Transition<'b>) -> bool {
         self.0
@@ -150,22 +149,29 @@ impl<'a, 'b> ContainOp<Transition<'b>> for Transition<'a> {
     }
 }
 
-impl<T> IntersectOp<T> for Transition<'_>
+impl<'a, 'b> Containable<&Transition<'b>> for Transition<'a> {
+    #[inline]
+    fn contains(&self, other: &Transition<'b>) -> bool {
+        Containable::contains(self, *other)
+    }
+}
+
+impl<T> Intersectable<T> for Transition<'_>
 where
-    SetU8: IntersectOp<T>,
+    SetU8: Intersectable<T>,
 {
     fn intersects(&self, rhs: T) -> bool {
         self.0.symset.borrow().intersects(rhs)
     }
 }
 
-impl IntersectOp<Epsilon> for Transition<'_> {
+impl Intersectable<Epsilon> for Transition<'_> {
     fn intersects(&self, _: Epsilon) -> bool {
         self.0.symset.borrow().is_empty()
     }
 }
 
-impl<'a, 'b> redt::ops::IntersectOp<Transition<'b>> for Transition<'a> {
+impl<'a, 'b> redt::ops::Intersectable<Transition<'b>> for Transition<'a> {
     #[inline]
     fn intersects(&self, other: Transition<'b>) -> bool {
         self.0
@@ -175,26 +181,25 @@ impl<'a, 'b> redt::ops::IntersectOp<Transition<'b>> for Transition<'a> {
     }
 }
 
-pub trait TransitionOps<T>: redt::ops::ContainOp<T> + redt::ops::IntersectOp<T> {
-    fn merge(&self, other: T);
+impl<'a, 'b> Intersectable<&Transition<'b>> for Transition<'a> {
+    #[inline]
+    fn intersects(&self, other: &Transition<'b>) -> bool {
+        Intersectable::intersects(self, *other)
+    }
 }
 
-macro_rules! impl_merge_op {
-    ($($type:ty),* $(,)?) => {
-        $(
-            impl TransitionOps<$type> for Transition<'_> {
-                fn merge(&self, other: $type) {
-                    self.0.symset.borrow_mut().include(other);
-                }
-            }
-        )*
-    };
+impl<T> Mergeable<T> for Transition<'_>
+where
+    SetU8: Includable<T>,
+{
+    fn merge(&self, rhs: T) -> &Self {
+        self.0.symset.borrow_mut().include(rhs);
+        self
+    }
 }
 
-impl_merge_op!(u8, RangeU8, SetU8, &SetU8);
-
-impl<'a, 'b> TransitionOps<Transition<'b>> for Transition<'a> {
-    fn merge(&self, other: Transition<'b>) {
+impl<'a, 'b> Mergeable<Transition<'b>> for Transition<'a> {
+    fn merge(&self, other: Transition<'b>) -> &Self {
         let other_symset = other.0.symset.borrow();
         let other_symset = other_symset.deref();
         self.0.symset.borrow_mut().include(other_symset);
@@ -212,26 +217,24 @@ impl<'a, 'b> TransitionOps<Transition<'b>> for Transition<'a> {
             }
         }
         self_insts.sort_by(|(l_inst, _), (r_inst, _)| l_inst.cmp(r_inst));
+        self
     }
 }
 
-impl<'a, 'b> ContainOp<&Transition<'b>> for Transition<'a> {
-    #[inline]
-    fn contains(&self, other: &Transition<'b>) -> bool {
-        ContainOp::contains(self, *other)
+impl<'a, 'b> Mergeable<&Transition<'b>> for Transition<'a> {
+    fn merge(&self, other: &Transition<'b>) -> &Self {
+        Mergeable::merge(self, *other);
+        self
     }
 }
 
-impl<'a, 'b> IntersectOp<&Transition<'b>> for Transition<'a> {
-    #[inline]
-    fn intersects(&self, other: &Transition<'b>) -> bool {
-        IntersectOp::intersects(self, *other)
-    }
-}
-
-impl<'a, 'b> TransitionOps<&Transition<'b>> for Transition<'a> {
-    fn merge(&self, other: &Transition<'b>) {
-        TransitionOps::merge(self, *other);
+impl<T> Rejectable<T> for Transition<'_>
+where
+    SetU8: Excludable<T>,
+{
+    fn reject(&self, rhs: T) -> &Self {
+        self.0.symset.borrow_mut().exclude(rhs);
+        self
     }
 }
 

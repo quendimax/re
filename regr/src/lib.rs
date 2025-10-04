@@ -12,6 +12,8 @@ pub use isa::Inst;
 mod node;
 pub use node::Node;
 
+pub mod ops;
+
 mod symbol;
 pub use symbol::Epsilon;
 
