@@ -26,7 +26,8 @@ pub fn verify_dfa<'a>(graph: &Graph<'a>) -> bool {
     true
 }
 
-fn verify_dfa_node<'a>(node: Node<'a>) -> bool {
+/// Checks if the given node meets the requirements of a DFA.
+pub fn verify_dfa_node<'a>(node: Node<'a>) -> bool {
     let mut has_epsilon = false;
     let mut sym_mask = SetU8::empty();
     for (_, tr) in node.targets().iter() {
