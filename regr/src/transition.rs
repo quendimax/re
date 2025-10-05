@@ -89,12 +89,17 @@ impl<'a> Transition<'a> {
         Mergeable::merge(self, other);
     }
 
-    /// Adds the specified instruction to the all transition's symbols.
-    pub fn merge_instruct(&self, instruct: Inst) {
-        let symset = self.0.symset.borrow().clone();
+    /// Adds an instruction to specific symbols in this transition. If the
+    /// specified symbols are not present in this transition, they are ignored.
+    /// For `None`, the instruction is added to all symbols.
+    pub fn merge_instruct(&self, instruct: Inst, for_symbols: Option<SetU8>) {
+        let mut symset = self.0.symset.borrow().clone();
+        if let Some(for_symbols) = for_symbols {
+            symset &= for_symbols;
+        }
         let mut insts = self.0.insts.borrow_mut();
         match insts.binary_search_by(|probe| probe.0.cmp(&instruct)) {
-            Ok(index) => *insts[index].1 = symset,
+            Ok(index) => *insts[index].1 |= symset,
             Err(index) => {
                 let new_bitmap = self.0.arena.alloc_with(|| symset);
                 insts.insert(index, (instruct, new_bitmap));
@@ -103,9 +108,13 @@ impl<'a> Transition<'a> {
     }
 
     /// Adds the specified operations to the all transition's symbols.
-    pub fn merge_instructs(&self, instructs: impl IntoIterator<Item = Inst>) {
+    pub fn merge_instructs(
+        &self,
+        instructs: impl IntoIterator<Item = Inst>,
+        for_symbols: Option<SetU8>,
+    ) {
         for inst in instructs {
-            self.merge_instruct(inst);
+            self.merge_instruct(inst, for_symbols.clone());
         }
     }
 
@@ -203,20 +212,9 @@ impl<'a, 'b> Mergeable<Transition<'b>> for Transition<'a> {
         let other_symset = other.0.symset.borrow();
         let other_symset = other_symset.deref();
         self.0.symset.borrow_mut().include(other_symset);
-
-        let mut self_insts = self.0.insts.borrow_mut();
-        for (other_insts, other_symset) in other.0.insts.borrow().iter() {
-            if let Some((_, self_symset)) = self_insts
-                .iter_mut()
-                .find(|(self_inst, _)| self_inst == other_insts)
-            {
-                self_symset.include((*other_symset) as &SetU8);
-            } else {
-                let self_symset = self.0.arena.alloc_with(|| (*other_symset).clone());
-                self_insts.push((*other_insts, self_symset));
-            }
+        for (other_inst, other_symset) in other.0.insts.borrow().iter() {
+            self.merge_instruct(*other_inst, Some((*other_symset).clone()));
         }
-        self_insts.sort_by(|(l_inst, _), (r_inst, _)| l_inst.cmp(r_inst));
         self
     }
 }
@@ -230,9 +228,13 @@ impl<'a, 'b> Mergeable<&Transition<'b>> for Transition<'a> {
 
 impl<T> Rejectable<T> for Transition<'_>
 where
+    T: Clone,
     SetU8: Excludable<T>,
 {
     fn reject(&self, rhs: T) -> &Self {
+        for (_, symset) in self.0.insts.borrow_mut().iter_mut() {
+            symset.exclude(rhs.clone());
+        }
         self.0.symset.borrow_mut().exclude(rhs);
         self
     }

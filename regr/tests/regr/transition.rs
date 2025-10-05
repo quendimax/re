@@ -168,12 +168,12 @@ fn tr_instructs_for() {
     let gr = Graph::new_in(&mut arena);
     let tr_a = gr.node().connect(gr.node());
     tr_a.merge(0);
-    tr_a.merge_instruct(WritePos(t0, r0));
-    tr_a.merge_instruct(InvalidateTag(r0));
+    tr_a.merge_instruct(WritePos(t0, r0), None);
+    tr_a.merge_instruct(InvalidateTag(t0), None);
 
     let tr_b = gr.node().connect(gr.node());
     tr_b.merge(1);
-    tr_b.merge_instruct(WritePos(t1, r1));
+    tr_b.merge_instruct(WritePos(t1, r1), None);
     tr_b.merge(tr_a);
 
     assert_eq!(
@@ -385,9 +385,9 @@ fn tr_merge_transition() {
     tr_a.merge(&tr_b);
     assert_eq!(tr_a, tr_c);
 
-    tr_a.merge_instructs([WritePos(t0, r0), WritePos(t1, r1)]);
+    tr_a.merge_instructs([WritePos(t0, r0), WritePos(t1, r1)], None);
     let tr_d = gr.node().connect(gr.node());
-    tr_d.merge_instruct(WritePos(t0, r0));
+    tr_d.merge_instruct(WritePos(t0, r0), None);
     tr_d.merge(tr_a);
     assert_eq!(tr_a, tr_d);
 }
@@ -404,8 +404,8 @@ fn tr_merge_instruct() {
     tr_a.merge(b'a');
     tr_a.merge(b'b');
     tr_a.merge(b'c');
-    tr_a.merge_instruct(WritePos(t0, r0));
-    tr_a.merge_instruct(WritePos(t1, r1));
+    tr_a.merge_instruct(WritePos(t0, r0), None);
+    tr_a.merge_instruct(WritePos(t1, r1), None);
     tr_a.merge(b'e');
     assert_eq!(
         tr_a.instructs().collect::<Vec<_>>(),
@@ -417,9 +417,9 @@ fn tr_merge_instruct() {
     tr_b.merge(b'c');
     tr_b.merge(b'd');
     tr_b.merge(b'e');
-    tr_b.merge_instruct(WritePos(t0, r0));
-    tr_b.merge_instruct(WritePos(t0, r0));
-    tr_b.merge_instruct(WritePos(t1, r1));
+    tr_b.merge_instruct(WritePos(t0, r0), None);
+    tr_b.merge_instruct(WritePos(t0, r0), None);
+    tr_b.merge_instruct(WritePos(t1, r1), None);
     assert_eq!(
         tr_b.instructs().collect::<Vec<_>>(),
         &[WritePos(t0, r0), WritePos(t1, r1)]
@@ -443,8 +443,8 @@ fn tr_merge_instructs() {
     tr_a.merge(b'a');
     tr_a.merge(b'b');
     tr_a.merge(b'c');
-    tr_a.merge_instructs([WritePos(t0, r0), WritePos(t1, r1)]);
-    tr_a.merge_instructs([WritePos(t0, r0), WritePos(t1, r1)]);
+    tr_a.merge_instructs([WritePos(t0, r0), WritePos(t1, r1)], None);
+    tr_a.merge_instructs([WritePos(t0, r0), WritePos(t1, r1)], None);
     tr_a.merge(b'e');
     assert_eq!(
         tr_a.instructs().collect::<Vec<_>>(),
@@ -456,7 +456,7 @@ fn tr_merge_instructs() {
     tr_b.merge(b'c');
     tr_b.merge(b'd');
     tr_b.merge(b'e');
-    tr_b.merge_instructs([WritePos(t0, r0), WritePos(t0, r0), WritePos(t1, r1)]);
+    tr_b.merge_instructs([WritePos(t0, r0), WritePos(t0, r0), WritePos(t1, r1)], None);
     assert_eq!(
         tr_b.instructs().collect::<Vec<_>>(),
         &[WritePos(t0, r0), WritePos(t1, r1)]

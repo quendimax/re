@@ -100,7 +100,7 @@ impl<'a, 'g> Translator<'a, 'g> {
 
         match open_tag {
             Tag::Absolute { id, reg } => {
-                tr_in.merge_instruct(Inst::WritePos(id, reg));
+                tr_in.merge_instruct(Inst::WritePos(id, reg), None);
                 summary.absolute_tags.insert(id);
             }
             Tag::PseudoAbsolute { id, .. } => {
@@ -121,7 +121,7 @@ impl<'a, 'g> Translator<'a, 'g> {
 
         match close_tag {
             Tag::Absolute { id, reg } => {
-                tr_out.merge_instruct(Inst::WritePos(id, reg));
+                tr_out.merge_instruct(Inst::WritePos(id, reg), None);
                 summary.absolute_tags.insert(id);
             }
             Tag::PseudoAbsolute { id, .. } => {
@@ -316,10 +316,10 @@ impl<'a, 'g> Translator<'a, 'g> {
             for (other_tr, sum) in tr_outs.iter().zip(summaries.iter()) {
                 if !tr.is(*other_tr) {
                     for tag in &sum.absolute_tags {
-                        tr.merge_instruct(Inst::InvalidateTag(*tag));
+                        tr.merge_instruct(Inst::InvalidateTag(*tag), None);
                     }
                     for tag in &sum.pseudo_absolute_tags {
-                        tr.merge_instruct(Inst::InvalidateTag(*tag));
+                        tr.merge_instruct(Inst::InvalidateTag(*tag), None);
                     }
                 }
             }
