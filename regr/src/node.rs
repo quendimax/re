@@ -27,8 +27,8 @@ impl<'a> Node<'a> {
 
     /// Returns the node's identifier that is unique within its owner.
     #[inline]
-    pub fn nid(self) -> u64 {
-        self.0.uid & Self::ID_MASK
+    pub fn nid(self) -> u32 {
+        (self.0.uid & Self::ID_MASK) as u32
     }
 
     /// Returns the node's graph owner identifier.
