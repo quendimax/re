@@ -1,29 +1,21 @@
 use crate::Epsilon;
+use crate::algo::{self, VisitResult::*};
 use crate::graph::Graph;
 use crate::node::Node;
-use redt::{Set, SetU8, ops::*};
+use redt::{SetU8, ops::*};
 
 /// Checks if the given graph represents a valid DFA.
 #[allow(clippy::mutable_key_type)]
-pub fn verify_dfa<'a>(graph: &Graph<'a>) -> bool {
-    let mut visited = Set::new();
-    let mut unvisited = Vec::new();
-    unvisited.push(graph.start_node());
-    while let Some(node) = unvisited.pop() {
-        if visited.contains(&node.nid()) {
-            continue;
-        }
-        visited.insert(node.nid());
+pub fn verify_dfa(graph: &Graph<'_>) -> bool {
+    let mut is_dfa = true;
+    algo::visit_nodes(graph.start_node(), |node| {
         if !verify_dfa_node(node) {
-            return false;
+            is_dfa = false;
+            return Stop;
         }
-        node.for_each_target(|target, _| {
-            if !visited.contains(&target.nid()) {
-                unvisited.push(target);
-            }
-        });
-    }
-    true
+        Recurse
+    });
+    is_dfa
 }
 
 /// Checks if the given node meets the requirements of a DFA.

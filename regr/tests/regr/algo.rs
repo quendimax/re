@@ -1,5 +1,8 @@
 use redt::range;
-use regr::{Arena, Graph, algo};
+use regr::{
+    Arena, Graph,
+    algo::{self, VisitResult::*},
+};
 
 #[test]
 fn verify_dfa() {
@@ -36,17 +39,17 @@ fn for_each_node() {
     e.connect(a);
 
     let mut vec = Vec::new();
-    algo::for_each_node(a, |node| {
+    algo::visit_nodes(a, |node| {
         vec.push(node);
-        true
+        Recurse
     });
     vec.sort();
     assert_eq!(vec, [a, b, c, d]);
 
     let mut vec = Vec::new();
-    algo::for_each_node(e, |node| {
+    algo::visit_nodes(e, |node| {
         vec.push(node);
-        true
+        Recurse
     });
     vec.sort();
     assert_eq!(vec, [a, b, c, d, e]);
@@ -74,17 +77,17 @@ fn for_each_node_in_tree() {
     e.connect(g);
 
     let mut vec = Vec::new();
-    algo::for_each_node(a, |node| {
+    algo::visit_nodes(a, |node| {
         vec.push(node);
-        node != b
+        if node == b { Continue } else { Recurse }
     });
     vec.sort();
     assert_eq!(vec, [a, b, c]);
 
     let mut vec = Vec::new();
-    algo::for_each_node(a, |node| {
+    algo::visit_nodes(a, |node| {
         vec.push(node);
-        node != e
+        if node == e { Continue } else { Recurse }
     });
     vec.sort();
     assert_eq!(vec, [a, b, c, d, e]);
@@ -107,17 +110,17 @@ fn for_each_transition() {
     e.connect(a);
 
     let mut vec = Vec::new();
-    algo::for_each_transition(a, |source, _transition, target| {
+    algo::visit_transitions(a, |source, _transition, target| {
         vec.push((source, target));
-        true
+        Recurse
     });
     vec.sort();
     assert_eq!(vec, [(a, b), (a, d), (b, c), (c, a)]);
 
     let mut vec = Vec::new();
-    algo::for_each_transition(e, |source, _transition, target| {
+    algo::visit_transitions(e, |source, _transition, target| {
         vec.push((source, target));
-        true
+        Recurse
     });
     vec.sort();
     assert_eq!(vec, [(a, b), (a, d), (b, c), (c, a), (e, a)]);
@@ -145,17 +148,17 @@ fn for_each_transition_in_tree() {
     e.connect(g);
 
     let mut vec = Vec::new();
-    algo::for_each_transition(a, |source, _, target| {
+    algo::visit_transitions(a, |source, _, target| {
         vec.push((source, target));
-        target != b
+        if target == b { Continue } else { Recurse }
     });
     vec.sort();
     assert_eq!(vec, [(a, b), (a, c)]);
 
     let mut vec = Vec::new();
-    algo::for_each_transition(a, |source, _, target| {
+    algo::visit_transitions(a, |source, _, target| {
         vec.push((source, target));
-        target != e
+        if target == e { Continue } else { Recurse }
     });
     vec.sort();
     assert_eq!(vec, [(a, b), (a, c), (b, d), (b, e)]);
