@@ -30,7 +30,7 @@ pub fn verify_dfa_node<'a>(node: Node<'a>) -> bool {
                 return false;
             }
         } else {
-            if sym_mask.contains(tr.as_set().as_ref()) {
+            if sym_mask.intersects(tr.as_set().as_ref()) {
                 return false;
             }
             sym_mask.include(tr.as_set().as_ref());

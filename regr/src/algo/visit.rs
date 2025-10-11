@@ -10,8 +10,8 @@ pub enum VisitResult {
 
 use VisitResult::*;
 
-/// Recursively visit all nodes in the graph starting from the `start_node`,
-/// applying the given `action` to each node.
+/// Recursively visit all nodes in breadth-first order in the graph starting
+/// from the `start_node`, applying the given `action` to each node.
 ///
 /// The `action` should return `true` if the node's children should be visited,
 /// and `false` otherwise. So, `action` is called for `start_node` at least.
@@ -39,8 +39,9 @@ where
     }
 }
 
-/// Recursively visit all transitions in the graph starting from the
-/// `start_node`, applying the given `action` to each transition.
+/// Recursively visit all transitions in breadth-first order in the graph
+/// starting from the `start_node`, applying the given `action` to each
+/// transition.
 ///
 /// The `action` should return `true` if you want to visit transitions of the
 /// current target node. Otherwise, the transitions will be skipped.

@@ -3,7 +3,6 @@ use crate::transition::TransitionInner;
 use bumpalo::Bump;
 use smallvec::SmallVec;
 use std::cell::Cell;
-use std::fmt::Write;
 
 #[derive(Debug)]
 pub struct Arena {
@@ -115,38 +114,6 @@ impl std::default::Default for Arena {
     #[inline]
     fn default() -> Self {
         Self::new()
-    }
-}
-
-impl std::fmt::Display for Arena {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut first = true;
-        for node in self.nodes() {
-            if first {
-                first = false;
-            } else {
-                f.write_char('\n')?;
-            }
-            let mut is_empty = true;
-            std::fmt::Display::fmt(&node, f)?;
-            f.write_str(" {")?;
-            for (target, transition) in node.targets().iter() {
-                f.write_str("\n    ")?;
-                std::fmt::Display::fmt(transition, f)?;
-                f.write_str(" -> ")?;
-                if node == *target {
-                    f.write_str("self")?;
-                } else {
-                    std::fmt::Display::fmt(&target, f)?;
-                }
-                is_empty = false;
-            }
-            if !is_empty {
-                f.write_char('\n')?;
-            }
-            f.write_char('}')?;
-        }
-        Ok(())
     }
 }
 

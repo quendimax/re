@@ -218,7 +218,7 @@ macro_rules! impl_fmt {
                         f.write_str(" {")?;
                         let refer = node.targets();
                         let mut targets: Vec<_> = refer.iter().collect();
-                        targets.sort_by_key(|(target, _)| target.uid()); // make order consistent
+                        targets.sort_by_key(|(target, _)| target.nid()); // make order consistent
                         for (target, transition) in targets.iter() {
                             f.write_str("\n    ")?;
                             ::std::fmt::$trait::fmt(transition, f)?;

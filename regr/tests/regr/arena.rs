@@ -1,5 +1,4 @@
 use pretty_assertions::{assert_eq, assert_ne};
-use redt::lit;
 use regr::{Arena, Graph};
 
 #[test]
@@ -51,26 +50,5 @@ fn arena_alloc_during_iteration() {
     assert_eq!(
         items,
         arena.nodes().map(|node| node.nid()).collect::<Vec<_>>()
-    );
-}
-
-#[test]
-fn arena_fmt_display() {
-    let mut arena = Arena::new();
-    let gr = Graph::new_in(&mut arena);
-    let a = gr.node();
-    a.connect(a);
-    let b = gr.node();
-    a.connect(b).merge(b'a');
-
-    assert_eq!(
-        format!("{}", gr.arena()),
-        lit!(
-            ///node(0) {
-            ///    [Epsilon] -> self
-            ///    ['a'] -> node(1)
-            ///}
-            ///node(1) {}
-        )
     );
 }

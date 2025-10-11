@@ -27,38 +27,38 @@ impl<'a> Node<'a> {
 
     /// Returns the node's identifier that is unique within its owner.
     #[inline]
-    pub fn nid(self) -> u32 {
+    pub fn nid(&self) -> u32 {
         (self.0.uid & Self::ID_MASK) as u32
     }
 
     /// Returns the node's graph owner identifier.
     #[inline]
-    pub fn gid(self) -> u32 {
+    pub fn gid(&self) -> u32 {
         (self.0.uid >> Self::ID_BITS) as u32
     }
 
     /// Returns the node's identifier unique within the running process.
     #[inline]
-    pub fn uid(self) -> u64 {
+    pub fn uid(&self) -> u64 {
         self.0.uid
     }
 
     /// Checks if the node is a final N/DFA state.
     #[inline]
-    pub fn is_final(self) -> bool {
+    pub fn is_final(&self) -> bool {
         self.0.is_final.get()
     }
 
     /// Make the node final.
-    pub fn finalize(self) -> Self {
+    pub fn finalize(&self) -> Self {
         self.0.is_final.set(true);
-        self
+        *self
     }
 
     /// Make the node non-final.
-    pub fn definalize(self) -> Self {
+    pub fn definalize(&self) -> Self {
         self.0.is_final.set(false);
-        self
+        *self
     }
 
     /// Arena owner of this node.
@@ -68,7 +68,7 @@ impl<'a> Node<'a> {
     }
 
     /// Connects this node to another node with an Epsilon transition.
-    pub fn connect(self, to: Node<'a>) -> Transition<'a> {
+    pub fn connect(&self, to: Node<'a>) -> Transition<'a> {
         assert_eq!(
             self.gid(),
             to.gid(),
@@ -78,18 +78,18 @@ impl<'a> Node<'a> {
         if let Some(tr) = targets.get(&to) {
             *tr
         } else {
-            let tr = Transition::new(self, to);
+            let tr = Transition::new(*self, to);
             targets.insert(to, tr);
             tr
         }
     }
 
     #[allow(clippy::mutable_key_type)]
-    pub fn closure<T>(self, symbol: T) -> BTreeSet<Node<'a>>
+    pub fn closure<T>(&self, symbol: T) -> BTreeSet<Node<'a>>
     where
         Self: ClosureOp<'a, T>,
     {
-        ClosureOp::closure(&self, symbol)
+        ClosureOp::closure(self, symbol)
     }
 
     /// Returns an iterator over target nodes, i.e. nodes that this node is
@@ -97,7 +97,7 @@ impl<'a> Node<'a> {
     ///
     /// This iterator walks over pairs (`Node`, `TransitionRef`).
     #[inline]
-    pub fn targets(self) -> impl Deref<Target = Map<Node<'a>, Transition<'a>>> {
+    pub fn targets(&self) -> impl Deref<Target = Map<Node<'a>, Transition<'a>>> {
         self.0.targets.borrow()
     }
 
@@ -106,7 +106,7 @@ impl<'a> Node<'a> {
     ///
     /// This iterator walks over pairs (`Node`, `TransitionRef`).
     #[inline]
-    pub fn for_each_target(self, f: impl FnMut(Node<'a>, Transition<'a>)) {
+    pub fn for_each_target(&self, f: impl FnMut(Node<'a>, Transition<'a>)) {
         let mut f = f;
         for (target, tr) in self.0.targets.borrow().iter() {
             f(*target, *tr);
@@ -115,7 +115,7 @@ impl<'a> Node<'a> {
 
     /// Iterates over epsilon target nodes, i.e. nodes that this node is
     /// connected to with Epsilon transition.
-    pub fn for_each_epsilon_target(self, f: impl FnMut(Node<'a>)) {
+    pub fn for_each_epsilon_target(&self, f: impl FnMut(Node<'a>)) {
         let mut f = f;
         for (target, transition) in self.0.targets.borrow().iter() {
             if transition.contains(Epsilon) {
@@ -126,7 +126,7 @@ impl<'a> Node<'a> {
 
     /// Collects epsilon target nodes, i.e. nodes that this node is
     /// connected to with Epsilon transition.
-    pub fn collect_epsilon_targets<B: FromIterator<Node<'a>>>(self) -> B {
+    pub fn collect_epsilon_targets<B: FromIterator<Node<'a>>>(&self) -> B {
         let targets = self.0.targets.borrow();
         let iter = targets.iter().filter_map(|(target, tr)| {
             if tr.contains(Epsilon) {

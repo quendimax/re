@@ -23,7 +23,7 @@ fn verify_dfa() {
 }
 
 #[test]
-fn for_each_node() {
+fn visit_nodes() {
     let mut arena = Arena::new();
     let gr = Graph::new_in(&mut arena);
     let a = gr.node();
@@ -56,7 +56,7 @@ fn for_each_node() {
 }
 
 #[test]
-fn for_each_node_in_tree() {
+fn visit_nodes_in_tree() {
     let mut arena = Arena::new();
     let gr = Graph::new_in(&mut arena);
     let a = gr.node();

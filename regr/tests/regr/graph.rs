@@ -353,8 +353,10 @@ fn graph_tags() {
         Some((tag_bank.absolute(), tag_bank.absolute()))
     );
     assert_eq!(graph.tag_group(2), None);
+    let mut tag_groups = graph.tag_groups().collect::<Vec<_>>();
+    tag_groups.sort_by_key(|(id, _)| *id);
     assert_eq!(
-        graph.tag_groups().collect::<Vec<_>>(),
+        tag_groups,
         [
             (
                 0,
