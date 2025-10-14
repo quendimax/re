@@ -8,3 +8,27 @@ macro_rules! lit {
         concat!($first_line, $("\n", $lines),*)
     };
 }
+
+/// The macro creates a set from a series of elements separated by commas.
+#[macro_export]
+macro_rules! set {
+    ($($elem:expr),* $(,)?) => {
+        {
+            let mut set = ::redt::Set::new();
+            $(set.insert($elem);)*
+            set
+        }
+    };
+}
+
+/// The macro creates a map from a series of key-value pairs separated by commas.
+#[macro_export]
+macro_rules! map {
+    ($($key:expr => $value:expr),* $(,)?) => {
+        {
+            let mut map = ::redt::Map::new();
+            $(map.insert($key, $value);)*
+            map
+        }
+    };
+}
