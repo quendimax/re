@@ -3,9 +3,8 @@ use crate::graph::Graph;
 use crate::isa::Inst;
 use crate::node::Node;
 use redt::Map;
+use std::collections::BTreeSet;
 use std::rc::Rc;
-
-type Set<T> = std::collections::BTreeSet<T>;
 
 #[allow(clippy::mutable_key_type)]
 pub fn determinize(nfa: &Graph<'_>, dfa: &Graph<'_>) {
@@ -16,8 +15,8 @@ pub fn determinize(nfa: &Graph<'_>, dfa: &Graph<'_>) {
 struct Determinizer<'na, 'ng, 'da, 'dg> {
     nfa: &'ng Graph<'na>,
     dfa: &'dg Graph<'da>,
-    inst_map: Map<Node<'na>, Set<Inst>>,
-    convert_map: Map<Rc<Set<Node<'na>>>, Node<'da>>,
+    inst_map: Map<Node<'na>, BTreeSet<Inst>>,
+    convert_map: Map<Rc<BTreeSet<Node<'na>>>, Node<'da>>,
 }
 
 #[allow(clippy::mutable_key_type)]
@@ -34,7 +33,7 @@ impl<'na, 'ng, 'da, 'dg> Determinizer<'na, 'ng, 'da, 'dg> {
     fn determinize(&mut self) {
         let start_node = self.nfa.start_node();
         let start_dfa_node = self.dfa.node();
-        let e_closure = Rc::new(self.e_closure_(start_node));
+        let e_closure = Rc::new(self.e_closure(start_node));
         let mut unvisited = Vec::with_capacity(512);
         unvisited.push((Rc::clone(&e_closure), start_dfa_node));
         self.convert_map.insert(e_closure, start_dfa_node);
@@ -59,14 +58,14 @@ impl<'na, 'ng, 'da, 'dg> Determinizer<'na, 'ng, 'da, 'dg> {
         }
     }
 
-    fn e_closure_(&mut self, start_node: Node<'na>) -> Set<Node<'na>> {
-        let mut e_closure = Set::new();
+    fn e_closure(&mut self, start_node: Node<'na>) -> BTreeSet<Node<'na>> {
+        let mut e_closure = BTreeSet::new();
         e_closure.insert(start_node);
         algo::visit_transitions(start_node, |source, tr, target| {
             if tr.is_epsilon() {
                 e_closure.insert(target);
 
-                let mut new_set = Set::new();
+                let mut new_set = BTreeSet::new();
                 for inst in tr.instructs() {
                     new_set.insert(inst);
                 }
@@ -85,13 +84,17 @@ impl<'na, 'ng, 'da, 'dg> Determinizer<'na, 'ng, 'da, 'dg> {
         e_closure
     }
 
-    fn closure(&mut self, start_nodes: &Set<Node<'na>>, symbol: u8) -> (Set<Node<'na>>, Set<Inst>) {
-        let mut closure = Set::new();
-        let mut inst_set = Set::new();
+    fn closure(
+        &mut self,
+        start_nodes: &BTreeSet<Node<'na>>,
+        symbol: u8,
+    ) -> (BTreeSet<Node<'na>>, BTreeSet<Inst>) {
+        let mut closure = BTreeSet::new();
+        let mut inst_set = BTreeSet::new();
         for node in start_nodes.iter().copied() {
             algo::visit_transitions(node, |source, tr, target| {
                 if tr.contains(symbol) {
-                    let e_closure = self.e_closure_(target);
+                    let e_closure = self.e_closure(target);
                     closure.extend(e_closure);
 
                     if let Some(insts) = self.inst_map.get(&source) {
@@ -105,3 +108,7 @@ impl<'na, 'ng, 'da, 'dg> Determinizer<'na, 'ng, 'da, 'dg> {
         (closure, inst_set)
     }
 }
+
+#[cfg(test)]
+#[path = "utest/determ.rs"]
+mod utest;
