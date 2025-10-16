@@ -74,7 +74,9 @@ impl<'na, 'ng, 'da, 'dg> Determinizer<'na, 'ng, 'da, 'dg> {
                         new_set.insert(inst);
                     }
                 }
-                self.inst_map.entry(target).or_default().extend(new_set);
+                if !new_set.is_empty() {
+                    self.inst_map.entry(target).or_default().extend(new_set);
+                }
 
                 Recurse
             } else {

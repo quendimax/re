@@ -50,13 +50,28 @@ macro_rules! set {
     };
 }
 
-/// The macro creates a map from a series of key-value pairs separated by commas.
+/// The macro creates a map from a series of key-value pairs separated by
+/// commas.
 #[macro_export]
 macro_rules! map {
     ($($key:expr => $value:expr),* $(,)?) => {
         {
             #[allow(clippy::mutable_key_type)]
             let mut map = ::redt::Map::new();
+            $(map.insert($key, $value);)*
+            map
+        }
+    };
+}
+
+/// The macro creates a tree-based map from a series of key-value pairs
+/// separated by commas.
+#[macro_export]
+macro_rules! tmap {
+    ($($key:expr => $value:expr),* $(,)?) => {
+        {
+            #[allow(clippy::mutable_key_type)]
+            let mut map = ::std::collections::BTreeMap::new();
             $(map.insert($key, $value);)*
             map
         }
