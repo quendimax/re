@@ -364,5 +364,5 @@ impl Summary {
 }
 
 #[cfg(test)]
-#[path = "translator.utest.rs"]
+#[path = "utest/translator.rs"]
 mod utest;
