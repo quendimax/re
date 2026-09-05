@@ -63,7 +63,7 @@ impl<'d, 'n> Determinator<'d, 'n> {
         }
 
         for group in self.nfa.groups() {
-            _ = self.dfa.group(group.label().clone());
+            self.dfa.group(group.label().clone());
         }
 
         let start_closure = self.e_close(Rc::new([self.nfa.start_node()].into()));
@@ -130,7 +130,8 @@ impl<'d, 'n> Determinator<'d, 'n> {
                     self.stack.push((target, edge, node));
                 } else {
                     for symbol in edge.symbols() {
-                        let (_, closure) = sym_table.entry(symbol).or_default();
+                        let (sym_tags, closure) = sym_table.entry(symbol).or_default();
+                        sym_tags.lazy_extend(edge.tags());
                         closure.insert(target);
                     }
                 }
@@ -163,6 +164,7 @@ impl<'d, 'n> Determinator<'d, 'n> {
                             if let Some(tags) = tag_table.get(&node) {
                                 sym_tags.lazy_extend(tags.iter().copied());
                             }
+                            sym_tags.lazy_extend(edge.tags());
                             sym_closure.insert(target);
                         }
                     }
@@ -172,7 +174,7 @@ impl<'d, 'n> Determinator<'d, 'n> {
 
         let final_tags = Set::default();
         for (node, tags) in &tag_table {
-            if node.is_final() {
+            if node.is_final() || node.is_epilogue() {
                 final_tags.lazy_extend(tags.iter().copied());
             }
         }
