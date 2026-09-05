@@ -12,7 +12,6 @@ pub enum NodeKind {
     Normal,
     Final,
     Epilogue,
-    Detagged,
 }
 
 /// Node for an NFA graph.
@@ -180,15 +179,6 @@ impl<'a> Node<'a> {
                     write!(f, "{}", self.nid().bold().bright_yellow())
                 } else {
                     write!(f, "eg_")?;
-                    write!(f, "{}", self.nid())
-                }
-            }
-            NodeKind::Detagged => {
-                if colored {
-                    write!(f, "{}", "dt_".yellow())?;
-                    write!(f, "{}", self.nid().yellow())
-                } else {
-                    write!(f, "dt_")?;
                     write!(f, "{}", self.nid())
                 }
             }

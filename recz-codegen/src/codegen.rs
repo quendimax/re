@@ -359,9 +359,6 @@ impl<'d> MatchGenerator<'d> {
                     }
                 }
             }
-            _ => {
-                todo!()
-            }
         };
         self.state_arms.push(state_arm);
     }

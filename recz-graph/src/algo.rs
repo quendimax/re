@@ -1,4 +1,4 @@
-use crate::{Edge, Graph, Node, NodeKind, Tag};
+use crate::{Edge, Graph, Node, Tag};
 use recz_adt::{Map, OrdSet, Set, SetU8};
 use std::collections::BTreeSet;
 use std::rc::Rc;
@@ -136,7 +136,6 @@ impl<'d, 'n> Determinator<'d, 'n> {
                 }
             }
 
-            let skip_tags = node.kind() == NodeKind::Detagged;
             self.visited.clear();
             while let Some((node, edge, source)) = self.stack.pop() {
                 e_closure.insert(node);
@@ -144,15 +143,13 @@ impl<'d, 'n> Determinator<'d, 'n> {
                 is_final |= node.is_final();
 
                 let mut tags_added = false;
-                if !skip_tags {
-                    if edge.tag_count() > 0 {
-                        let tags = tag_table.entry(node).or_default();
-                        tags_added |= tags.lazy_extend(edge.tags());
-                    }
-                    if let Some(source_tags) = tag_table.get(&source) {
-                        let tags = tag_table.entry(node).or_default();
-                        tags_added |= tags.lazy_extend(source_tags.iter().copied());
-                    }
+                if edge.tag_count() > 0 {
+                    let tags = tag_table.entry(node).or_default();
+                    tags_added |= tags.lazy_extend(edge.tags());
+                }
+                if let Some(source_tags) = tag_table.get(&source) {
+                    let tags = tag_table.entry(node).or_default();
+                    tags_added |= tags.lazy_extend(source_tags.iter().copied());
                 }
 
                 for (edge, target) in node.targets() {
@@ -163,9 +160,7 @@ impl<'d, 'n> Determinator<'d, 'n> {
                     } else {
                         for symbol in edge.symbols() {
                             let (sym_tags, sym_closure) = sym_table.entry(symbol).or_default();
-                            if let Some(tags) = tag_table.get(&node)
-                                && !skip_tags
-                            {
+                            if let Some(tags) = tag_table.get(&node) {
                                 sym_tags.lazy_extend(tags.iter().copied());
                             }
                             sym_closure.insert(target);
