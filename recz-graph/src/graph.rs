@@ -225,7 +225,7 @@ impl Graph {
     /// assert!(!graph.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
-        self.0.bump_nodes.is_empty() && self.0.bump_edges.is_empty()
+        self.0.bump_nodes.is_empty() && self.0.bump_edges.is_empty() && self.0.cap_groups.is_empty()
     }
 
     /// Returns an iterator over the nodes in the graph.
