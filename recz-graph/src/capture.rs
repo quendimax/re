@@ -1,4 +1,4 @@
-use crate::tag::{Tag, TagKind::*};
+use crate::tag::{Tag, Tag::*};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CaptureLabel {
@@ -73,15 +73,15 @@ impl CaptureGroup {
     }
 
     pub fn open_tag(&self) -> Tag {
-        Tag::new(OpenGroup(self.tag_index))
+        OpenGroup(self.tag_index)
     }
 
     pub fn close_tag(&self) -> Tag {
-        Tag::new(CloseGroup(self.tag_index))
+        CloseGroup(self.tag_index)
     }
 
     pub fn delete_tag(&self) -> Tag {
-        Tag::new(DeleteGroup(self.tag_index))
+        DeleteGroup(self.tag_index)
     }
 }
 

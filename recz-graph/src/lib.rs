@@ -13,4 +13,4 @@ mod node;
 pub use node::{Node, NodeKind};
 
 mod tag;
-pub use tag::{Tag, TagKind};
+pub use tag::Tag;

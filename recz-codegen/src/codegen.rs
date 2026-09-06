@@ -2,7 +2,7 @@ use crate::Config;
 use proc_macro2::{Literal, TokenStream};
 use quote::{format_ident, quote};
 use recz_adt::Set;
-use recz_graph::{CaptureLabel, Edge, Graph, Node, NodeKind, TagKind};
+use recz_graph::{CaptureLabel, Edge, Graph, Node, NodeKind, Tag};
 
 pub struct CodeGen {
     config: Config,
@@ -402,10 +402,10 @@ fn make_match_arm_expr<'d>(source: Node<'d>, edge: Edge<'d>, target: Node<'d>) -
         quote! {}
     };
 
-    let tag_exprs = edge.tags().map(|tag| match tag.kind() {
-        TagKind::OpenGroup(index) => quote! { ranges[#index as usize].start = pos; },
-        TagKind::CloseGroup(index) => quote! { ranges[#index as usize].end = pos; },
-        TagKind::DeleteGroup(index) => quote! { ranges[#index as usize].end = usize::MAX; },
+    let tag_exprs = edge.tags().map(|tag| match tag {
+        Tag::OpenGroup(index) => quote! { ranges[#index as usize].start = pos; },
+        Tag::CloseGroup(index) => quote! { ranges[#index as usize].end = pos; },
+        Tag::DeleteGroup(index) => quote! { ranges[#index as usize].end = usize::MAX; },
     });
 
     let target_state_ident = format_ident!("{target}");

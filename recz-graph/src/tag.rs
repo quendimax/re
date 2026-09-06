@@ -6,12 +6,7 @@ use recz_adt::Legible;
 /// In practice, the tags are converted into actions during NFA/DFA execution,
 /// co you cann look at them as instruction of a NFA/DFA virtual machine.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Tag {
-    kind: TagKind,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum TagKind {
+pub enum Tag {
     /// A tag used to mark the start of a capture group.
     OpenGroup(u32),
 
@@ -22,16 +17,20 @@ pub enum TagKind {
     DeleteGroup(u32),
 }
 
-use TagKind::*;
+use Tag::*;
 
 impl Tag {
-    pub(crate) fn new(kind: TagKind) -> Self {
-        Self { kind }
+    pub fn delete_group(&self) -> Option<Self> {
+        match self {
+            OpenGroup(index) => Some(DeleteGroup(*index)),
+            CloseGroup(index) => Some(DeleteGroup(*index)),
+            DeleteGroup(_) => None,
+        }
     }
 
     pub(crate) fn fmt(&self, f: &mut std::fmt::Formatter<'_>, colored: bool) -> std::fmt::Result {
         if colored {
-            match self.kind {
+            match self {
                 OpenGroup(group_idx) => {
                     write!(f, "{}{}", "+g".bright_blue(), group_idx.bright_blue())
                 }
@@ -43,27 +42,11 @@ impl Tag {
                 }
             }
         } else {
-            match self.kind {
+            match self {
                 OpenGroup(group_idx) => write!(f, "+g{group_idx}"),
                 CloseGroup(group_idx) => write!(f, "-g{group_idx}"),
                 DeleteGroup(group_idx) => write!(f, "!g{group_idx}"),
             }
-        }
-    }
-}
-
-impl Tag {
-    pub fn kind(&self) -> TagKind {
-        self.kind
-    }
-
-    /// Returns a `DeleteGroup` tag if the current tag is an `OpenGroup` or
-    /// `CloseGroup`.
-    pub fn delete_group(&self) -> Option<Tag> {
-        match self.kind {
-            OpenGroup(idx) => Some(Tag::new(DeleteGroup(idx))),
-            CloseGroup(idx) => Some(Tag::new(DeleteGroup(idx))),
-            _ => None,
         }
     }
 }
